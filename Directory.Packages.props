@@ -1,0 +1,49 @@
+<Project>
+  <PropertyGroup>
+    <DotNetCorePackagesVersion>10.0.5</DotNetCorePackagesVersion>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <AspVersioningMvcVersion>10.0.0-preview.2</AspVersioningMvcVersion>
+    <AspNetCoreHealthChecksNpgSqlVersion>9.0.0</AspNetCoreHealthChecksNpgSqlVersion>
+    <SerilogAspNetCoreVersion>10.0.0</SerilogAspNetCoreVersion>
+    <SerilogEnrichersEnvironmentVersion>3.0.1</SerilogEnrichersEnvironmentVersion>
+    <SerilogEnrichersThreadVersion>4.0.0</SerilogEnrichersThreadVersion>
+    <FluentValidationVersion>12.1.1</FluentValidationVersion>
+    <MediatRVersion>14.1.0</MediatRVersion>
+    <NewtonsoftJsonVersion>13.0.4</NewtonsoftJsonVersion>
+    <QuartzExtensionsHostingVersion>3.17.0</QuartzExtensionsHostingVersion>
+    <MicrosoftEntityFrameworkCoreVersion>10.0.5</MicrosoftEntityFrameworkCoreVersion>
+    <NpgsqlEntityFrameworkCorePostgreSQLVersion>10.0.1</NpgsqlEntityFrameworkCorePostgreSQLVersion>
+    <CoverletCollectorVersion>8.0.1</CoverletCollectorVersion>
+    <FluentAssertionsVersion>8.9.0</FluentAssertionsVersion>
+    <MicrosoftNETTestSdkVersion>18.3.0</MicrosoftNETTestSdkVersion>
+    <MoqVersion>4.20.72</MoqVersion>
+    <XUnitVersion>2.9.3</XUnitVersion>
+    <XUnitRunnerVisualStudioVersion>3.1.5</XUnitRunnerVisualStudioVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Asp.Versioning.Mvc" Version="$(AspVersioningMvcVersion)"/>
+    <PackageVersion Include="Asp.Versioning.Mvc.ApiExplorer" Version="$(AspVersioningMvcVersion)"/>
+    <PackageVersion Include="AspNetCore.HealthChecks.NpgSql" Version="$(AspNetCoreHealthChecksNpgSqlVersion)"/>
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="$(DotNetCorePackagesVersion)"/>
+    <PackageVersion Include="Serilog.AspNetCore" Version="$(SerilogAspNetCoreVersion)"/>
+    <PackageVersion Include="Serilog.Enrichers.Environment" Version="$(SerilogEnrichersEnvironmentVersion)"/>
+    <PackageVersion Include="Serilog.Enrichers.Thread" Version="$(SerilogEnrichersThreadVersion)"/>
+    <PackageVersion Include="FluentValidation" Version="$(FluentValidationVersion)"/>
+    <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="$(FluentValidationVersion)"/>
+    <PackageVersion Include="MediatR" Version="$(MediatRVersion)"/>
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="$(DotNetCorePackagesVersion)"/>
+    <PackageVersion Include="Newtonsoft.Json" Version="$(NewtonsoftJsonVersion)"/>
+    <PackageVersion Include="Quartz.Extensions.Hosting" Version="$(QuartzExtensionsHostingVersion)"/>
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="$(MicrosoftEntityFrameworkCoreVersion)"/>
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="$(MicrosoftEntityFrameworkCoreVersion)"/>
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Tools" Version="$(MicrosoftEntityFrameworkCoreVersion)"/>
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="$(NpgsqlEntityFrameworkCorePostgreSQLVersion)"/>
+    <PackageVersion Include="coverlet.collector" Version="$(CoverletCollectorVersion)"/>
+    <PackageVersion Include="FluentAssertions" Version="$(FluentAssertionsVersion)"/>
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="$(DotNetCorePackagesVersion)"/>
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="$(MicrosoftNETTestSdkVersion)"/>
+    <PackageVersion Include="Moq" Version="$(MoqVersion)"/>
+    <PackageVersion Include="xunit" Version="$(XUnitVersion)"/>
+    <PackageVersion Include="xunit.runner.visualstudio" Version="$(XUnitRunnerVisualStudioVersion)"/>
+  </ItemGroup>
+</Project>
