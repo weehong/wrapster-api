@@ -45,5 +45,6 @@
     <PackageVersion Include="Moq" Version="$(MoqVersion)"/>
     <PackageVersion Include="xunit" Version="$(XUnitVersion)"/>
     <PackageVersion Include="xunit.runner.visualstudio" Version="$(XUnitRunnerVisualStudioVersion)"/>
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="$(DotNetCorePackagesVersion)"/>
   </ItemGroup>
 </Project>
