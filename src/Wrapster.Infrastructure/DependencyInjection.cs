@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Wrapster.Application.Abstractions;
 using Wrapster.Domain.Abstractions;
 using Wrapster.Infrastructure.Authentication;
 using Wrapster.Infrastructure.Persistence;
@@ -17,13 +18,19 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddSingleton<AuditableEntityInterceptor>();
+        services.AddHttpContextAccessor();
+        services.AddScoped<ITenantContext, HttpTenantContext>();
+
+        services.AddScoped<AuditableEntityInterceptor>();
+        services.AddScoped<AuditLogInterceptor>();
         services.AddSingleton<DomainEventInterceptor>();
 
         services.AddDbContext<ApplicationDbContext>((sp, options) =>
         {
             AuditableEntityInterceptor auditableInterceptor = sp
                 .GetRequiredService<AuditableEntityInterceptor>();
+            AuditLogInterceptor auditLogInterceptor = sp
+                .GetRequiredService<AuditLogInterceptor>();
             DomainEventInterceptor domainEventInterceptor = sp
                 .GetRequiredService<DomainEventInterceptor>();
             string connectionString = configuration.GetConnectionString("DefaultConnection")
@@ -31,7 +38,7 @@ public static class DependencyInjection
                                           "Connection string 'DefaultConnection' is not configured.");
 
             options.UseNpgsql(connectionString)
-                .AddInterceptors(auditableInterceptor, domainEventInterceptor);
+                .AddInterceptors(auditableInterceptor, auditLogInterceptor, domainEventInterceptor);
         });
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
