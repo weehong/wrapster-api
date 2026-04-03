@@ -18,11 +18,20 @@
 
   <ItemGroup>
     <Using Include="Xunit"/>
+    <Using Include="FluentAssertions"/>
+    <Using Include="Microsoft.AspNetCore.Http"/>
+    <Using Include="Microsoft.Extensions.Options"/>
+    <Using Include="Wrapster.Infrastructure.Authentication"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App"/>
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Wrapster.Application\Wrapster.Application.csproj"/>
     <ProjectReference Include="..\..\src\Wrapster.Domain\Wrapster.Domain.csproj"/>
+    <ProjectReference Include="..\..\src\Wrapster.Infrastructure\Wrapster.Infrastructure.csproj"/>
   </ItemGroup>
 
 </Project>
