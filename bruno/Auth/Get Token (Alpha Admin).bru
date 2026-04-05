@@ -1,0 +1,24 @@
+meta {
+  name: Get Token (Alpha Admin)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{KEYCLOAK_URL}}/realms/partner-alpha/protocol/openid-connect/token
+  body: formUrlEncoded
+  auth: none
+}
+
+body:form-urlencoded {
+  grant_type: password
+  client_id: {{CLIENT_ID}}
+  client_secret: {{CLIENT_SECRET}}
+  username: alphaadmin
+  password: alphaadmin
+}
+
+script:post-response {
+  const body = res.getBody();
+  bru.setVar("ACCESS_TOKEN", body.access_token);
+}
