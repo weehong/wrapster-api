@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <Exclude>
+            [Wrapster.Api]*,
+            [*]Program,
+            [*]*DependencyInjection,
+            [Wrapster.Infrastructure]Wrapster.Infrastructure.Persistence.*,
+            [*]System.Runtime.CompilerServices.*,
+            [*]Microsoft.AspNetCore.OpenApi.Generated.*
+          </Exclude>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

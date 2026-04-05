@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: wrapster
+      POSTGRES_PASSWORD: wrapster
+      POSTGRES_DB: wrapster
+    ports:
+      - "15432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wrapster"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.2
+    command: start-dev --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/wrapster
+      KC_DB_USERNAME: wrapster
+      KC_DB_PASSWORD: wrapster
+      KC_HEALTH_ENABLED: "true"
+      KC_HTTP_PORT: "8080"
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "18080:8080"
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
