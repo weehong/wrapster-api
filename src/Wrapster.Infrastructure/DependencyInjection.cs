@@ -7,6 +7,7 @@ using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Wrapster.Application.Abstractions;
 using Wrapster.Domain.Abstractions;
 using Wrapster.Infrastructure.Authentication;
+using Wrapster.Infrastructure.Email;
 using Wrapster.Infrastructure.Persistence;
 using Wrapster.Infrastructure.Persistence.Interceptors;
 
@@ -44,6 +45,7 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
 
         services.AddKeycloakAuthentication(configuration);
+        services.AddEmailService(configuration);
 
         return services;
     }

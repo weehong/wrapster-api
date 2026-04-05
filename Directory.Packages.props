@@ -10,7 +10,9 @@
     <FluentValidationVersion>12.1.1</FluentValidationVersion>
     <MediatRVersion>14.1.0</MediatRVersion>
     <NewtonsoftJsonVersion>13.0.4</NewtonsoftJsonVersion>
+    <InfisicalSdkVersion>3.0.4</InfisicalSdkVersion>
     <QuartzExtensionsHostingVersion>3.17.0</QuartzExtensionsHostingVersion>
+    <ResendVersion>0.2.2</ResendVersion>
     <MicrosoftEntityFrameworkCoreVersion>10.0.5</MicrosoftEntityFrameworkCoreVersion>
     <NpgsqlEntityFrameworkCorePostgreSQLVersion>10.0.1</NpgsqlEntityFrameworkCorePostgreSQLVersion>
     <CoverletCollectorVersion>8.0.1</CoverletCollectorVersion>
@@ -33,7 +35,9 @@
     <PackageVersion Include="MediatR" Version="$(MediatRVersion)"/>
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="$(DotNetCorePackagesVersion)"/>
     <PackageVersion Include="Newtonsoft.Json" Version="$(NewtonsoftJsonVersion)"/>
+    <PackageVersion Include="Infisical.Sdk" Version="$(InfisicalSdkVersion)"/>
     <PackageVersion Include="Quartz.Extensions.Hosting" Version="$(QuartzExtensionsHostingVersion)"/>
+    <PackageVersion Include="Resend" Version="$(ResendVersion)"/>
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="$(MicrosoftEntityFrameworkCoreVersion)"/>
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="$(MicrosoftEntityFrameworkCoreVersion)"/>
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Tools" Version="$(MicrosoftEntityFrameworkCoreVersion)"/>

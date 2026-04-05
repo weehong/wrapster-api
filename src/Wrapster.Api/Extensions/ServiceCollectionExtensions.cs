@@ -2,9 +2,12 @@ using System.Text.Json.Serialization;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
+using Serilog.Extensions.Logging;
 using Wrapster.Api.Filters;
 using Wrapster.Application;
 using Wrapster.Infrastructure;
+using Wrapster.Infrastructure.Configuration;
+using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace Wrapster.Api.Extensions;
 
@@ -14,6 +17,15 @@ public static class ServiceCollectionExtensions
     {
         builder.Host.UseSerilog((context, LoggerConfiguration) =>
             LoggerConfiguration.ReadFrom.Configuration(context.Configuration));
+
+        using SerilogLoggerFactory loggerFactory = new(Log.Logger);
+        ILogger startupLogger =
+            loggerFactory.CreateLogger(nameof(InfisicalSecretProvider));
+
+        builder.Services.AddInfisicalSecrets(
+            builder.Configuration,
+            startupLogger,
+            builder.Environment.EnvironmentName);
 
         builder.Services.AddControllers()
             .AddJsonOptions(options =>
