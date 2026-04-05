@@ -1,5 +1,8 @@
+using System.Text.Json.Serialization;
 using Asp.Versioning;
+using Microsoft.AspNetCore.Mvc;
 using Serilog;
+using Wrapster.Api.Filters;
 using Wrapster.Application;
 using Wrapster.Infrastructure;
 
@@ -12,7 +15,51 @@ public static class ServiceCollectionExtensions
         builder.Host.UseSerilog((context, LoggerConfiguration) =>
             LoggerConfiguration.ReadFrom.Configuration(context.Configuration));
 
-        builder.Services.AddControllers();
+        builder.Services.AddControllers()
+            .AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.Converters.Add(
+                    new JsonStringEnumConverter());
+            })
+            .ConfigureApiBehaviorOptions(options =>
+            {
+                options.InvalidModelStateResponseFactory = context =>
+                {
+                    Dictionary<string, string[]> errors = context.ModelState
+                        .Where(e => e.Value?.Errors.Count > 0)
+                        .ToDictionary(
+                            e => e.Key,
+                            e => e.Value!.Errors.Select(err => err.ErrorMessage).ToArray());
+
+                    // Remove the misleading top-level parameter name error (e.g. "command")
+                    // when the real issue is a JSON deserialization failure on a specific field
+                    if (errors.Count > 1)
+                    {
+                        bool hasJsonError = errors.Values
+                            .SelectMany(v => v)
+                            .Any(msg => msg.Contains("could not be converted"));
+
+                        if (hasJsonError)
+                        {
+                            errors = errors
+                                .Where(e => !e.Value.Any(msg => msg.Contains("field is required")))
+                                .ToDictionary(e => e.Key, e => e.Value);
+                        }
+                    }
+
+                    ProblemDetails problemDetails = new()
+                    {
+                        Status = StatusCodes.Status400BadRequest,
+                        Title = "Validation Error",
+                        Detail = "One or more fields in the request body are invalid."
+                    };
+                    problemDetails.Extensions["errors"] = errors;
+                    problemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+
+                    return new BadRequestObjectResult(problemDetails);
+                };
+            });
+        builder.Services.AddScoped<TenantResolutionFilter>();
         builder.Services.AddOpenApi();
         builder.Services.AddProblemDetails();
 
