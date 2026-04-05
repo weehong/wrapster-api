@@ -1,7 +1,7 @@
 {
-  "id": "owner",
-  "realm": "owner",
-  "displayName": "Wrapster Owner Realm",
+  "id": "partner-alpha",
+  "realm": "partner-alpha",
+  "displayName": "Partner Alpha Realm",
   "enabled": true,
   "sslRequired": "none",
   "registrationAllowed": false,
@@ -70,35 +70,16 @@
   ],
   "users": [
     {
-      "username": "testuser",
-      "email": "testuser@wrapster.local",
+      "username": "alphaadmin",
+      "email": "admin@partner-alpha.local",
       "emailVerified": true,
       "enabled": true,
-      "firstName": "Test",
-      "lastName": "User",
-      "credentials": [
-        {
-          "type": "password",
-          "value": "testpassword",
-          "temporary": false
-        }
-      ],
-      "realmRoles": [
-        "admin",
-        "user"
-      ]
-    },
-    {
-      "username": "owneradmin",
-      "email": "owneradmin@wrapster.local",
-      "emailVerified": true,
-      "enabled": true,
-      "firstName": "Owner",
+      "firstName": "Alpha",
       "lastName": "Admin",
       "credentials": [
         {
           "type": "password",
-          "value": "owneradmin",
+          "value": "alphaadmin",
           "temporary": false
         }
       ],

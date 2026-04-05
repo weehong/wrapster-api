@@ -31,6 +31,8 @@ services:
       - "18080:8080"
     volumes:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+      - ./keycloak/partner-alpha-realm.json:/opt/keycloak/data/import/partner-alpha-realm.json:ro
+      - ./keycloak/partner-beta-realm.json:/opt/keycloak/data/import/partner-beta-realm.json:ro
     depends_on:
       keycloak-db:
         condition: service_healthy
