@@ -18,13 +18,19 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddSingleton<AuditableEntityInterceptor>();
+        services.AddHttpContextAccessor();
+        services.AddScoped<ITenantContext, HttpTenantContext>();
+
+        services.AddScoped<AuditableEntityInterceptor>();
+        services.AddScoped<AuditLogInterceptor>();
         services.AddSingleton<DomainEventInterceptor>();
 
         services.AddDbContext<ApplicationDbContext>((sp, options) =>
         {
             AuditableEntityInterceptor auditableInterceptor = sp
                 .GetRequiredService<AuditableEntityInterceptor>();
+            AuditLogInterceptor auditLogInterceptor = sp
+                .GetRequiredService<AuditLogInterceptor>();
             DomainEventInterceptor domainEventInterceptor = sp
                 .GetRequiredService<DomainEventInterceptor>();
             string connectionString = configuration.GetConnectionString("DefaultConnection")
@@ -32,7 +38,7 @@ public static class DependencyInjection
                                           "Connection string 'DefaultConnection' is not configured.");
 
             options.UseNpgsql(connectionString)
-                .AddInterceptors(auditableInterceptor, domainEventInterceptor);
+                .AddInterceptors(auditableInterceptor, auditLogInterceptor, domainEventInterceptor);
         });
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
@@ -59,9 +65,7 @@ public static class DependencyInjection
         services.AddHttpClient("KeycloakOidc");
 
         services.AddSingleton<RealmConfigurationCache>();
-        services.AddHttpContextAccessor();
         services.AddScoped<ITenantRealmResolver, SubdomainTenantRealmResolver>();
-        services.AddScoped<ITenantContext, HttpTenantContext>();
         services.AddScoped<MultiTenantJwtBearerEvents>();
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -70,6 +74,7 @@ public static class DependencyInjection
                 options.Authority = $"{keycloakOptions.BaseUrl.TrimEnd('/')}/realms/{keycloakOptions.OwnerRealm}";
                 options.Audience = keycloakOptions.Audience;
                 options.RequireHttpsMetadata = keycloakOptions.RequireHttpsMetadata;
+                options.MapInboundClaims = false;
 
                 // Disable default automatic configuration — MultiTenantJwtBearerEvents
                 // handles per-tenant OIDC discovery and token validation.
