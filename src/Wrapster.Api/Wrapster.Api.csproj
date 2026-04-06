@@ -8,23 +8,24 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Asp.Versioning.Mvc" />
-    <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" />
-    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Asp.Versioning.Mvc"/>
+    <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer"/>
+    <PackageReference Include="AspNetCore.HealthChecks.NpgSql"/>
+    <PackageReference Include="AspNetCore.HealthChecks.Rabbitmq"/>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi"/>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Serilog.AspNetCore" />
-    <PackageReference Include="Serilog.Enrichers.Environment" />
-    <PackageReference Include="Serilog.Enrichers.Thread" />
+    <PackageReference Include="Serilog.AspNetCore"/>
+    <PackageReference Include="Serilog.Enrichers.Environment"/>
+    <PackageReference Include="Serilog.Enrichers.Thread"/>
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Wrapster.Application\Wrapster.Application.csproj" />
-    <ProjectReference Include="..\Wrapster.Infrastructure\Wrapster.Infrastructure.csproj" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <ProjectReference Include="..\Wrapster.Application\Wrapster.Application.csproj"/>
+    <ProjectReference Include="..\Wrapster.Infrastructure\Wrapster.Infrastructure.csproj"/>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer"/>
   </ItemGroup>
 
 </Project>

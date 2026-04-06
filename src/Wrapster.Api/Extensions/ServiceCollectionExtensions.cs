@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
+using RabbitMQ.Client;
 using Serilog;
 using Serilog.Extensions.Logging;
 using Wrapster.Api.Filters;
@@ -94,7 +95,18 @@ public static class ServiceCollectionExtensions
         string connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new
             InvalidOperationException("Connection string 'DefaultConnection' not configured.");
 
-        builder.Services.AddHealthChecks().AddNpgSql(connectionString);
+        ConnectionFactory rabbitConnectionFactory = new()
+        {
+            HostName = builder.Configuration["RabbitMq:HostName"] ?? "localhost",
+            Port = int.TryParse(builder.Configuration["RabbitMq:Port"], out int rabbitPort) ? rabbitPort : 5672,
+            UserName = builder.Configuration["RabbitMq:UserName"] ?? "guest",
+            Password = builder.Configuration["RabbitMq:Password"] ?? "guest",
+            VirtualHost = builder.Configuration["RabbitMq:VirtualHost"] ?? "/"
+        };
+
+        builder.Services.AddHealthChecks()
+            .AddNpgSql(connectionString)
+            .AddRabbitMQ(sp => rabbitConnectionFactory.CreateConnectionAsync());
 
         return builder;
     }

@@ -12,6 +12,8 @@
     <NewtonsoftJsonVersion>13.0.4</NewtonsoftJsonVersion>
     <InfisicalSdkVersion>3.0.4</InfisicalSdkVersion>
     <QuartzExtensionsHostingVersion>3.17.0</QuartzExtensionsHostingVersion>
+    <AspNetCoreHealthChecksRabbitmqVersion>9.0.0</AspNetCoreHealthChecksRabbitmqVersion>
+    <RabbitMqClientVersion>7.2.1</RabbitMqClientVersion>
     <ResendVersion>0.2.2</ResendVersion>
     <MicrosoftEntityFrameworkCoreVersion>10.0.5</MicrosoftEntityFrameworkCoreVersion>
     <NpgsqlEntityFrameworkCorePostgreSQLVersion>10.0.1</NpgsqlEntityFrameworkCorePostgreSQLVersion>
@@ -34,9 +36,12 @@
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="$(FluentValidationVersion)"/>
     <PackageVersion Include="MediatR" Version="$(MediatRVersion)"/>
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="$(DotNetCorePackagesVersion)"/>
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="$(DotNetCorePackagesVersion)"/>
     <PackageVersion Include="Newtonsoft.Json" Version="$(NewtonsoftJsonVersion)"/>
     <PackageVersion Include="Infisical.Sdk" Version="$(InfisicalSdkVersion)"/>
     <PackageVersion Include="Quartz.Extensions.Hosting" Version="$(QuartzExtensionsHostingVersion)"/>
+    <PackageVersion Include="AspNetCore.HealthChecks.Rabbitmq" Version="$(AspNetCoreHealthChecksRabbitmqVersion)"/>
+    <PackageVersion Include="RabbitMQ.Client" Version="$(RabbitMqClientVersion)"/>
     <PackageVersion Include="Resend" Version="$(ResendVersion)"/>
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="$(MicrosoftEntityFrameworkCoreVersion)"/>
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="$(MicrosoftEntityFrameworkCoreVersion)"/>

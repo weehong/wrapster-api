@@ -10,6 +10,7 @@ using Wrapster.Infrastructure.Authentication;
 using Wrapster.Infrastructure.Email;
 using Wrapster.Infrastructure.Persistence;
 using Wrapster.Infrastructure.Persistence.Interceptors;
+using Wrapster.Infrastructure.Queue;
 
 namespace Wrapster.Infrastructure;
 
@@ -46,6 +47,7 @@ public static class DependencyInjection
 
         services.AddKeycloakAuthentication(configuration);
         services.AddEmailService(configuration);
+        services.AddQueueService(configuration);
 
         return services;
     }
