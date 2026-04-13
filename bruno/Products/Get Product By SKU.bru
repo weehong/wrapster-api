@@ -1,0 +1,19 @@
+meta {
+  name: Get Product By SKU
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/products/by-sku/:skuCode?tenantId={{PARTNER_TENANT_ID}}
+  body: none
+  auth: bearer
+}
+
+params:path {
+  skuCode: SKU-001
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}

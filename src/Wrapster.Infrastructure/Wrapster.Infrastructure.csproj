@@ -17,6 +17,8 @@
     <PackageReference Include="Quartz.Extensions.Hosting"/>
     <PackageReference Include="RabbitMQ.Client"/>
     <PackageReference Include="Resend"/>
+    <PackageReference Include="ClosedXML"/>
+    <PackageReference Include="CsvHelper"/>
   </ItemGroup>
 
   <PropertyGroup>
@@ -31,6 +33,10 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Wrapster.Application.Tests"/>
   </ItemGroup>
 
 </Project>

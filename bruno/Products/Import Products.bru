@@ -1,0 +1,19 @@
+meta {
+  name: Import Products
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/products/import?format=Csv&tenantId={{PARTNER_TENANT_ID}}
+  body: multipartForm
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:multipart-form {
+  file: @file(products-sample.csv)
+}

@@ -22,6 +22,7 @@
     <Using Include="Microsoft.AspNetCore.Http"/>
     <Using Include="Microsoft.Extensions.Options"/>
     <Using Include="Wrapster.Infrastructure.Authentication"/>
+    <Using Include="Moq"/>
   </ItemGroup>
 
   <ItemGroup>

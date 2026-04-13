@@ -3,8 +3,8 @@ using Microsoft.Extensions.Options;
 using Resend;
 using Wrapster.Application.Abstractions.Email;
 using Wrapster.Domain.Common;
-using EmailAttachment = Wrapster.Application.Abstractions.Email.EmailAttachment;
 using Wrapster.Domain.Errors;
+using EmailAttachment = Wrapster.Application.Abstractions.Email.EmailAttachment;
 
 namespace Wrapster.Infrastructure.Email;
 

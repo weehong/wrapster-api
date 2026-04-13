@@ -6,6 +6,7 @@ using Serilog;
 using Serilog.Extensions.Logging;
 using Wrapster.Api.Filters;
 using Wrapster.Application;
+using Wrapster.Application.Products;
 using Wrapster.Infrastructure;
 using Wrapster.Infrastructure.Configuration;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
@@ -89,6 +90,9 @@ public static class ServiceCollectionExtensions
                 options.SubstituteApiVersionInUrl = true;
             });
 
+        builder.Services.Configure<ProductSettings>(
+            builder.Configuration.GetSection(ProductSettings.SectionName));
+
         builder.Services.AddApplication();
         builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -97,10 +101,15 @@ public static class ServiceCollectionExtensions
 
         ConnectionFactory rabbitConnectionFactory = new()
         {
-            HostName = builder.Configuration["RabbitMq:HostName"] ?? "localhost",
-            Port = int.TryParse(builder.Configuration["RabbitMq:Port"], out int rabbitPort) ? rabbitPort : 5672,
-            UserName = builder.Configuration["RabbitMq:UserName"] ?? "guest",
-            Password = builder.Configuration["RabbitMq:Password"] ?? "guest",
+            HostName = builder.Configuration["RabbitMq:HostName"]
+                       ?? throw new InvalidOperationException("RabbitMq:HostName is not configured."),
+            Port = int.TryParse(builder.Configuration["RabbitMq:Port"], out int rabbitPort)
+                ? rabbitPort
+                : throw new InvalidOperationException("RabbitMq:Port is not configured or invalid."),
+            UserName = builder.Configuration["RabbitMq:UserName"]
+                       ?? throw new InvalidOperationException("RabbitMq:UserName is not configured."),
+            Password = builder.Configuration["RabbitMq:Password"]
+                       ?? throw new InvalidOperationException("RabbitMq:Password is not configured."),
             VirtualHost = builder.Configuration["RabbitMq:VirtualHost"] ?? "/"
         };
 
