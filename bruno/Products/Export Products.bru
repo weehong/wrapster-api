@@ -1,0 +1,15 @@
+meta {
+  name: Export Products
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/products/export?format=Xlsx&tenantId={{PARTNER_TENANT_ID}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}

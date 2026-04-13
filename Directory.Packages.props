@@ -15,6 +15,8 @@
     <AspNetCoreHealthChecksRabbitmqVersion>9.0.0</AspNetCoreHealthChecksRabbitmqVersion>
     <RabbitMqClientVersion>7.2.1</RabbitMqClientVersion>
     <ResendVersion>0.2.2</ResendVersion>
+    <ClosedXmlVersion>0.105.0</ClosedXmlVersion>
+    <CsvHelperVersion>33.1.0</CsvHelperVersion>
     <MicrosoftEntityFrameworkCoreVersion>10.0.5</MicrosoftEntityFrameworkCoreVersion>
     <NpgsqlEntityFrameworkCorePostgreSQLVersion>10.0.1</NpgsqlEntityFrameworkCorePostgreSQLVersion>
     <CoverletCollectorVersion>8.0.1</CoverletCollectorVersion>
@@ -43,6 +45,8 @@
     <PackageVersion Include="AspNetCore.HealthChecks.Rabbitmq" Version="$(AspNetCoreHealthChecksRabbitmqVersion)"/>
     <PackageVersion Include="RabbitMQ.Client" Version="$(RabbitMqClientVersion)"/>
     <PackageVersion Include="Resend" Version="$(ResendVersion)"/>
+    <PackageVersion Include="ClosedXML" Version="$(ClosedXmlVersion)"/>
+    <PackageVersion Include="CsvHelper" Version="$(CsvHelperVersion)"/>
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="$(MicrosoftEntityFrameworkCoreVersion)"/>
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="$(MicrosoftEntityFrameworkCoreVersion)"/>
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Tools" Version="$(MicrosoftEntityFrameworkCoreVersion)"/>

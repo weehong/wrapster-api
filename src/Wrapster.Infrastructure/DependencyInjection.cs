@@ -5,11 +5,16 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Wrapster.Application.Abstractions;
+using Wrapster.Application.Abstractions.FileProcessing;
 using Wrapster.Domain.Abstractions;
+using Wrapster.Domain.Repositories;
 using Wrapster.Infrastructure.Authentication;
+using Wrapster.Infrastructure.BackgroundServices;
 using Wrapster.Infrastructure.Email;
+using Wrapster.Infrastructure.FileProcessing;
 using Wrapster.Infrastructure.Persistence;
 using Wrapster.Infrastructure.Persistence.Interceptors;
+using Wrapster.Infrastructure.Persistence.Repositories;
 using Wrapster.Infrastructure.Queue;
 
 namespace Wrapster.Infrastructure;
@@ -45,9 +50,23 @@ public static class DependencyInjection
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
 
+        services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<IProductComponentRepository, ProductComponentRepository>();
+        services.AddScoped<ITenantSettingsRepository, TenantSettingsRepository>();
+        services.AddScoped<IStockAlertLogRepository, StockAlertLogRepository>();
+
         services.AddKeycloakAuthentication(configuration);
         services.AddEmailService(configuration);
         services.AddQueueService(configuration);
+
+        services.AddSingleton<CsvProductFileParser>();
+        services.AddSingleton<ExcelProductFileParser>();
+        services.AddSingleton<IProductFileParser, CompositeProductFileParser>();
+        services.AddSingleton<CsvProductFileWriter>();
+        services.AddSingleton<ExcelProductFileWriter>();
+        services.AddSingleton<IProductFileWriter, CompositeProductFileWriter>();
+
+        services.AddHostedService<ProductsExportConsumer>();
 
         return services;
     }

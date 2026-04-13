@@ -1,0 +1,25 @@
+meta {
+  name: Update Product Stock
+  type: http
+  seq: 8
+}
+
+patch {
+  url: {{BASE_URL}}/api/v1/products/:id/stock?tenantId={{PARTNER_TENANT_ID}}
+  body: json
+  auth: bearer
+}
+
+params:path {
+  id: {{PRODUCT_ID}}
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:json {
+  {
+    "newQuantity": 50
+  }
+}

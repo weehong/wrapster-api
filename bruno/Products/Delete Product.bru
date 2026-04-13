@@ -1,0 +1,19 @@
+meta {
+  name: Delete Product
+  type: http
+  seq: 7
+}
+
+delete {
+  url: {{BASE_URL}}/api/v1/products/:id?tenantId={{PARTNER_TENANT_ID}}
+  body: none
+  auth: bearer
+}
+
+params:path {
+  id: {{PRODUCT_ID}}
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
