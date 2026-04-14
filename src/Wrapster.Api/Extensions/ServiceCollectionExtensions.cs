@@ -9,6 +9,7 @@ using Wrapster.Application;
 using Wrapster.Application.Products;
 using Wrapster.Infrastructure;
 using Wrapster.Infrastructure.Configuration;
+using Wrapster.Mailing;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace Wrapster.Api.Extensions;
@@ -95,6 +96,7 @@ public static class ServiceCollectionExtensions
 
         builder.Services.AddApplication();
         builder.Services.AddInfrastructure(builder.Configuration);
+        builder.Services.AddMailing(builder.Configuration);
 
         string connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new
             InvalidOperationException("Connection string 'DefaultConnection' not configured.");

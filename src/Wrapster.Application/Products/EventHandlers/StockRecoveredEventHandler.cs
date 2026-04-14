@@ -1,19 +1,17 @@
 using Microsoft.Extensions.Logging;
 using Wrapster.Application.Abstractions;
-using Wrapster.Application.Abstractions.Email;
-using Wrapster.Application.Email.Templates;
 using Wrapster.Domain.Abstractions;
-using Wrapster.Domain.Common;
 using Wrapster.Domain.Entities;
 using Wrapster.Domain.Enums;
 using Wrapster.Domain.Events;
 using Wrapster.Domain.Repositories;
+using Wrapster.Mailing.Abstractions;
 using TenantSettingsEntity = Wrapster.Domain.Entities.TenantSettings;
 
 namespace Wrapster.Application.Products.EventHandlers;
 
 internal sealed class StockRecoveredEventHandler(
-    IEmailService emailService,
+    IMailer mailer,
     ITenantSettingsRepository tenantSettingsRepository,
     IStockAlertLogRepository stockAlertLogRepository,
     IUnitOfWork unitOfWork,
@@ -55,34 +53,20 @@ internal sealed class StockRecoveredEventHandler(
             return;
         }
 
-        StockRecoveryTemplate template = new(
-            domainEvent.ProductName,
-            domainEvent.Barcode,
-            domainEvent.CurrentStock,
-            domainEvent.Threshold);
-
-        List<string> sentTo = [];
-        List<string> failures = [];
-
-        foreach (string recipient in recipients)
+        MailMessage mail = new()
         {
-            Result sendResult = await emailService.SendAsync(recipient, template, cancellationToken);
-            if (sendResult.IsSuccess)
+            To = recipients,
+            TemplateName = "stock-recovered",
+            Tokens = new Dictionary<string, object?>
             {
-                sentTo.Add(recipient);
+                ["ProductName"] = domainEvent.ProductName,
+                ["Barcode"] = domainEvent.Barcode,
+                ["CurrentStock"] = domainEvent.CurrentStock,
+                ["Threshold"] = domainEvent.Threshold
             }
-            else
-            {
-                failures.Add($"{recipient}:{sendResult.Error.Code}");
-                logger.LogError(
-                    "Failed to send stock recovery email to {Email} for product {ProductName}: {Error}",
-                    recipient, domainEvent.ProductName, sendResult.Error.Description);
-            }
-        }
+        };
 
-        StockAlertDeliveryStatus status = sentTo.Count > 0
-            ? StockAlertDeliveryStatus.Sent
-            : StockAlertDeliveryStatus.Failed;
+        MailRequestId requestId = await mailer.SendAsync(mail, cancellationToken);
 
         stockAlertLogRepository.Add(StockAlertLog.Create(
             domainEvent.TenantId,
@@ -92,15 +76,15 @@ internal sealed class StockRecoveredEventHandler(
             StockAlertType.Recovered,
             domainEvent.CurrentStock,
             domainEvent.Threshold,
-            status,
-            sentTo.Count > 0 ? string.Join(",", sentTo) : null,
-            failures.Count > 0 ? string.Join(";", failures) : null,
+            StockAlertDeliveryStatus.Sent,
+            string.Join(",", recipients),
+            null,
             DateTime.UtcNow));
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(
-            "Stock recovery notice processed for tenant {TenantId} product {ProductName} ({Barcode}) — status: {Status}, sent: {SentCount}, failed: {FailedCount}",
-            domainEvent.TenantId, domainEvent.ProductName, domainEvent.Barcode, status, sentTo.Count, failures.Count);
+            "Enqueued stock-recovered notice {MailRequestId} for tenant {TenantId} product {ProductName} ({Barcode}) to {RecipientCount} recipient(s)",
+            requestId, domainEvent.TenantId, domainEvent.ProductName, domainEvent.Barcode, recipients.Count);
     }
 }

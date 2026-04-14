@@ -1,19 +1,17 @@
 using Microsoft.Extensions.Logging;
 using Wrapster.Application.Abstractions;
-using Wrapster.Application.Abstractions.Email;
-using Wrapster.Application.Email.Templates;
 using Wrapster.Domain.Abstractions;
-using Wrapster.Domain.Common;
 using Wrapster.Domain.Entities;
 using Wrapster.Domain.Enums;
 using Wrapster.Domain.Events;
 using Wrapster.Domain.Repositories;
+using Wrapster.Mailing.Abstractions;
 using TenantSettingsEntity = Wrapster.Domain.Entities.TenantSettings;
 
 namespace Wrapster.Application.Products.EventHandlers;
 
 internal sealed class LowStockDetectedEventHandler(
-    IEmailService emailService,
+    IMailer mailer,
     ITenantSettingsRepository tenantSettingsRepository,
     IStockAlertLogRepository stockAlertLogRepository,
     IUnitOfWork unitOfWork,
@@ -49,9 +47,9 @@ internal sealed class LowStockDetectedEventHandler(
                 domainEvent.CurrentStock,
                 domainEvent.Threshold,
                 StockAlertDeliveryStatus.Suppressed,
-                null,
-                "DedupeWindow",
-                DateTime.UtcNow));
+                recipientsNotified: null,
+                failureReason: "DedupeWindow",
+                occurredOn: DateTime.UtcNow));
             await unitOfWork.SaveChangesAsync(cancellationToken);
             return;
         }
@@ -79,41 +77,27 @@ internal sealed class LowStockDetectedEventHandler(
                 domainEvent.CurrentStock,
                 domainEvent.Threshold,
                 StockAlertDeliveryStatus.Failed,
-                null,
-                "NoRecipients",
-                DateTime.UtcNow));
+                recipientsNotified: null,
+                failureReason: "NoRecipients",
+                occurredOn: DateTime.UtcNow));
             await unitOfWork.SaveChangesAsync(cancellationToken);
             return;
         }
 
-        LowStockAlertTemplate template = new(
-            domainEvent.ProductName,
-            domainEvent.Barcode,
-            domainEvent.CurrentStock,
-            domainEvent.Threshold);
-
-        List<string> sentTo = [];
-        List<string> failures = [];
-
-        foreach (string recipient in recipients)
+        MailMessage mail = new()
         {
-            Result sendResult = await emailService.SendAsync(recipient, template, cancellationToken);
-            if (sendResult.IsSuccess)
+            To = recipients,
+            TemplateName = "low-stock-alert",
+            Tokens = new Dictionary<string, object?>
             {
-                sentTo.Add(recipient);
+                ["ProductName"] = domainEvent.ProductName,
+                ["Barcode"] = domainEvent.Barcode,
+                ["CurrentStock"] = domainEvent.CurrentStock,
+                ["Threshold"] = domainEvent.Threshold
             }
-            else
-            {
-                failures.Add($"{recipient}:{sendResult.Error.Code}");
-                logger.LogError(
-                    "Failed to send low stock alert email to {Email} for product {ProductName}: {Error}",
-                    recipient, domainEvent.ProductName, sendResult.Error.Description);
-            }
-        }
+        };
 
-        StockAlertDeliveryStatus status = sentTo.Count > 0
-            ? StockAlertDeliveryStatus.Sent
-            : StockAlertDeliveryStatus.Failed;
+        MailRequestId requestId = await mailer.SendAsync(mail, cancellationToken);
 
         stockAlertLogRepository.Add(StockAlertLog.Create(
             domainEvent.TenantId,
@@ -123,15 +107,15 @@ internal sealed class LowStockDetectedEventHandler(
             StockAlertType.LowStock,
             domainEvent.CurrentStock,
             domainEvent.Threshold,
-            status,
-            sentTo.Count > 0 ? string.Join(",", sentTo) : null,
-            failures.Count > 0 ? string.Join(";", failures) : null,
-            DateTime.UtcNow));
+            StockAlertDeliveryStatus.Sent,
+            recipientsNotified: string.Join(",", recipients),
+            failureReason: null,
+            occurredOn: DateTime.UtcNow));
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(
-            "Low stock alert processed for tenant {TenantId} product {ProductName} ({Barcode}) — status: {Status}, sent: {SentCount}, failed: {FailedCount}",
-            domainEvent.TenantId, domainEvent.ProductName, domainEvent.Barcode, status, sentTo.Count, failures.Count);
+            "Enqueued low-stock alert {MailRequestId} for tenant {TenantId} product {ProductName} ({Barcode}) to {RecipientCount} recipient(s)",
+            requestId, domainEvent.TenantId, domainEvent.ProductName, domainEvent.Barcode, recipients.Count);
     }
 }

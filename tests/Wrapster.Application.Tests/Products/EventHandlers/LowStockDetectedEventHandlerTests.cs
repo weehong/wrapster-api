@@ -1,25 +1,24 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Wrapster.Application.Abstractions;
-using Wrapster.Application.Abstractions.Email;
 using Wrapster.Application.Products.EventHandlers;
 using Wrapster.Domain.Abstractions;
-using Wrapster.Domain.Common;
 using Wrapster.Domain.Entities;
 using Wrapster.Domain.Enums;
 using Wrapster.Domain.Events;
 using Wrapster.Domain.Repositories;
+using Wrapster.Mailing.Abstractions;
 
 namespace Wrapster.Application.Tests.Products.EventHandlers;
 
 public class LowStockDetectedEventHandlerTests
 {
-    private readonly Mock<IEmailService> _emailService = new();
+    private readonly Mock<IMailer> _mailer = new();
     private readonly Mock<IStockAlertLogRepository> _stockAlertLogRepository = new();
     private readonly Mock<ITenantSettingsRepository> _tenantSettingsRepository = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
 
     private LowStockDetectedEventHandler CreateHandler() =>
-        new(_emailService.Object,
+        new(_mailer.Object,
             _tenantSettingsRepository.Object,
             _stockAlertLogRepository.Object,
             _unitOfWork.Object,
@@ -45,15 +44,15 @@ public class LowStockDetectedEventHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenNoRecipients_DoesNotSendEmailAndLogsFailure()
+    public async Task Handle_WhenNoRecipients_DoesNotEnqueueMail()
     {
         _tenantSettingsRepository.Setup(r => r.GetByTenantIdAsync("tenant-1", It.IsAny<CancellationToken>()))
             .ReturnsAsync((Domain.Entities.TenantSettings?)null);
 
         await CreateHandler().Handle(CreateNotification(), CancellationToken.None);
 
-        _emailService.Verify(
-            e => e.SendAsync(It.IsAny<string>(), It.IsAny<IEmailTemplate>(), It.IsAny<CancellationToken>()),
+        _mailer.Verify(
+            m => m.SendAsync(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()),
             Times.Never);
         _stockAlertLogRepository.Verify(r => r.Add(It.Is<StockAlertLog>(l =>
             l.DeliveryStatus == StockAlertDeliveryStatus.Failed && l.FailureReason == "NoRecipients")), Times.Once);
@@ -61,27 +60,32 @@ public class LowStockDetectedEventHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenRecipientsConfigured_SendsEmailAndLogsSent()
+    public async Task Handle_WhenRecipientsConfigured_EnqueuesSingleMailWithAllRecipients()
     {
         Domain.Entities.TenantSettings settings =
             CreateSettingsWithRecipients("tenant-1", "a@example.com", "b@example.com");
         _tenantSettingsRepository.Setup(r => r.GetByTenantIdAsync("tenant-1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(settings);
-        _emailService.Setup(e =>
-                e.SendAsync(It.IsAny<string>(), It.IsAny<IEmailTemplate>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result.Success());
+        _mailer.Setup(m => m.SendAsync(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(MailRequestId.New());
 
         await CreateHandler().Handle(CreateNotification(), CancellationToken.None);
 
-        _emailService.Verify(
-            e => e.SendAsync(It.IsAny<string>(), It.IsAny<IEmailTemplate>(), It.IsAny<CancellationToken>()),
-            Times.Exactly(2));
+        _mailer.Verify(
+            m => m.SendAsync(
+                It.Is<MailMessage>(msg =>
+                    msg.TemplateName == "low-stock-alert"
+                    && msg.To.Count == 2
+                    && msg.To.Contains("a@example.com")
+                    && msg.To.Contains("b@example.com")),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
         _stockAlertLogRepository.Verify(r => r.Add(It.Is<StockAlertLog>(l =>
             l.DeliveryStatus == StockAlertDeliveryStatus.Sent && l.AlertType == StockAlertType.LowStock)), Times.Once);
     }
 
     [Fact]
-    public async Task Handle_WhenRecentSentAlertExists_SuppressesAndLogs()
+    public async Task Handle_WhenRecentSentAlertExists_SuppressesAndSkipsMailer()
     {
         Guid productId = Guid.NewGuid();
         StockAlertLog lastSent = StockAlertLog.Create(
@@ -96,8 +100,8 @@ public class LowStockDetectedEventHandlerTests
 
         await CreateHandler().Handle(CreateNotification("tenant-1", productId), CancellationToken.None);
 
-        _emailService.Verify(
-            e => e.SendAsync(It.IsAny<string>(), It.IsAny<IEmailTemplate>(), It.IsAny<CancellationToken>()),
+        _mailer.Verify(
+            m => m.SendAsync(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()),
             Times.Never);
         _stockAlertLogRepository.Verify(r => r.Add(It.Is<StockAlertLog>(l =>
             l.DeliveryStatus == StockAlertDeliveryStatus.Suppressed)), Times.Once);

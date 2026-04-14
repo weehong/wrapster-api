@@ -25,6 +25,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Wrapster.Application\Wrapster.Application.csproj"/>
     <ProjectReference Include="..\Wrapster.Infrastructure\Wrapster.Infrastructure.csproj"/>
+    <ProjectReference Include="..\Wrapster.Mailing\Wrapster.Mailing.csproj"/>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer"/>
   </ItemGroup>
 

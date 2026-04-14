@@ -6,16 +6,14 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
-using Wrapster.Application.Abstractions.Email;
 using Wrapster.Application.Abstractions.FileProcessing;
-using Wrapster.Application.Email.Templates;
 using Wrapster.Application.Products.Messaging;
-using Wrapster.Domain.Common;
 using Wrapster.Domain.Entities;
 using Wrapster.Domain.Enums;
 using Wrapster.Domain.Repositories;
 using Wrapster.Infrastructure.FileProcessing;
 using Wrapster.Infrastructure.Queue;
+using Wrapster.Mailing.Abstractions;
 using TenantSettingsEntity = Wrapster.Domain.Entities.TenantSettings;
 
 namespace Wrapster.Infrastructure.BackgroundServices;
@@ -112,7 +110,7 @@ public sealed class ProductsExportConsumer(
         IProductComponentRepository componentRepository =
             scope.ServiceProvider.GetRequiredService<IProductComponentRepository>();
         IProductFileWriter writer = scope.ServiceProvider.GetRequiredService<IProductFileWriter>();
-        IEmailService emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+        IMailer mailer = scope.ServiceProvider.GetRequiredService<IMailer>();
         ITenantSettingsRepository tenantSettingsRepository =
             scope.ServiceProvider.GetRequiredService<ITenantSettingsRepository>();
 
@@ -174,24 +172,27 @@ public sealed class ProductsExportConsumer(
             return;
         }
 
-        ProductsExportTemplate template = new(fileBytes, contentType, rows.Count, message.RequestedAt);
+        string extension = message.Format == ProductFileFormat.Csv ? ".csv" : ".xlsx";
+        string fileName = $"products-export-{message.RequestedAt:yyyyMMdd-HHmmss}{extension}";
 
-        foreach (string recipient in recipients)
+        MailMessage mail = new()
         {
-            Result sendResult = await emailService.SendAsync(recipient, template, cancellationToken);
-            if (sendResult.IsFailure)
+            To = recipients,
+            TemplateName = "products-export",
+            Tokens = new Dictionary<string, object?>
             {
-                logger.LogError(
-                    "Failed to send products export email to {Email} for tenant {TenantId}: {Error}",
-                    recipient, message.TenantId, sendResult.Error.Description);
-            }
-            else
-            {
-                logger.LogInformation(
-                    "Sent products export email to {Email} for tenant {TenantId} (rows: {Count}, format: {Format})",
-                    recipient, message.TenantId, rows.Count, message.Format);
-            }
-        }
+                ["ProductCount"] = rows.Count,
+                ["RequestedAt"] = message.RequestedAt.ToString("yyyy-MM-dd"),
+                ["RequestedAtUtc"] = message.RequestedAt.ToString("yyyy-MM-dd HH:mm")
+            },
+            Attachments = [new MailAttachment(fileName, fileBytes, contentType)]
+        };
+
+        MailRequestId requestId = await mailer.SendAsync(mail, cancellationToken);
+
+        logger.LogInformation(
+            "Enqueued products export mail {MailRequestId} for tenant {TenantId} ({Count} rows, format {Format}) to {RecipientCount} recipient(s)",
+            requestId, message.TenantId, rows.Count, message.Format, recipients.Count);
     }
 
     public override async Task StopAsync(CancellationToken cancellationToken)

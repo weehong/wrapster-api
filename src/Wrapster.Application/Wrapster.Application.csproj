@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Wrapster.Domain\Wrapster.Domain.csproj"/>
+    <ProjectReference Include="..\Wrapster.Mailing\Wrapster.Mailing.csproj"/>
   </ItemGroup>
 
   <ItemGroup>

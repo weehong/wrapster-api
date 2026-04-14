@@ -10,7 +10,6 @@ using Wrapster.Domain.Abstractions;
 using Wrapster.Domain.Repositories;
 using Wrapster.Infrastructure.Authentication;
 using Wrapster.Infrastructure.BackgroundServices;
-using Wrapster.Infrastructure.Email;
 using Wrapster.Infrastructure.FileProcessing;
 using Wrapster.Infrastructure.Persistence;
 using Wrapster.Infrastructure.Persistence.Interceptors;
@@ -57,7 +56,6 @@ public static class DependencyInjection
         services.AddScoped<IWaybillRepository, WaybillRepository>();
 
         services.AddKeycloakAuthentication(configuration);
-        services.AddEmailService(configuration);
         services.AddQueueService(configuration);
 
         services.AddSingleton<CsvProductFileParser>();
