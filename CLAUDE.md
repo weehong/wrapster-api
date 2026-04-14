@@ -48,10 +48,10 @@ Clean Architecture with CQRS (MediatR) and DDD patterns. .NET 10.
 
 **Layer dependency: Api -> Application -> Domain <- Infrastructure**
 
-- **Wrapster.Domain** - Entities (aggregate roots), value objects (`Result<T>`, `Error`), domain events, repository interfaces. No external dependencies.
-- **Wrapster.Application** - Commands/queries with MediatR handlers and FluentValidation validators. Pipeline behaviors auto-validate and log all requests.
-- **Wrapster.Infrastructure** - EF Core + PostgreSQL persistence, Keycloak multi-tenant auth, RabbitMQ publishing, Resend email, Infisical secrets.
-- **Wrapster.Api** - ASP.NET Core controllers, versioned routes (`api/v1/...`), request/response contracts.
+- **Wrapsfer.Domain** - Entities (aggregate roots), value objects (`Result<T>`, `Error`), domain events, repository interfaces. No external dependencies.
+- **Wrapsfer.Application** - Commands/queries with MediatR handlers and FluentValidation validators. Pipeline behaviors auto-validate and log all requests.
+- **Wrapsfer.Infrastructure** - EF Core + PostgreSQL persistence, Keycloak multi-tenant auth, RabbitMQ publishing, Resend email, Infisical secrets.
+- **Wrapsfer.Api** - ASP.NET Core controllers, versioned routes (`api/v1/...`), request/response contracts.
 
 ### Key Patterns
 
@@ -73,6 +73,6 @@ Follow existing Products module as reference:
 ## Testing
 
 - **Framework**: xUnit + Moq + FluentAssertions
-- **Wrapster.Application.Tests**: Unit tests for handlers and validators (mocked repositories)
-- **Wrapster.Domain.Tests**: Domain entity/value object tests
-- **Wrapster.IntegrationTests**: WebApplicationFactory-based (scaffolded)
+- **Wrapsfer.Application.Tests**: Unit tests for handlers and validators (mocked repositories)
+- **Wrapsfer.Domain.Tests**: Domain entity/value object tests
+- **Wrapsfer.IntegrationTests**: WebApplicationFactory-based (scaffolded)

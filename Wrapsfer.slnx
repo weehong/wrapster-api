@@ -1,0 +1,15 @@
+<Solution>
+    <Folder Name="/src/">
+        <Project Path="src/Wrapsfer.Api/Wrapsfer.Api.csproj"/>
+        <Project Path="src/Wrapsfer.Application/Wrapsfer.Application.csproj"/>
+        <Project Path="src/Wrapsfer.Domain/Wrapsfer.Domain.csproj"/>
+        <Project Path="src/Wrapsfer.Infrastructure/Wrapsfer.Infrastructure.csproj"/>
+        <Project Path="src/Wrapsfer.Mailing/Wrapsfer.Mailing.csproj"/>
+    </Folder>
+    <Folder Name="/tests/">
+        <Project Path="tests/Wrapsfer.Application.Tests/Wrapsfer.Application.Tests.csproj"/>
+        <Project Path="tests/Wrapsfer.Domain.Tests/Wrapsfer.Domain.Tests.csproj"/>
+        <Project Path="tests/Wrapsfer.IntegrationTests/Wrapsfer.IntegrationTests.csproj"/>
+        <Project Path="tests/Wrapsfer.Mailing.Tests/Wrapsfer.Mailing.Tests.csproj"/>
+    </Folder>
+</Solution>

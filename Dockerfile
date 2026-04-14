@@ -4,17 +4,17 @@ ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 
 # Copy solution + central package management + build props first for layer caching
-COPY Directory.Build.props Directory.Packages.props Wrapster.slnx ./
-COPY src/Wrapster.Api/Wrapster.Api.csproj            src/Wrapster.Api/
-COPY src/Wrapster.Application/Wrapster.Application.csproj src/Wrapster.Application/
-COPY src/Wrapster.Domain/Wrapster.Domain.csproj      src/Wrapster.Domain/
-COPY src/Wrapster.Infrastructure/Wrapster.Infrastructure.csproj src/Wrapster.Infrastructure/
-COPY src/Wrapster.Mailing/Wrapster.Mailing.csproj    src/Wrapster.Mailing/
-RUN dotnet restore src/Wrapster.Api/Wrapster.Api.csproj
+COPY Directory.Build.props Directory.Packages.props Wrapsfer.slnx ./
+COPY src/Wrapsfer.Api/Wrapsfer.Api.csproj            src/Wrapsfer.Api/
+COPY src/Wrapsfer.Application/Wrapsfer.Application.csproj src/Wrapsfer.Application/
+COPY src/Wrapsfer.Domain/Wrapsfer.Domain.csproj      src/Wrapsfer.Domain/
+COPY src/Wrapsfer.Infrastructure/Wrapsfer.Infrastructure.csproj src/Wrapsfer.Infrastructure/
+COPY src/Wrapsfer.Mailing/Wrapsfer.Mailing.csproj    src/Wrapsfer.Mailing/
+RUN dotnet restore src/Wrapsfer.Api/Wrapsfer.Api.csproj
 
 # Copy the rest and publish
 COPY src/ src/
-RUN dotnet publish src/Wrapster.Api/Wrapster.Api.csproj \
+RUN dotnet publish src/Wrapsfer.Api/Wrapsfer.Api.csproj \
     --configuration ${BUILD_CONFIGURATION} \
     --no-restore \
     --output /app/publish
@@ -36,4 +36,4 @@ ENV ASPNETCORE_URLS=http://+:8080 \
 
 EXPOSE 8080
 
-ENTRYPOINT ["dotnet", "Wrapster.Api.dll"]
+ENTRYPOINT ["dotnet", "Wrapsfer.Api.dll"]

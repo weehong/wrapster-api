@@ -1,8 +1,8 @@
-# Migration Plan: JavaScript Wrapster to C# wrapster-api
+# Migration Plan: JavaScript Wrapsfer to C# wrapsfer-api
 
 ## Context
 
-The JavaScript Wrapster application (React + Appwrite BaaS) is a packaging tracking system for warehouse/logistics teams. It needs to be migrated to the existing C# ASP.NET Core Clean Architecture API (`wrapster-api`), which already has solid infrastructure: Keycloak multi-tenant auth, EF Core + PostgreSQL, MediatR CQRS, audit logging interceptors, and Serilog.
+The JavaScript Wrapsfer application (React + Appwrite BaaS) is a packaging tracking system for warehouse/logistics teams. It needs to be migrated to the existing C# ASP.NET Core Clean Architecture API (`wrapsfer-api`), which already has solid infrastructure: Keycloak multi-tenant auth, EF Core + PostgreSQL, MediatR CQRS, audit logging interceptors, and Serilog.
 
 The migration replaces:
 - Appwrite collections -> PostgreSQL tables via EF Core
@@ -23,15 +23,15 @@ Each phase is a complete vertical slice for one module: domain entity, errors, r
 
 | File | Purpose |
 |------|---------|
-| `src/Wrapster.Application/Abstractions/Messaging/IQuery.cs` | `IQuery<TResponse> : IRequest<Result<TResponse>>` |
-| `src/Wrapster.Application/Abstractions/Messaging/IQueryHandler.cs` | `IQueryHandler<TQuery, TResponse> : IRequestHandler<TQuery, Result<TResponse>>` |
-| `src/Wrapster.Application/Common/PagedResult.cs` | Generic `PagedResult<T>` with `Items`, `TotalCount`, `Page`, `PageSize` |
+| `src/Wrapsfer.Application/Abstractions/Messaging/IQuery.cs` | `IQuery<TResponse> : IRequest<Result<TResponse>>` |
+| `src/Wrapsfer.Application/Abstractions/Messaging/IQueryHandler.cs` | `IQueryHandler<TQuery, TResponse> : IRequestHandler<TQuery, Result<TResponse>>` |
+| `src/Wrapsfer.Application/Common/PagedResult.cs` | Generic `PagedResult<T>` with `Items`, `TotalCount`, `Page`, `PageSize` |
 
 ### 0.2 API Base Controller
 
 | File | Purpose |
 |------|---------|
-| `src/Wrapster.Api/Controllers/ApiControllerBase.cs` | Maps `Result<T>` to HTTP responses (Ok/NotFound/BadRequest/Conflict). All feature controllers inherit from this. |
+| `src/Wrapsfer.Api/Controllers/ApiControllerBase.cs` | Maps `Result<T>` to HTTP responses (Ok/NotFound/BadRequest/Conflict). All feature controllers inherit from this. |
 
 ### Verification
 - `make build` passes
@@ -45,24 +45,24 @@ Each phase is a complete vertical slice for one module: domain entity, errors, r
 ### 1.1 Domain
 
 **Enums:**
-- `src/Wrapster.Domain/Enums/ProductType.cs` -- `Single`, `Bundle`
+- `src/Wrapsfer.Domain/Enums/ProductType.cs` -- `Single`, `Bundle`
 
 **Entities:**
-- `src/Wrapster.Domain/Entities/Product.cs` -- extends `AuditableEntity`
+- `src/Wrapsfer.Domain/Entities/Product.cs` -- extends `AuditableEntity`
   - Properties: `TenantId`, `Barcode` (unique per tenant), `SkuCode?`, `Name`, `Type` (ProductType), `Cost` (decimal), `StockQuantity` (int)
   - Domain methods: `DeductStock(amount)` returns `Result`, `RestoreStock(amount)`
   - Factory: `Create(...)` returns `Result<Product>`
-- `src/Wrapster.Domain/Entities/ProductComponent.cs` -- extends `AuditableEntity`
+- `src/Wrapsfer.Domain/Entities/ProductComponent.cs` -- extends `AuditableEntity`
   - Properties: `TenantId`, `ParentProductId`, `ChildProductId`, `Quantity`
   - Navigation props to `Product`
   - Unique constraint on `(TenantId, ParentProductId, ChildProductId)`
 
 **Errors:**
-- `src/Wrapster.Domain/Errors/ProductErrors.cs` -- `NotFound`, `BarcodeAlreadyExists`, `SkuAlreadyExists`, `InsufficientStock`, `CannotDeductBundleStock`
+- `src/Wrapsfer.Domain/Errors/ProductErrors.cs` -- `NotFound`, `BarcodeAlreadyExists`, `SkuAlreadyExists`, `InsufficientStock`, `CannotDeductBundleStock`
 
 **Repositories:**
-- `src/Wrapster.Domain/Repositories/IProductRepository.cs` -- GetById, GetByBarcode, GetBySkuCode, GetByBarcodes (batch), List (search/filter/paginate), Add, Remove
-- `src/Wrapster.Domain/Repositories/IProductComponentRepository.cs` -- GetByParentId, GetByChildId, Add, Remove
+- `src/Wrapsfer.Domain/Repositories/IProductRepository.cs` -- GetById, GetByBarcode, GetBySkuCode, GetByBarcodes (batch), List (search/filter/paginate), Add, Remove
+- `src/Wrapsfer.Domain/Repositories/IProductComponentRepository.cs` -- GetByParentId, GetByChildId, Add, Remove
 
 ### 1.2 Infrastructure
 
@@ -80,7 +80,7 @@ Each phase is a complete vertical slice for one module: domain entity, errors, r
 
 ### 1.3 Application
 
-**Commands** (each with Command, Validator, Handler) in `src/Wrapster.Application/Products/`:
+**Commands** (each with Command, Validator, Handler) in `src/Wrapsfer.Application/Products/`:
 - `CreateProduct` -- `ICommand<Guid>`: barcode uniqueness check, factory creation, returns Id
 - `UpdateProduct` -- `ICommand`: partial update of name/sku/cost/stock/type
 - `DeleteProduct` -- `ICommand`: also removes related ProductComponents
@@ -93,7 +93,7 @@ Each phase is a complete vertical slice for one module: domain entity, errors, r
 - `ListProducts` -- `IQuery<PagedResult<ProductResponse>>` with search, type filter, pagination
 - `GetProductWithComponents` -- `IQuery<ProductWithComponentsResponse>`
 
-**Product Component Commands** in `src/Wrapster.Application/ProductComponents/`:
+**Product Component Commands** in `src/Wrapsfer.Application/ProductComponents/`:
 - `AddProductComponent` -- `ICommand<Guid>`: validates parent is bundle, child is single
 - `UpdateProductComponentQuantity` -- `ICommand`
 - `RemoveProductComponent` -- `ICommand`
@@ -101,7 +101,7 @@ Each phase is a complete vertical slice for one module: domain entity, errors, r
 
 ### 1.4 API
 
-**`ProductsController`** (`src/Wrapster.Api/Controllers/V1/ProductsController.cs`):
+**`ProductsController`** (`src/Wrapsfer.Api/Controllers/V1/ProductsController.cs`):
 - `POST /api/v1/products`
 - `GET /api/v1/products` (list with query params)
 - `GET /api/v1/products/{id}`
@@ -131,19 +131,19 @@ Each phase is a complete vertical slice for one module: domain entity, errors, r
 ### 2.1 Domain
 
 **Entities:**
-- `src/Wrapster.Domain/Entities/PackagingRecord.cs` -- extends `AuditableEntity`
+- `src/Wrapsfer.Domain/Entities/PackagingRecord.cs` -- extends `AuditableEntity`
   - Properties: `TenantId`, `PackagingDate` (DateOnly), `WaybillNumber`
   - Navigation: `ICollection<PackagingItem> Items`
   - Unique on `(TenantId, PackagingDate, WaybillNumber)`
-- `src/Wrapster.Domain/Entities/PackagingItem.cs` -- extends `AuditableEntity`
+- `src/Wrapsfer.Domain/Entities/PackagingItem.cs` -- extends `AuditableEntity`
   - Properties: `TenantId`, `PackagingRecordId` (FK), `ProductBarcode`, `ScannedAt` (DateTime)
   - FK cascade delete from PackagingRecord
-- `src/Wrapster.Domain/Entities/PackagingCache.cs` -- extends `BaseEntity` (not auditable)
+- `src/Wrapsfer.Domain/Entities/PackagingCache.cs` -- extends `BaseEntity` (not auditable)
   - Properties: `TenantId`, `CacheDate` (DateOnly), `Data` (JSON), `CachedAtUtc`
   - Unique on `(TenantId, CacheDate)`
 
 **Errors:**
-- `src/Wrapster.Domain/Errors/PackagingErrors.cs` -- `NotFound`, `DuplicateWaybillForDate`, `ItemNotFound`
+- `src/Wrapsfer.Domain/Errors/PackagingErrors.cs` -- `NotFound`, `DuplicateWaybillForDate`, `ItemNotFound`
 
 **Repositories:**
 - `IPackagingRecordRepository` -- GetByIdWithItems, GetByDateAndWaybill, ListByDateWithItems, Add, Remove
@@ -160,8 +160,8 @@ Each phase is a complete vertical slice for one module: domain entity, errors, r
 - `PackagingRecordRepository.cs`, `PackagingCacheRepository.cs`
 
 **Services:**
-- `src/Wrapster.Application/Abstractions/IPackagingCacheService.cs` -- Get, Set, Invalidate
-- `src/Wrapster.Infrastructure/Services/PackagingCacheService.cs` -- uses `IPackagingCacheRepository`, JSON serialization
+- `src/Wrapsfer.Application/Abstractions/IPackagingCacheService.cs` -- Get, Set, Invalidate
+- `src/Wrapsfer.Infrastructure/Services/PackagingCacheService.cs` -- uses `IPackagingCacheRepository`, JSON serialization
 
 **Wiring:**
 - Add DbSets to `ApplicationDbContext`
@@ -170,7 +170,7 @@ Each phase is a complete vertical slice for one module: domain entity, errors, r
 
 ### 2.3 Application
 
-**Stock Service** (`src/Wrapster.Application/Services/StockService.cs`, registered as scoped):
+**Stock Service** (`src/Wrapsfer.Application/Services/StockService.cs`, registered as scoped):
 - `CalculateStockRequirements(items, components)` -- maps product IDs to required deduction amounts (singles=1, bundles=sum of component quantities)
 - `ValidateStock(requirements)` -- returns `Result` with insufficient stock details
 - `DeductStock(requirements)` -- calls `Product.DeductStock()` on each (within same EF transaction)
@@ -178,7 +178,7 @@ Each phase is a complete vertical slice for one module: domain entity, errors, r
 
 Key advantage over JS: all stock operations happen within a **single EF Core transaction** via `SaveChangesAsync`. No manual rollback needed.
 
-**Commands** in `src/Wrapster.Application/Packaging/`:
+**Commands** in `src/Wrapsfer.Application/Packaging/`:
 - `CreatePackagingRecord` -- `ICommand<Guid>`: duplicate check (date+waybill), create record+items, validate & deduct stock, all in one SaveChanges
 - `UpdatePackagingRecord` -- `ICommand`: update waybill and/or replace items, recalculate stock diffs, invalidate cache
 - `DeletePackagingRecord` -- `ICommand`: delete record+items, restore stock, invalidate cache
@@ -190,7 +190,7 @@ Key advantage over JS: all stock operations happen within a **single EF Core tra
 
 ### 2.4 API
 
-**`PackagingController`** (`src/Wrapster.Api/Controllers/V1/PackagingController.cs`):
+**`PackagingController`** (`src/Wrapsfer.Api/Controllers/V1/PackagingController.cs`):
 - `POST /api/v1/packaging`
 - `PUT /api/v1/packaging/{id}`
 - `DELETE /api/v1/packaging/{id}`
@@ -214,7 +214,7 @@ Key advantage over JS: all stock operations happen within a **single EF Core tra
 ### 3.1 Domain
 
 **Entity:**
-- `src/Wrapster.Domain/Entities/StoredFile.cs` -- extends `AuditableEntity`
+- `src/Wrapsfer.Domain/Entities/StoredFile.cs` -- extends `AuditableEntity`
   - Properties: `TenantId`, `FileName`, `ContentType`, `SizeBytes` (long), `StoragePath`
 
 **Repository:**
@@ -229,9 +229,9 @@ Key advantage over JS: all stock operations happen within a **single EF Core tra
 - `StoredFileRepository.cs`
 
 **Storage Service:**
-- `src/Wrapster.Application/Abstractions/IFileStorageService.cs` -- Upload (returns Guid), Download (returns Stream), Delete, GetMetadata
-- `src/Wrapster.Infrastructure/Storage/LocalFileStorageService.cs` -- stores on disk at `./storage/{tenantId}/{year}/{month}/{fileId}/{fileName}`
-- `src/Wrapster.Infrastructure/Storage/StorageOptions.cs` -- configurable base path
+- `src/Wrapsfer.Application/Abstractions/IFileStorageService.cs` -- Upload (returns Guid), Download (returns Stream), Delete, GetMetadata
+- `src/Wrapsfer.Infrastructure/Storage/LocalFileStorageService.cs` -- stores on disk at `./storage/{tenantId}/{year}/{month}/{fileId}/{fileName}`
+- `src/Wrapsfer.Infrastructure/Storage/StorageOptions.cs` -- configurable base path
 
 **Wiring:**
 - Add `DbSet<StoredFile>` to `ApplicationDbContext`
@@ -240,7 +240,7 @@ Key advantage over JS: all stock operations happen within a **single EF Core tra
 
 ### 3.3 API
 
-**`FilesController`** (`src/Wrapster.Api/Controllers/V1/FilesController.cs`):
+**`FilesController`** (`src/Wrapsfer.Api/Controllers/V1/FilesController.cs`):
 - `POST /api/v1/files` (upload, multipart form)
 - `GET /api/v1/files/{id}` (download, returns FileStreamResult)
 - `DELETE /api/v1/files/{id}`
@@ -259,16 +259,16 @@ Key advantage over JS: all stock operations happen within a **single EF Core tra
 ### 4.1 Domain
 
 **Enums:**
-- `src/Wrapster.Domain/Enums/JobAction.cs` -- `ImportExcel`, `ExportExcel`, `ExportReportingExcel`, `ExportReportingPdf`, `SendReportEmail`
-- `src/Wrapster.Domain/Enums/JobStatus.cs` -- `Pending`, `Processing`, `Completed`, `Failed`
+- `src/Wrapsfer.Domain/Enums/JobAction.cs` -- `ImportExcel`, `ExportExcel`, `ExportReportingExcel`, `ExportReportingPdf`, `SendReportEmail`
+- `src/Wrapsfer.Domain/Enums/JobStatus.cs` -- `Pending`, `Processing`, `Completed`, `Failed`
 
 **Entity:**
-- `src/Wrapster.Domain/Entities/ImportJob.cs` -- extends `AuditableEntity`
+- `src/Wrapsfer.Domain/Entities/ImportJob.cs` -- extends `AuditableEntity`
   - Properties: `TenantId`, `UserId`, `Action` (JobAction), `Status` (JobStatus), `FileId?` (Guid), `ResultFileId?` (Guid), `Filters?` (JSON), `Stats?` (JSON), `Error?`, `CreatedAtUtc`, `CompletedAtUtc?`
   - Methods: `MarkProcessing()`, `MarkCompleted(resultFileId?, stats?)`, `MarkFailed(error)`
 
 **Errors:**
-- `src/Wrapster.Domain/Errors/JobErrors.cs` -- `NotFound`, `InvalidAction`, `AlreadyProcessing`, `FileNotFound`
+- `src/Wrapsfer.Domain/Errors/JobErrors.cs` -- `NotFound`, `InvalidAction`, `AlreadyProcessing`, `FileNotFound`
 
 **Repository:**
 - `IImportJobRepository` -- GetById, ListByUser, GetActiveJobs, Add, Remove
@@ -303,13 +303,13 @@ The job system uses a **transactional outbox pattern** to guarantee no jobs are 
    - **Prefetch count = 1** -- one job at a time per consumer for predictable resource usage
 
 **Queue Files:**
-- `src/Wrapster.Application/Abstractions/IJobQueue.cs` -- `PublishAsync(Guid jobId, JobAction action, CancellationToken ct)`
-- `src/Wrapster.Infrastructure/Queue/RabbitMqJobQueue.cs` -- publishes messages to RabbitMQ exchanges
-- `src/Wrapster.Infrastructure/Queue/RabbitMqOptions.cs` -- `HostName`, `Port`, `UserName`, `Password`, `VirtualHost` from appsettings
-- `src/Wrapster.Infrastructure/Queue/JobConsumerHostedService.cs` -- `IHostedService` that subscribes to queues and dispatches to job handlers
-- `src/Wrapster.Infrastructure/Queue/OutboxProcessorHostedService.cs` -- periodic scan for orphaned Pending jobs, re-publishes to RabbitMQ
+- `src/Wrapsfer.Application/Abstractions/IJobQueue.cs` -- `PublishAsync(Guid jobId, JobAction action, CancellationToken ct)`
+- `src/Wrapsfer.Infrastructure/Queue/RabbitMqJobQueue.cs` -- publishes messages to RabbitMQ exchanges
+- `src/Wrapsfer.Infrastructure/Queue/RabbitMqOptions.cs` -- `HostName`, `Port`, `UserName`, `Password`, `VirtualHost` from appsettings
+- `src/Wrapsfer.Infrastructure/Queue/JobConsumerHostedService.cs` -- `IHostedService` that subscribes to queues and dispatches to job handlers
+- `src/Wrapsfer.Infrastructure/Queue/OutboxProcessorHostedService.cs` -- periodic scan for orphaned Pending jobs, re-publishes to RabbitMQ
 
-**Job Implementations** (`src/Wrapster.Infrastructure/Jobs/`):
+**Job Implementations** (`src/Wrapsfer.Infrastructure/Jobs/`):
 
 | Job | Replaces | Logic |
 |-----|----------|-------|
@@ -319,9 +319,9 @@ The job system uses a **transactional outbox pattern** to guarantee no jobs are 
 | `SendReportEmailJob` | `trigger/send-report-email.ts` | Download file, send via IEmailService with attachment |
 
 **Email (Resend):**
-- `src/Wrapster.Application/Abstractions/IEmailService.cs` -- `SendAsync(to, subject, htmlBody, attachments?)`
-- `src/Wrapster.Infrastructure/Email/ResendEmailService.cs` -- Resend HTTP API implementation
-- `src/Wrapster.Infrastructure/Email/ResendOptions.cs` -- `ApiKey`, `FromAddress` from appsettings
+- `src/Wrapsfer.Application/Abstractions/IEmailService.cs` -- `SendAsync(to, subject, htmlBody, attachments?)`
+- `src/Wrapsfer.Infrastructure/Email/ResendEmailService.cs` -- Resend HTTP API implementation
+- `src/Wrapsfer.Infrastructure/Email/ResendOptions.cs` -- `ApiKey`, `FromAddress` from appsettings
 
 **NuGet Packages:**
 - `RabbitMQ.Client` -- RabbitMQ .NET client
@@ -339,7 +339,7 @@ The job system uses a **transactional outbox pattern** to guarantee no jobs are 
 
 ### 4.3 Application
 
-**Commands** in `src/Wrapster.Application/Jobs/`:
+**Commands** in `src/Wrapsfer.Application/Jobs/`:
 - `QueueImportJob` -- `ICommand<Guid>` with FileId
 - `QueueExportJob` -- `ICommand<Guid>` with optional type filter
 - `QueueReportExportJob` -- `ICommand<Guid>` with StartDate, EndDate, Format
@@ -353,7 +353,7 @@ The job system uses a **transactional outbox pattern** to guarantee no jobs are 
 
 ### 4.4 API
 
-**`JobsController`** (`src/Wrapster.Api/Controllers/V1/JobsController.cs`):
+**`JobsController`** (`src/Wrapsfer.Api/Controllers/V1/JobsController.cs`):
 - `POST /api/v1/jobs/import` (multipart form)
 - `POST /api/v1/jobs/export`
 - `POST /api/v1/jobs/report-export`
@@ -432,17 +432,17 @@ Phase 5 (Testing + Polish)
 
 ## Critical Files to Modify (across all phases)
 
-- `src/Wrapster.Infrastructure/Persistence/ApplicationDbContext.cs` -- add DbSets per phase
-- `src/Wrapster.Infrastructure/DependencyInjection.cs` -- register services per phase
+- `src/Wrapsfer.Infrastructure/Persistence/ApplicationDbContext.cs` -- add DbSets per phase
+- `src/Wrapsfer.Infrastructure/DependencyInjection.cs` -- register services per phase
 - `Directory.Packages.props` -- add RabbitMQ.Client, ClosedXML, QuestPDF in Phase 4
-- `src/Wrapster.Infrastructure/Wrapster.Infrastructure.csproj` -- add package references in Phase 4
+- `src/Wrapsfer.Infrastructure/Wrapsfer.Infrastructure.csproj` -- add package references in Phase 4
 - `compose.yml` -- add RabbitMQ service in Phase 4
 
 ## Reusable Existing Patterns
 
-- `src/Wrapster.Domain/Common/AuditableEntity.cs` -- base for all new entities
-- `src/Wrapster.Application/Abstractions/Messaging/ICommand.cs` -- template for IQuery
-- `src/Wrapster.Infrastructure/Persistence/Configurations/AuditLogConfiguration.cs` -- template for all EF configs
-- `src/Wrapster.Api/Controllers/V1/MeController.cs` -- controller attributes/routing pattern
-- `src/Wrapster.Infrastructure/Persistence/Interceptors/AuditLogInterceptor.cs` -- already handles audit for all entities
-- `src/Wrapster.Application/Behaviors/ValidationBehavior.cs` -- auto-validates all commands with FluentValidation
+- `src/Wrapsfer.Domain/Common/AuditableEntity.cs` -- base for all new entities
+- `src/Wrapsfer.Application/Abstractions/Messaging/ICommand.cs` -- template for IQuery
+- `src/Wrapsfer.Infrastructure/Persistence/Configurations/AuditLogConfiguration.cs` -- template for all EF configs
+- `src/Wrapsfer.Api/Controllers/V1/MeController.cs` -- controller attributes/routing pattern
+- `src/Wrapsfer.Infrastructure/Persistence/Interceptors/AuditLogInterceptor.cs` -- already handles audit for all entities
+- `src/Wrapsfer.Application/Behaviors/ValidationBehavior.cs` -- auto-validates all commands with FluentValidation

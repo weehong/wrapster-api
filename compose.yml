@@ -37,18 +37,18 @@ services:
       keycloak-db:
         condition: service_healthy
 
-  wrapster-db:
+  wrapsfer-db:
     image: postgres:17
     environment:
-      POSTGRES_USER: wrapster
-      POSTGRES_PASSWORD: wrapster
-      POSTGRES_DB: wrapster
+      POSTGRES_USER: wrapsfer
+      POSTGRES_PASSWORD: wrapsfer
+      POSTGRES_DB: wrapsfer
     ports:
       - "15432:5432"
     volumes:
-      - wrapster_data:/var/lib/postgresql/data
+      - wrapsfer_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U wrapster"]
+      test: ["CMD-SHELL", "pg_isready -U wrapsfer"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -56,8 +56,8 @@ services:
   rabbitmq:
     image: rabbitmq:4-management
     environment:
-      RABBITMQ_DEFAULT_USER: wrapster
-      RABBITMQ_DEFAULT_PASS: wrapster
+      RABBITMQ_DEFAULT_USER: wrapsfer
+      RABBITMQ_DEFAULT_PASS: wrapsfer
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -72,4 +72,4 @@ services:
 volumes:
   keycloak_data:
   rabbitmq_data:
-  wrapster_data:
+  wrapsfer_data:

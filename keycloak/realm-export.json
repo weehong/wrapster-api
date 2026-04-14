@@ -1,7 +1,7 @@
 {
   "id": "owner",
   "realm": "owner",
-  "displayName": "Wrapster Owner Realm",
+  "displayName": "Wrapsfer Owner Realm",
   "enabled": true,
   "sslRequired": "none",
   "registrationAllowed": false,
@@ -28,12 +28,12 @@
   },
   "clients": [
     {
-      "clientId": "wrapster-api",
-      "name": "Wrapster API",
+      "clientId": "wrapsfer-api",
+      "name": "Wrapsfer API",
       "enabled": true,
       "publicClient": false,
       "clientAuthenticatorType": "client-secret",
-      "secret": "wrapster-api-secret",
+      "secret": "wrapsfer-api-secret",
       "directAccessGrantsEnabled": true,
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
@@ -59,7 +59,7 @@
           "protocolMapper": "oidc-audience-mapper",
           "consentRequired": false,
           "config": {
-            "included.client.audience": "wrapster-api",
+            "included.client.audience": "wrapsfer-api",
             "id.token.claim": "false",
             "access.token.claim": "true",
             "introspection.token.claim": "true"
@@ -71,7 +71,7 @@
   "users": [
     {
       "username": "testuser",
-      "email": "testuser@wrapster.local",
+      "email": "testuser@wrapsfer.local",
       "emailVerified": true,
       "enabled": true,
       "firstName": "Test",
@@ -90,7 +90,7 @@
     },
     {
       "username": "owneradmin",
-      "email": "owneradmin@wrapster.local",
+      "email": "owneradmin@wrapsfer.local",
       "emailVerified": true,
       "enabled": true,
       "firstName": "Owner",

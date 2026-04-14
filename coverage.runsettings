@@ -6,17 +6,17 @@
         <Configuration>
           <Format>cobertura</Format>
           <Exclude>
-            [Wrapster.Api]*,
+            [Wrapsfer.Api]*,
             [*]Program,
             [*]*DependencyInjection,
-            [Wrapster.Infrastructure]Wrapster.Infrastructure.Persistence.*,
-            [Wrapster.Infrastructure]Wrapster.Infrastructure.Migrations.*,
-            [Wrapster.Infrastructure]Wrapster.Infrastructure.Email.*,
-            [Wrapster.Infrastructure]Wrapster.Infrastructure.Queue.*,
-            [Wrapster.Infrastructure]Wrapster.Infrastructure.Configuration.*,
-            [Wrapster.Infrastructure]Wrapster.Infrastructure.Authentication.KeycloakClaimsTransformation,
-            [Wrapster.Infrastructure]Wrapster.Infrastructure.Authentication.MultiTenantJwtBearerEvents,
-            [Wrapster.Infrastructure]Wrapster.Infrastructure.Authentication.RealmConfigurationCache,
+            [Wrapsfer.Infrastructure]Wrapsfer.Infrastructure.Persistence.*,
+            [Wrapsfer.Infrastructure]Wrapsfer.Infrastructure.Migrations.*,
+            [Wrapsfer.Infrastructure]Wrapsfer.Infrastructure.Email.*,
+            [Wrapsfer.Infrastructure]Wrapsfer.Infrastructure.Queue.*,
+            [Wrapsfer.Infrastructure]Wrapsfer.Infrastructure.Configuration.*,
+            [Wrapsfer.Infrastructure]Wrapsfer.Infrastructure.Authentication.KeycloakClaimsTransformation,
+            [Wrapsfer.Infrastructure]Wrapsfer.Infrastructure.Authentication.MultiTenantJwtBearerEvents,
+            [Wrapsfer.Infrastructure]Wrapsfer.Infrastructure.Authentication.RealmConfigurationCache,
             [*]System.Runtime.CompilerServices.*,
             [*]Microsoft.AspNetCore.OpenApi.Generated.*
           </Exclude>

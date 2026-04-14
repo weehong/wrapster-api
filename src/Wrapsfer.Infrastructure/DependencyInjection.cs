@@ -1,0 +1,114 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Wrapsfer.Application.Abstractions;
+using Wrapsfer.Application.Abstractions.FileProcessing;
+using Wrapsfer.Domain.Abstractions;
+using Wrapsfer.Domain.Repositories;
+using Wrapsfer.Infrastructure.Authentication;
+using Wrapsfer.Infrastructure.BackgroundServices;
+using Wrapsfer.Infrastructure.FileProcessing;
+using Wrapsfer.Infrastructure.Persistence;
+using Wrapsfer.Infrastructure.Persistence.Interceptors;
+using Wrapsfer.Infrastructure.Persistence.Repositories;
+using Wrapsfer.Infrastructure.Queue;
+
+namespace Wrapsfer.Infrastructure;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.AddHttpContextAccessor();
+        services.AddScoped<ITenantContext, HttpTenantContext>();
+
+        services.AddScoped<AuditableEntityInterceptor>();
+        services.AddScoped<AuditLogInterceptor>();
+        services.AddSingleton<DomainEventInterceptor>();
+
+        services.AddDbContext<ApplicationDbContext>((sp, options) =>
+        {
+            AuditableEntityInterceptor auditableInterceptor = sp
+                .GetRequiredService<AuditableEntityInterceptor>();
+            AuditLogInterceptor auditLogInterceptor = sp
+                .GetRequiredService<AuditLogInterceptor>();
+            DomainEventInterceptor domainEventInterceptor = sp
+                .GetRequiredService<DomainEventInterceptor>();
+            string connectionString = configuration.GetConnectionString("DefaultConnection")
+                                      ?? throw new InvalidOperationException(
+                                          "Connection string 'DefaultConnection' is not configured.");
+
+            options.UseNpgsql(connectionString)
+                .AddInterceptors(auditableInterceptor, auditLogInterceptor, domainEventInterceptor);
+        });
+
+        services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
+
+        services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<IProductComponentRepository, ProductComponentRepository>();
+        services.AddScoped<ITenantSettingsRepository, TenantSettingsRepository>();
+        services.AddScoped<IStockAlertLogRepository, StockAlertLogRepository>();
+        services.AddScoped<IWaybillRepository, WaybillRepository>();
+
+        services.AddKeycloakAuthentication(configuration);
+        services.AddQueueService(configuration);
+
+        services.AddSingleton<CsvProductFileParser>();
+        services.AddSingleton<ExcelProductFileParser>();
+        services.AddSingleton<IProductFileParser, CompositeProductFileParser>();
+        services.AddSingleton<CsvProductFileWriter>();
+        services.AddSingleton<ExcelProductFileWriter>();
+        services.AddSingleton<IProductFileWriter, CompositeProductFileWriter>();
+
+        services.AddHostedService<ProductsExportConsumer>();
+        services.AddHostedService<WaybillsExportConsumer>();
+        services.AddHostedService<AutoCancelStaleDraftsJob>();
+
+        return services;
+    }
+
+    private static IServiceCollection AddKeycloakAuthentication(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        IConfigurationSection keycloakSection = configuration.GetSection(KeycloakOptions.SectionName);
+        services.AddOptions<KeycloakOptions>()
+            .Bind(keycloakSection)
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<KeycloakOptions>, KeycloakOptionsValidator>();
+
+        KeycloakOptions keycloakOptions = keycloakSection.Get<KeycloakOptions>()
+                                          ?? throw new InvalidOperationException(
+                                              "Keycloak configuration section is missing.");
+
+        services.AddHttpClient("KeycloakOidc");
+
+        services.AddSingleton<RealmConfigurationCache>();
+        services.AddScoped<ITenantRealmResolver, SubdomainTenantRealmResolver>();
+        services.AddScoped<MultiTenantJwtBearerEvents>();
+
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
+            {
+                options.Authority = $"{keycloakOptions.BaseUrl.TrimEnd('/')}/realms/{keycloakOptions.OwnerRealm}";
+                options.Audience = keycloakOptions.Audience;
+                options.RequireHttpsMetadata = keycloakOptions.RequireHttpsMetadata;
+                options.MapInboundClaims = false;
+
+                // Disable default automatic configuration — MultiTenantJwtBearerEvents
+                // handles per-tenant OIDC discovery and token validation.
+                options.Configuration = new OpenIdConnectConfiguration();
+
+                options.EventsType = typeof(MultiTenantJwtBearerEvents);
+            });
+
+        services.AddAuthorization();
+
+        return services;
+    }
+}

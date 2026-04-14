@@ -29,8 +29,8 @@
 
 All realms use the same client:
 
-- **Client ID**: wrapster-api
-- **Client Secret**: wrapster-api-secret
+- **Client ID**: wrapsfer-api
+- **Client Secret**: wrapsfer-api-secret
 - **Grant Type**: password
 
 ```
