@@ -20,6 +20,8 @@ public sealed class Product : AuditableEntity
     public ProductType Type { get; private set; }
     public decimal Cost { get; private set; }
     public int StockQuantity { get; private set; }
+    public int ReservedQuantity { get; private set; }
+    public int AvailableQuantity => StockQuantity - ReservedQuantity;
     public int? LowStockThreshold { get; private set; }
     public Guid? UnpackTargetProductId { get; private set; }
     public int? UnpackQuantityPerPackage { get; private set; }
@@ -173,6 +175,111 @@ public sealed class Product : AuditableEntity
         if (previousQuantity < effectiveThreshold && StockQuantity >= effectiveThreshold)
         {
             RaiseStockRecoveredEvent(fallbackThreshold);
+        }
+
+        return Result.Success();
+    }
+
+    public Result CanReserve(int quantity)
+    {
+        if (quantity <= 0)
+        {
+            return Result.Failure(ProductErrors.InvalidReservationQuantity);
+        }
+
+        if (Type == ProductType.Bundle)
+        {
+            return Result.Failure(ProductErrors.CannotReserveBundleStock);
+        }
+
+        if (AvailableQuantity < quantity)
+        {
+            return Result.Failure(ProductErrors.InsufficientStock);
+        }
+
+        return Result.Success();
+    }
+
+    public Result CanRelease(int quantity)
+    {
+        if (quantity <= 0)
+        {
+            return Result.Failure(ProductErrors.InvalidReservationQuantity);
+        }
+
+        if (ReservedQuantity < quantity)
+        {
+            return Result.Failure(ProductErrors.ReservationMismatch);
+        }
+
+        return Result.Success();
+    }
+
+    public Result CanConsume(int quantity)
+    {
+        if (quantity <= 0)
+        {
+            return Result.Failure(ProductErrors.InvalidReservationQuantity);
+        }
+
+        if (Type == ProductType.Bundle)
+        {
+            return Result.Failure(ProductErrors.CannotDeductBundleStock);
+        }
+
+        if (ReservedQuantity < quantity)
+        {
+            return Result.Failure(ProductErrors.ReservationMismatch);
+        }
+
+        if (StockQuantity < quantity)
+        {
+            return Result.Failure(ProductErrors.InsufficientStock);
+        }
+
+        return Result.Success();
+    }
+
+    public Result Reserve(int quantity)
+    {
+        Result canReserve = CanReserve(quantity);
+        if (canReserve.IsFailure)
+        {
+            return canReserve;
+        }
+
+        ReservedQuantity += quantity;
+        return Result.Success();
+    }
+
+    public Result Release(int quantity)
+    {
+        Result canRelease = CanRelease(quantity);
+        if (canRelease.IsFailure)
+        {
+            return canRelease;
+        }
+
+        ReservedQuantity -= quantity;
+        return Result.Success();
+    }
+
+    public Result Consume(int quantity, int fallbackThreshold = 0)
+    {
+        Result canConsume = CanConsume(quantity);
+        if (canConsume.IsFailure)
+        {
+            return canConsume;
+        }
+
+        int previousQuantity = StockQuantity;
+        StockQuantity -= quantity;
+        ReservedQuantity -= quantity;
+
+        int effectiveThreshold = GetEffectiveThreshold(fallbackThreshold);
+        if (previousQuantity >= effectiveThreshold && StockQuantity < effectiveThreshold)
+        {
+            RaiseLowStockEvent(fallbackThreshold);
         }
 
         return Result.Success();

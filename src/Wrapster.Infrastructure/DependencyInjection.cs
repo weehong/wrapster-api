@@ -54,6 +54,7 @@ public static class DependencyInjection
         services.AddScoped<IProductComponentRepository, ProductComponentRepository>();
         services.AddScoped<ITenantSettingsRepository, TenantSettingsRepository>();
         services.AddScoped<IStockAlertLogRepository, StockAlertLogRepository>();
+        services.AddScoped<IWaybillRepository, WaybillRepository>();
 
         services.AddKeycloakAuthentication(configuration);
         services.AddEmailService(configuration);
@@ -67,6 +68,8 @@ public static class DependencyInjection
         services.AddSingleton<IProductFileWriter, CompositeProductFileWriter>();
 
         services.AddHostedService<ProductsExportConsumer>();
+        services.AddHostedService<WaybillsExportConsumer>();
+        services.AddHostedService<AutoCancelStaleDraftsJob>();
 
         return services;
     }

@@ -43,6 +43,16 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(p => p.StockQuantity)
             .IsRequired();
 
+        builder.Property(p => p.ReservedQuantity)
+            .IsRequired()
+            .HasDefaultValue(0);
+
+        builder.ToTable(t => t.HasCheckConstraint(
+            "CK_Products_ReservedQuantity_NonNegative",
+            "\"ReservedQuantity\" >= 0"));
+
+        builder.Ignore(p => p.AvailableQuantity);
+
         builder.Property(p => p.LowStockThreshold);
 
         builder.Property(p => p.UnpackTargetProductId);

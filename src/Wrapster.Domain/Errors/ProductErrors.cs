@@ -143,4 +143,24 @@ public static class ProductErrors
         "ProductComponent.InvalidTenantId",
         "Tenant ID is required for product component",
         ErrorType.Validation);
+
+    public static readonly Error InvalidReservationQuantity = new(
+        "Product.InvalidReservationQuantity",
+        "Reservation quantity must be greater than zero",
+        ErrorType.Validation);
+
+    public static readonly Error CannotReserveBundleStock = new(
+        "Product.CannotReserveBundleStock",
+        "Cannot directly reserve stock on a bundle product",
+        ErrorType.Validation);
+
+    public static readonly Error ReservationMismatch = new(
+        "Product.ReservationMismatch",
+        "The reserved quantity is insufficient to complete this operation",
+        ErrorType.Conflict);
+
+    public static readonly Error BundleHasNoComponents = new(
+        "Product.BundleHasNoComponents",
+        "The bundle product has no components configured",
+        ErrorType.Validation);
 }

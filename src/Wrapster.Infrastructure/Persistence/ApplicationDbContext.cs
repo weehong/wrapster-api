@@ -14,6 +14,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<TenantSettings> TenantSettings => Set<TenantSettings>();
     public DbSet<NotificationRecipient> NotificationRecipients => Set<NotificationRecipient>();
     public DbSet<StockAlertLog> StockAlertLogs => Set<StockAlertLog>();
+    public DbSet<Waybill> Waybills => Set<Waybill>();
+    public DbSet<WaybillItem> WaybillItems => Set<WaybillItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

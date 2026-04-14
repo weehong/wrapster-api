@@ -3,6 +3,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Wrapster.Application.Behaviors;
+using Wrapster.Application.Waybills.Services;
 
 namespace Wrapster.Application;
 
@@ -20,6 +21,8 @@ public static class DependencyInjection
         });
 
         services.AddValidatorsFromAssembly(assembly);
+
+        services.AddScoped<StockReservationService>();
 
         return services;
     }
