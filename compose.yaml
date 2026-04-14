@@ -1,0 +1,60 @@
+services:
+  api:
+    image: ${DOCKER_IMAGE}:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: ${DB_CONNECTION_STRING}
+      RabbitMq__HostName: ${RABBITMQ_HOST}
+      RabbitMq__Port: ${RABBITMQ_PORT:-5672}
+      RabbitMq__UserName: ${RABBITMQ_USER}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD}
+      RabbitMq__VirtualHost: ${RABBITMQ_VHOST:-/}
+      Mailing__Resend__ApiKey: ${RESEND_API_KEY}
+      Mailing__Resend__FromAddress: ${RESEND_FROM_ADDRESS}
+      Mailing__Resend__FromName: ${RESEND_FROM_NAME}
+      Keycloak__BaseUrl: ${KEYCLOAK_BASE_URL}
+      Keycloak__OwnerRealm: ${KEYCLOAK_OWNER_REALM}
+      Keycloak__Audience: ${KEYCLOAK_AUDIENCE}
+      Keycloak__RequireHttpsMetadata: ${KEYCLOAK_REQUIRE_HTTPS:-true}
+    ports:
+      - "${API_PORT:-8080}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db_data:
+  rabbitmq_data:
