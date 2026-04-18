@@ -14,10 +14,10 @@ services:
       Mailing__Resend__ApiKey: ${RESEND_API_KEY}
       Mailing__Resend__FromAddress: ${RESEND_FROM_ADDRESS}
       Mailing__Resend__FromName: ${RESEND_FROM_NAME}
-      Keycloak__BaseUrl: ${KEYCLOAK_BASE_URL}
-      Keycloak__OwnerRealm: ${KEYCLOAK_OWNER_REALM}
-      Keycloak__Audience: ${KEYCLOAK_AUDIENCE}
-      Keycloak__RequireHttpsMetadata: ${KEYCLOAK_REQUIRE_HTTPS:-true}
+      Keycloak__BaseUrl: ${KEYCLOAK_BASE_URL:-http://keycloak:8080}
+      Keycloak__OwnerRealm: ${KEYCLOAK_OWNER_REALM:-owner}
+      Keycloak__Audience: ${KEYCLOAK_AUDIENCE:-wrapsfer-api}
+      Keycloak__RequireHttpsMetadata: ${KEYCLOAK_REQUIRE_HTTPS:-false}
     ports:
       - "${API_PORT:-8080}:8080"
     depends_on:
@@ -25,6 +25,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      keycloak:
+        condition: service_started
 
   db:
     image: postgres:17
@@ -55,6 +57,43 @@ services:
       timeout: 5s
       retries: 10
 
+  keycloak-db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      POSTGRES_DB: keycloak
+    volumes:
+      - keycloak_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.2
+    restart: unless-stopped
+    command: start-dev --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_HEALTH_ENABLED: "true"
+      KC_HTTP_PORT: "8080"
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    ports:
+      - "${KEYCLOAK_PORT:-18080}:8080"
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+
 volumes:
   db_data:
   rabbitmq_data:
+  keycloak_db_data:

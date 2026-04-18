@@ -210,7 +210,7 @@ jobs:
           username: ${{ vars.SSH_USERNAME }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ vars.SSH_PORT }}
-          source: "compose.yaml,.env.example"
+          source: "compose.yaml,.env.example,keycloak/realm-export.json"
           target: ${{ vars.DEPLOY_PATH }}
 
       - name: Deploy via SSH
