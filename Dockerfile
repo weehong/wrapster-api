@@ -22,9 +22,6 @@ RUN dotnet publish src/Wrapsfer.Api/Wrapsfer.Api.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
-# Non-root user for security
-RUN groupadd --system --gid 1000 app \
-    && useradd --system --uid 1000 --gid app --shell /bin/false app
 USER app
 
 COPY --from=build --chown=app:app /app/publish ./
