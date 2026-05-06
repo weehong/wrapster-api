@@ -1,4 +1,5 @@
 using Wrapsfer.Application.Abstractions.Messaging;
+using Wrapsfer.Application.Products.Common;
 
 namespace Wrapsfer.Application.Products.Commands.UpdateProduct;
 
@@ -11,4 +12,5 @@ public sealed record UpdateProductCommand(
     int? LowStockThreshold,
     bool ClearLowStockThreshold,
     Guid? UnpackTargetProductId = null,
-    int? UnpackQuantityPerPackage = null) : ICommand;
+    int? UnpackQuantityPerPackage = null,
+    IReadOnlyList<BundleComponentInput>? Components = null) : ICommand;

@@ -88,7 +88,8 @@ public sealed class ProductsController(ISender sender, IProductFileWriter fileWr
     {
         UpdateProductCommand command = new(id, request.Name, request.SkuCode, request.ClearSkuCode, request.Cost,
             request.LowStockThreshold, request.ClearLowStockThreshold,
-            request.UnpackTargetProductId, request.UnpackQuantityPerPackage);
+            request.UnpackTargetProductId, request.UnpackQuantityPerPackage,
+            request.Components);
         Result result = await sender.Send(command, cancellationToken);
         return ToActionResult(result);
     }

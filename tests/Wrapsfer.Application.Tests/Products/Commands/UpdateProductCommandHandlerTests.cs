@@ -1,6 +1,7 @@
 using Wrapsfer.Application.Abstractions;
 using Wrapsfer.Application.Products;
 using Wrapsfer.Application.Products.Commands.UpdateProduct;
+using Wrapsfer.Application.Products.Common;
 using Wrapsfer.Application.Tests.Helpers;
 using Wrapsfer.Domain.Abstractions;
 using Wrapsfer.Domain.Common;
@@ -15,6 +16,7 @@ public class UpdateProductCommandHandlerTests
     private const string TenantId = "test-tenant";
     private readonly UpdateProductCommandHandler _handler;
 
+    private readonly Mock<IProductComponentRepository> _productComponentRepository = new();
     private readonly Mock<IProductRepository> _productRepository = new();
     private readonly Mock<ITenantContext> _tenantContext = new();
     private readonly Mock<ITenantSettingsRepository> _tenantSettingsRepository = new();
@@ -26,8 +28,8 @@ public class UpdateProductCommandHandlerTests
         _tenantSettingsRepository.Setup(r => r.GetByTenantIdAsync(TenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Domain.Entities.TenantSettings?)null);
         IOptions<ProductSettings> settings = Options.Create(new ProductSettings { GlobalLowStockThreshold = 10 });
-        _handler = new UpdateProductCommandHandler(_productRepository.Object, _tenantSettingsRepository.Object,
-            _tenantContext.Object, _unitOfWork.Object, settings);
+        _handler = new UpdateProductCommandHandler(_productRepository.Object, _productComponentRepository.Object,
+            _tenantSettingsRepository.Object, _tenantContext.Object, _unitOfWork.Object, settings);
     }
 
     [Fact]
@@ -120,5 +122,93 @@ public class UpdateProductCommandHandlerTests
         result.IsSuccess.Should().BeTrue();
         package.UnpackTargetProductId.Should().Be(newTarget.Id);
         package.UnpackQuantityPerPackage.Should().Be(12);
+    }
+
+    [Fact]
+    public async Task Handle_WhenComponentsProvidedOnNonBundle_ReturnsComponentsOnNonBundleFailure()
+    {
+        Product single = ProductTestFactory.CreateSingle();
+        _productRepository.Setup(r => r.GetByIdAsync(single.Id, TenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(single);
+
+        List<BundleComponentInput> components = [new(Guid.NewGuid(), 1)];
+        UpdateProductCommand command = new(single.Id, null, null, false, null, null, false,
+            Components: components);
+
+        Result result = await _handler.Handle(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be(ProductErrors.ComponentsOnNonBundle.Code);
+    }
+
+    [Fact]
+    public async Task Handle_WhenComponentChildNotFound_ReturnsComponentNotFoundFailure()
+    {
+        Product bundle = ProductTestFactory.CreateBundle();
+        Guid missingChildId = Guid.NewGuid();
+
+        _productRepository.Setup(r => r.GetByIdAsync(bundle.Id, TenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(bundle);
+        _productRepository.Setup(r => r.GetByIdsAsync(It.IsAny<IEnumerable<Guid>>(), TenantId,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<Product>());
+
+        UpdateProductCommand command = new(bundle.Id, null, null, false, null, null, false,
+            Components: [new(missingChildId, 1)]);
+
+        Result result = await _handler.Handle(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be(ProductErrors.ComponentNotFound.Code);
+    }
+
+    [Fact]
+    public async Task Handle_WhenComponentChildIsNotSingle_ReturnsInvalidComponentTypeFailure()
+    {
+        Product bundle = ProductTestFactory.CreateBundle();
+        Product nonSingleChild = ProductTestFactory.CreateBundle();
+
+        _productRepository.Setup(r => r.GetByIdAsync(bundle.Id, TenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(bundle);
+        _productRepository.Setup(r => r.GetByIdsAsync(It.IsAny<IEnumerable<Guid>>(), TenantId,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { nonSingleChild });
+
+        UpdateProductCommand command = new(bundle.Id, null, null, false, null, null, false,
+            Components: [new(nonSingleChild.Id, 1)]);
+
+        Result result = await _handler.Handle(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be(ProductErrors.InvalidComponentType.Code);
+    }
+
+    [Fact]
+    public async Task Handle_WhenBundleComponentsValid_ReplacesComponentsAndReturnsSuccess()
+    {
+        Product bundle = ProductTestFactory.CreateBundle();
+        Product childA = ProductTestFactory.CreateSingle();
+        Product childB = ProductTestFactory.CreateSingle();
+
+        _productRepository.Setup(r => r.GetByIdAsync(bundle.Id, TenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(bundle);
+        _productRepository.Setup(r => r.GetByIdsAsync(It.IsAny<IEnumerable<Guid>>(), TenantId,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { childA, childB });
+
+        UpdateProductCommand command = new(bundle.Id, null, null, false, null, null, false,
+            Components:
+            [
+                new(childA.Id, 2),
+                new(childB.Id, 1)
+            ]);
+
+        Result result = await _handler.Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        _productComponentRepository.Verify(
+            r => r.RemoveAllByParentIdAsync(bundle.Id, TenantId, It.IsAny<CancellationToken>()), Times.Once);
+        _productComponentRepository.Verify(r => r.Add(It.IsAny<ProductComponent>()), Times.Exactly(2));
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 }

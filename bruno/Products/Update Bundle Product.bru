@@ -1,0 +1,31 @@
+meta {
+  name: Update Bundle Product
+  type: http
+  seq: 15
+}
+
+put {
+  url: {{BASE_URL}}/api/v1/products/:id?tenantId={{PARTNER_TENANT_ID}}
+  body: json
+  auth: bearer
+}
+
+params:path {
+  id: {{PRODUCT_ID}}
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:json {
+  {
+    "name": "Starter Bundle (Updated)",
+    "skuCode": "SKU-BUNDLE-1",
+    "cost": 27.99,
+    "components": [
+      { "childProductId": "<existing-single-product-guid>", "quantity": 3 },
+      { "childProductId": "<another-single-product-guid>", "quantity": 1 }
+    ]
+  }
+}

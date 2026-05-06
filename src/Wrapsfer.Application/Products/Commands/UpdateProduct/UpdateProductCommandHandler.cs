@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using Wrapsfer.Application.Abstractions;
 using Wrapsfer.Application.Abstractions.Messaging;
+using Wrapsfer.Application.Products.Common;
 using Wrapsfer.Domain.Abstractions;
 using Wrapsfer.Domain.Common;
 using Wrapsfer.Domain.Entities;
@@ -13,6 +14,7 @@ namespace Wrapsfer.Application.Products.Commands.UpdateProduct;
 
 internal sealed class UpdateProductCommandHandler(
     IProductRepository productRepository,
+    IProductComponentRepository productComponentRepository,
     ITenantSettingsRepository tenantSettingsRepository,
     ITenantContext tenantContext,
     IUnitOfWork unitOfWork,
@@ -36,6 +38,11 @@ internal sealed class UpdateProductCommandHandler(
             {
                 return Result.Failure(ProductErrors.SkuAlreadyExists);
             }
+        }
+
+        if (request.Components is not null && product.Type != ProductType.Bundle)
+        {
+            return Result.Failure(ProductErrors.ComponentsOnNonBundle);
         }
 
         TenantSettingsEntity? settings = await tenantSettingsRepository.GetByTenantIdAsync(tenantId, cancellationToken);
@@ -64,7 +71,74 @@ internal sealed class UpdateProductCommandHandler(
             }
         }
 
+        if (request.Components is not null)
+        {
+            Result componentsResult = await ReplaceBundleComponentsAsync(
+                product, request.Components, tenantId, cancellationToken);
+
+            if (componentsResult.IsFailure)
+            {
+                return componentsResult;
+            }
+        }
+
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
+    }
+
+    private async Task<Result> ReplaceBundleComponentsAsync(
+        Product bundle,
+        IReadOnlyList<BundleComponentInput> components,
+        string tenantId,
+        CancellationToken cancellationToken)
+    {
+        HashSet<Guid> seen = [];
+        foreach (BundleComponentInput component in components)
+        {
+            if (!seen.Add(component.ChildProductId))
+            {
+                return Result.Failure(ProductErrors.DuplicateComponentChildId);
+            }
+        }
+
+        List<Guid> childIds = components.Select(c => c.ChildProductId).ToList();
+        IReadOnlyList<Product> children =
+            await productRepository.GetByIdsAsync(childIds, tenantId, cancellationToken);
+        Dictionary<Guid, Product> childMap = children.ToDictionary(c => c.Id);
+
+        foreach (BundleComponentInput component in components)
+        {
+            if (!childMap.TryGetValue(component.ChildProductId, out Product? child))
+            {
+                return Result.Failure(ProductErrors.ComponentNotFound);
+            }
+
+            if (child.Type != ProductType.Single)
+            {
+                return Result.Failure(ProductErrors.InvalidComponentType);
+            }
+
+            if (child.Id == bundle.Id)
+            {
+                return Result.Failure(ProductErrors.SelfReferencingComponent);
+            }
+        }
+
+        await productComponentRepository.RemoveAllByParentIdAsync(bundle.Id, tenantId, cancellationToken);
+
+        foreach (BundleComponentInput component in components)
+        {
+            Result<ProductComponent> componentResult =
+                ProductComponent.Create(tenantId, bundle.Id, component.ChildProductId, component.Quantity);
+
+            if (componentResult.IsFailure)
+            {
+                return Result.Failure(componentResult.Error);
+            }
+
+            productComponentRepository.Add(componentResult.Value);
+        }
 
         return Result.Success();
     }

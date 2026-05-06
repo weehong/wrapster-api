@@ -1,6 +1,7 @@
 using Wrapsfer.Application.Abstractions;
 using Wrapsfer.Application.Products;
 using Wrapsfer.Application.Products.Commands.CreateProduct;
+using Wrapsfer.Application.Products.Common;
 using Wrapsfer.Application.Tests.Helpers;
 using Wrapsfer.Domain.Abstractions;
 using Wrapsfer.Domain.Common;

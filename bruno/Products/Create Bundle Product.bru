@@ -1,0 +1,30 @@
+meta {
+  name: Create Bundle Product
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/products?tenantId={{PARTNER_TENANT_ID}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:json {
+  {
+    "barcode": "4900000000010",
+    "name": "Starter Bundle",
+    "skuCode": "SKU-BUNDLE-1",
+    "type": "Bundle",
+    "cost": 24.99,
+    "stockQuantity": 0,
+    "components": [
+      { "childProductId": "<existing-single-product-guid>", "quantity": 2 },
+      { "childProductId": "<another-single-product-guid>", "quantity": 1 }
+    ]
+  }
+}

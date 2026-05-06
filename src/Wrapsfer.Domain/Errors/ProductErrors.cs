@@ -163,4 +163,9 @@ public static class ProductErrors
         "Product.BundleHasNoComponents",
         "The bundle product has no components configured",
         ErrorType.Validation);
+
+    public static readonly Error ComponentsOnNonBundle = new(
+        "Product.ComponentsOnNonBundle",
+        "Components can only be configured on bundle products",
+        ErrorType.Validation);
 }

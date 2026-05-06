@@ -1,4 +1,5 @@
 using Wrapsfer.Application.Abstractions.Messaging;
+using Wrapsfer.Application.Products.Common;
 using Wrapsfer.Domain.Enums;
 
 namespace Wrapsfer.Application.Products.Commands.CreateProduct;

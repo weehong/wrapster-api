@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using Wrapsfer.Application.Abstractions;
 using Wrapsfer.Application.Abstractions.Messaging;
+using Wrapsfer.Application.Products.Common;
 using Wrapsfer.Domain.Abstractions;
 using Wrapsfer.Domain.Common;
 using Wrapsfer.Domain.Entities;
