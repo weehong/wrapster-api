@@ -91,6 +91,7 @@ public static class DependencyInjection
         services.AddSingleton<RealmConfigurationCache>();
         services.AddScoped<ITenantRealmResolver, SubdomainTenantRealmResolver>();
         services.AddScoped<MultiTenantJwtBearerEvents>();
+        services.AddHostedService<KeycloakIssuerPreflight>();
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
