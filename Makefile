@@ -1,4 +1,4 @@
-.PHONY: format format-style format-all build clean restore test
+.PHONY: format format-style format-all build clean restore test migrations-bundle
 
 # Run whitespace/formatting fixes
 format:
@@ -23,3 +23,10 @@ test:
 
 clean:
 	dotnet clean
+
+migrations-bundle:
+	dotnet ef migrations bundle \
+		--project src/Wrapsfer.Infrastructure \
+		--startup-project src/Wrapsfer.Api \
+		--output ./efbundle \
+		--force

@@ -23,10 +23,21 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       keycloak:
         condition: service_started
+
+  migrate:
+    image: ${DOCKER_IMAGE}:${IMAGE_TAG:-latest}
+    restart: "no"
+    entrypoint: ["/app/efbundle"]
+    command: ["--connection", "${DB_CONNECTION_STRING}"]
+    depends_on:
+      db:
+        condition: service_healthy
 
   db:
     image: postgres:17

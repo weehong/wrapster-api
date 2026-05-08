@@ -236,8 +236,9 @@ jobs:
             docker compose up -d
             sleep 10
 
-            # Verify all expected services are running
-            EXPECTED=${EXPECTED_SERVICES:-$(docker compose config --services | wc -l)}
+            # Verify all long-running services are up. One-shot jobs
+            # (e.g. migrate) exit on success and are excluded from the count.
+            EXPECTED=$(docker compose config --services | grep -vx 'migrate' | wc -l)
             RUNNING=$(docker compose ps --status running --quiet | wc -l)
             if [ "$RUNNING" -lt "$EXPECTED" ]; then
               echo "Expected $EXPECTED services, found $RUNNING running"
