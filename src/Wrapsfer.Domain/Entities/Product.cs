@@ -65,6 +65,11 @@ public sealed class Product : AuditableEntity
             return Result<Product>.Failure(ProductErrors.InvalidStockQuantity);
         }
 
+        if (type == ProductType.Bundle && stockQuantity != 0)
+        {
+            return Result<Product>.Failure(ProductErrors.CannotSetBundleStock);
+        }
+
         if (type == ProductType.Package)
         {
             if (!unpackTargetProductId.HasValue || !unpackQuantityPerPackage.HasValue)

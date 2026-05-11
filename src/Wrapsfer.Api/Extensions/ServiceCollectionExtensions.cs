@@ -40,7 +40,7 @@ public static class ServiceCollectionExtensions
             {
                 options.InvalidModelStateResponseFactory = context =>
                 {
-                    Dictionary<string, string[]> errors = context.ModelState
+                    Dictionary<string, string[]> rawErrors = context.ModelState
                         .Where(e => e.Value?.Errors.Count > 0)
                         .ToDictionary(
                             e => e.Key,
@@ -48,19 +48,38 @@ public static class ServiceCollectionExtensions
 
                     // Remove the misleading top-level parameter name error (e.g. "command")
                     // when the real issue is a JSON deserialization failure on a specific field
-                    if (errors.Count > 1)
+                    if (rawErrors.Count > 1)
                     {
-                        bool hasJsonError = errors.Values
+                        bool hasJsonError = rawErrors.Values
                             .SelectMany(v => v)
                             .Any(msg => msg.Contains("could not be converted"));
 
                         if (hasJsonError)
                         {
-                            errors = errors
+                            rawErrors = rawErrors
                                 .Where(e => !e.Value.Any(msg => msg.Contains("field is required")))
                                 .ToDictionary(e => e.Key, e => e.Value);
                         }
                     }
+
+                    string traceId = context.HttpContext.TraceIdentifier;
+
+                    // Preserve the raw deserializer messages server-side so the type names we hide
+                    // from clients are still grep-able by traceId.
+                    if (rawErrors.Values.SelectMany(v => v).Any(IsJsonDeserializationError))
+                    {
+                        ILogger validationLogger = context.HttpContext.RequestServices
+                            .GetRequiredService<ILoggerFactory>()
+                            .CreateLogger("ModelValidation");
+                        validationLogger.LogWarning(
+                            "Model validation rejected request {TraceId}: {@RawErrors}",
+                            traceId,
+                            rawErrors);
+                    }
+
+                    Dictionary<string, string[]> errors = rawErrors.ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value.Select(SanitizeErrorMessage).ToArray());
 
                     ProblemDetails problemDetails = new()
                     {
@@ -69,7 +88,7 @@ public static class ServiceCollectionExtensions
                         Detail = "One or more fields in the request body are invalid."
                     };
                     problemDetails.Extensions["errors"] = errors;
-                    problemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+                    problemDetails.Extensions["traceId"] = traceId;
 
                     return new BadRequestObjectResult(problemDetails);
                 };
@@ -121,4 +140,12 @@ public static class ServiceCollectionExtensions
 
         return builder;
     }
+
+    private static bool IsJsonDeserializationError(string message) =>
+        message.Contains("Path: $", StringComparison.Ordinal);
+
+    private static string SanitizeErrorMessage(string original) =>
+        IsJsonDeserializationError(original)
+            ? "The value provided is not in a valid format."
+            : original;
 }

@@ -14,6 +14,11 @@ public sealed class CreateProductCommandValidator : AbstractValidator<CreateProd
         RuleFor(x => x.LowStockThreshold).GreaterThanOrEqualTo(0).When(x => x.LowStockThreshold.HasValue);
         RuleFor(x => x.Type).IsInEnum();
 
+        RuleFor(x => x.StockQuantity)
+            .Equal(0)
+            .WithMessage("Stock quantity must be 0 for bundle products; bundle stock is derived from components.")
+            .When(x => x.Type == ProductType.Bundle);
+
         RuleFor(x => x.UnpackTargetProductId)
             .NotEmpty()
             .When(x => x.Type == ProductType.Package);

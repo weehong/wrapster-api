@@ -1,5 +1,6 @@
 using FluentValidation.Results;
 using Wrapsfer.Application.Products.Commands.CreateProduct;
+using Wrapsfer.Application.Products.Common;
 using Wrapsfer.Domain.Enums;
 
 namespace Wrapsfer.Application.Tests.Products.Validators;
@@ -95,5 +96,30 @@ public class CreateProductCommandValidatorTests
 
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(e => e.PropertyName == "UnpackQuantityPerPackage");
+    }
+
+    [Fact]
+    public void Validate_WhenBundleWithNonZeroStockQuantity_HasValidationError()
+    {
+        List<BundleComponentInput> components = [new(Guid.NewGuid(), 5)];
+        CreateProductCommand command = new("BC-001", "Bundle", null, ProductType.Bundle, 9.99m, 5, null,
+            Components: components);
+
+        ValidationResult result = _validator.Validate(command);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName == "StockQuantity");
+    }
+
+    [Fact]
+    public void Validate_WhenBundleWithZeroStockQuantity_HasNoErrors()
+    {
+        List<BundleComponentInput> components = [new(Guid.NewGuid(), 5)];
+        CreateProductCommand command = new("BC-001", "Bundle", null, ProductType.Bundle, 9.99m, 0, null,
+            Components: components);
+
+        ValidationResult result = _validator.Validate(command);
+
+        result.IsValid.Should().BeTrue();
     }
 }

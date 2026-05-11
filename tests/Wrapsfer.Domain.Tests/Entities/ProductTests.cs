@@ -98,6 +98,15 @@ public class ProductTests
     }
 
     [Fact]
+    public void Create_WithBundleTypeAndNonZeroStockQuantity_ReturnsFailure()
+    {
+        Result<Product> result = Product.Create("tenant", "BC-002", "Bundle", ProductType.Bundle, 20m, 5);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be(ProductErrors.CannotSetBundleStock.Code);
+    }
+
+    [Fact]
     public void Create_WithPackageType_MissingUnpackTarget_ReturnsFailure()
     {
         Result<Product> result = Product.Create(
