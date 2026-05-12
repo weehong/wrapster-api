@@ -333,8 +333,18 @@ internal sealed class ImportProductsCommandHandler(
                 ProductImportMessages.NotANumber(rowNumber, ProductFileColumns.Cost, costRaw, "9.99")));
         }
 
-        int? stock = TryParseInt(stockRaw, ProductFileColumns.StockQuantity, rowNumber, barcode, errors,
-            true, "a stock quantity, e.g. 100", true);
+        int? stock;
+        if (type == ProductType.Bundle)
+        {
+            // Bundle stock is computed from components; whatever the spreadsheet
+            // contains in this column is intentionally discarded.
+            stock = null;
+        }
+        else
+        {
+            stock = TryParseInt(stockRaw, ProductFileColumns.StockQuantity, rowNumber, barcode, errors,
+                true, "a stock quantity, e.g. 100", true);
+        }
 
         int? lowThreshold = null;
         if (lowRaw is not null)

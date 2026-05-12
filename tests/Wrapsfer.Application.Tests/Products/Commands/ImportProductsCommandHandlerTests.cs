@@ -53,7 +53,7 @@ public class ImportProductsCommandHandlerTests
             .ReturnsAsync(existing);
 
     private static ProductImportRow Row(int n, string barcode, string name, string type, string cost = "9.99",
-        string stock = "10", string? components = null, string? unpackTarget = null, string? unpackQty = null)
+        string? stock = "10", string? components = null, string? unpackTarget = null, string? unpackQty = null)
         => new(n, barcode, name, null, type, cost, stock, null, unpackTarget, unpackQty, components);
 
     [Fact]
@@ -135,6 +135,43 @@ public class ImportProductsCommandHandlerTests
         result.Value.Errors.Should().BeEmpty();
         _productRepository.Verify(r => r.Add(It.IsAny<Product>()), Times.Once);
         _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_WhenBundleStockEmpty_AcceptsAndCreatesBundle()
+    {
+        Product child = ProductTestFactory.CreateSingle(barcode: "CHILD-1");
+        SetupParse([Row(2, "BC-BUNDLE", "Kit", "Bundle", stock: null, components: "CHILD-1:2")]);
+        SetupExistingByBarcodes(child);
+
+        Result<ProductImportResult> result =
+            await _handler.Handle(new ImportProductsCommand(Stream.Null, ProductFileFormat.Csv),
+                CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Errors.Should().BeEmpty();
+        result.Value.CreatedCount.Should().Be(1);
+        _productRepository.Verify(r => r.Add(It.Is<Product>(p => p.Barcode == "BC-BUNDLE" && p.StockQuantity == 0)),
+            Times.Once);
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_WhenBundleStockProvided_IgnoresValueAndPersistsZero()
+    {
+        Product child = ProductTestFactory.CreateSingle(barcode: "CHILD-1");
+        SetupParse([Row(2, "BC-BUNDLE", "Kit", "Bundle", stock: "999", components: "CHILD-1:2")]);
+        SetupExistingByBarcodes(child);
+
+        Result<ProductImportResult> result =
+            await _handler.Handle(new ImportProductsCommand(Stream.Null, ProductFileFormat.Csv),
+                CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Errors.Should().BeEmpty();
+        result.Value.CreatedCount.Should().Be(1);
+        _productRepository.Verify(r => r.Add(It.Is<Product>(p => p.Barcode == "BC-BUNDLE" && p.StockQuantity == 0)),
+            Times.Once);
     }
 
     [Fact]

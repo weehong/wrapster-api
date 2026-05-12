@@ -19,7 +19,7 @@ dotnet test --no-restore --no-build --filter "FullyQualifiedName~TestClassName.T
 
 Local infrastructure (PostgreSQL, RabbitMQ, Keycloak):
 ```bash
-docker compose up -d
+docker compose -f compose.dev.yaml up -d
 ```
 
 ## Code Conventions
