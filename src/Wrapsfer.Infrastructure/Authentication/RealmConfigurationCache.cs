@@ -2,10 +2,11 @@ using System.Collections.Concurrent;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Wrapsfer.Application.Abstractions.IdentityProvisioning;
 
 namespace Wrapsfer.Infrastructure.Authentication;
 
-public sealed class RealmConfigurationCache
+public sealed class RealmConfigurationCache : IRealmConfigurationCache
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ConcurrentDictionary<string, ConfigurationManager<OpenIdConnectConfiguration>> _managers = new();
@@ -17,6 +18,16 @@ public sealed class RealmConfigurationCache
     {
         _options = options.Value;
         _httpClientFactory = httpClientFactory;
+    }
+
+    public void Remove(string realm)
+    {
+        if (string.IsNullOrWhiteSpace(realm))
+        {
+            return;
+        }
+
+        _managers.TryRemove(realm, out _);
     }
 
     public Task<OpenIdConnectConfiguration> GetConfigurationAsync(string

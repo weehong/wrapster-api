@@ -21,7 +21,7 @@ public class MailBodyTests
     [Fact]
     public void Constructor_WithHtmlOnly_Succeeds()
     {
-        MailBody body = new(html: "<p>hi</p>");
+        MailBody body = new("<p>hi</p>");
         body.Html.Should().Be("<p>hi</p>");
         body.Text.Should().BeNull();
     }

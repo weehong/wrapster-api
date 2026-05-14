@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -6,11 +7,13 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Wrapsfer.Application.Abstractions;
 using Wrapsfer.Application.Abstractions.FileProcessing;
+using Wrapsfer.Application.Abstractions.IdentityProvisioning;
 using Wrapsfer.Domain.Abstractions;
 using Wrapsfer.Domain.Repositories;
 using Wrapsfer.Infrastructure.Authentication;
 using Wrapsfer.Infrastructure.BackgroundServices;
 using Wrapsfer.Infrastructure.FileProcessing;
+using Wrapsfer.Infrastructure.IdentityProvisioning;
 using Wrapsfer.Infrastructure.Persistence;
 using Wrapsfer.Infrastructure.Persistence.Interceptors;
 using Wrapsfer.Infrastructure.Persistence.Repositories;
@@ -49,6 +52,7 @@ public static class DependencyInjection
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
 
+        services.AddScoped<IPartnerTenantRepository, PartnerTenantRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IProductComponentRepository, ProductComponentRepository>();
         services.AddScoped<ITenantSettingsRepository, TenantSettingsRepository>();
@@ -88,9 +92,18 @@ public static class DependencyInjection
 
         services.AddHttpClient("KeycloakOidc");
 
+        services.AddHttpClient(KeycloakTenantProvisioningService.HttpClientName, (sp, client) =>
+        {
+            KeycloakOptions opts = sp.GetRequiredService<IOptions<KeycloakOptions>>().Value;
+            client.BaseAddress = new Uri(opts.BaseUrl.TrimEnd('/') + "/");
+        });
+
         services.AddSingleton<RealmConfigurationCache>();
+        services.AddSingleton<IRealmConfigurationCache>(sp => sp.GetRequiredService<RealmConfigurationCache>());
+        services.AddSingleton<IIdentityProviderSettings, KeycloakIdentityProviderSettings>();
         services.AddScoped<ITenantRealmResolver, SubdomainTenantRealmResolver>();
         services.AddScoped<MultiTenantJwtBearerEvents>();
+        services.AddScoped<IIdentityTenantProvisioningService, KeycloakTenantProvisioningService>();
         services.AddHostedService<KeycloakIssuerPreflight>();
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -108,7 +121,16 @@ public static class DependencyInjection
                 options.EventsType = typeof(MultiTenantJwtBearerEvents);
             });
 
-        services.AddAuthorization();
+        services.AddSingleton<IAuthorizationHandler, OwnerAdminAuthorizationHandler>();
+
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy(AuthorizationPolicies.OwnerAdminOnly, policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.AddRequirements(new OwnerAdminRequirement());
+            });
+        });
 
         return services;
     }

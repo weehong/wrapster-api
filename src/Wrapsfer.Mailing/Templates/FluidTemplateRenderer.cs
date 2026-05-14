@@ -103,5 +103,4 @@ internal sealed class FluidTemplateRenderer : ITemplateRenderer
         using StreamReader reader = new(stream);
         return reader.ReadToEnd();
     }
-
 }

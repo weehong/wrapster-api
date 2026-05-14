@@ -1,10 +1,14 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
+using Wrapsfer.Domain.Entities;
+using Wrapsfer.Domain.Enums;
+using Wrapsfer.Domain.Repositories;
 
 namespace Wrapsfer.Infrastructure.Authentication;
 
@@ -66,6 +70,20 @@ public sealed class MultiTenantJwtBearerEvents : JwtBearerEvents
         {
             JwtSecurityTokenHandler handler = new() { MapInboundClaims = false };
             ClaimsPrincipal principal = handler.ValidateToken(token, tvp, out _);
+
+            if (!string.Equals(realm, _options.OwnerRealm, StringComparison.OrdinalIgnoreCase))
+            {
+                bool partnerAllowed = await IsPartnerActiveAsync(context, realm);
+                if (!partnerAllowed)
+                {
+                    _logger.LogInformation(
+                        "Token rejected: partner tenant {Realm} is inactive or unknown",
+                        realm);
+                    context.Fail("Tenant is inactive or unknown.");
+                    return;
+                }
+            }
+
             context.Principal = principal;
             context.Success();
         }
@@ -74,6 +92,21 @@ public sealed class MultiTenantJwtBearerEvents : JwtBearerEvents
             _logger.LogInformation(ex, "JWT validation failed for realm: {Realm}", realm);
             context.Fail(ex);
         }
+    }
+
+    private async Task<bool> IsPartnerActiveAsync(MessageReceivedContext context, string realm)
+    {
+        IPartnerTenantRepository repository =
+            context.HttpContext.RequestServices.GetRequiredService<IPartnerTenantRepository>();
+
+        PartnerTenant? partner = await repository.GetByTenantIdAsync(realm, context.HttpContext.RequestAborted);
+
+        if (partner is null)
+        {
+            return false;
+        }
+
+        return partner.IsActive && partner.ProvisioningStatus == PartnerTenantProvisioningStatus.Active;
     }
 
     public override async Task AuthenticationFailed(AuthenticationFailedContext context)

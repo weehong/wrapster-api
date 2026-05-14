@@ -1,6 +1,9 @@
+name: wrapsfer
+
 services:
   keycloak-db:
     image: postgres:17
+    container_name: wrapsfer-keycloak-db
     environment:
       POSTGRES_USER: keycloak
       POSTGRES_PASSWORD: keycloak
@@ -17,6 +20,7 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.2
+    container_name: wrapsfer-keycloak
     command: start-dev --import-realm
     environment:
       KC_DB: postgres
@@ -39,6 +43,7 @@ services:
 
   wrapsfer-db:
     image: postgres:17
+    container_name: wrapsfer-db
     environment:
       POSTGRES_USER: wrapsfer
       POSTGRES_PASSWORD: wrapsfer
@@ -55,6 +60,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:4-management
+    container_name: wrapsfer-rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: wrapsfer
       RABBITMQ_DEFAULT_PASS: wrapsfer

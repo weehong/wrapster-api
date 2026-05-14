@@ -2,9 +2,6 @@ namespace Wrapsfer.Mailing.Abstractions;
 
 public sealed record MailBody
 {
-    public string? Html { get; }
-    public string? Text { get; }
-
     public MailBody(string? html = null, string? text = null)
     {
         if (string.IsNullOrWhiteSpace(html) && string.IsNullOrWhiteSpace(text))
@@ -16,6 +13,9 @@ public sealed record MailBody
         Html = string.IsNullOrWhiteSpace(html) ? null : html;
         Text = string.IsNullOrWhiteSpace(text) ? null : text;
     }
+
+    public string? Html { get; }
+    public string? Text { get; }
 
     public static MailBody FromHtml(string html) => new(html);
     public static MailBody FromText(string text) => new(text: text);

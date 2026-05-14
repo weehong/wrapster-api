@@ -17,6 +17,23 @@ internal sealed class RabbitMqMailer(
     private IChannel? _channel;
     private IConnection? _connection;
 
+    public async ValueTask DisposeAsync()
+    {
+        if (_channel is not null)
+        {
+            await _channel.CloseAsync();
+            _channel.Dispose();
+        }
+
+        if (_connection is not null)
+        {
+            await _connection.CloseAsync();
+            _connection.Dispose();
+        }
+
+        _lock.Dispose();
+    }
+
     public async Task<MailRequestId> SendAsync(MailMessage message, CancellationToken cancellationToken = default)
     {
         Validate(message);
@@ -63,23 +80,6 @@ internal sealed class RabbitMqMailer(
             requestId, _queueOptions.QueueName, body.Length, message.TemplateName ?? "-");
 
         return requestId;
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_channel is not null)
-        {
-            await _channel.CloseAsync();
-            _channel.Dispose();
-        }
-
-        if (_connection is not null)
-        {
-            await _connection.CloseAsync();
-            _connection.Dispose();
-        }
-
-        _lock.Dispose();
     }
 
     private static void Validate(MailMessage message)

@@ -6,9 +6,8 @@ namespace Wrapsfer.Mailing.Queue;
 
 internal static class MailRetryPolicy
 {
-    public static ResiliencePipeline<MailSendOutcome> Build(int maxRetries, TimeSpan initialBackoff)
-    {
-        return new ResiliencePipelineBuilder<MailSendOutcome>()
+    public static ResiliencePipeline<MailSendOutcome> Build(int maxRetries, TimeSpan initialBackoff) =>
+        new ResiliencePipelineBuilder<MailSendOutcome>()
             .AddRetry(new RetryStrategyOptions<MailSendOutcome>
             {
                 ShouldHandle = new PredicateBuilder<MailSendOutcome>()
@@ -19,5 +18,4 @@ internal static class MailRetryPolicy
                 Delay = initialBackoff
             })
             .Build();
-    }
 }

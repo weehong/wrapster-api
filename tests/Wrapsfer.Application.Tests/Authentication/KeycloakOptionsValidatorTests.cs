@@ -191,6 +191,42 @@ public class KeycloakOptionsValidatorTests
         result.Succeeded.Should().BeTrue();
     }
 
+    [Fact]
+    public void Validate_WhenPartnerOnboardingEnabledWithoutAdminCredentials_Fails()
+    {
+        KeycloakOptions options = new()
+        {
+            BaseUrl = "https://id.example.com",
+            OwnerRealm = "owner-realm",
+            Audience = "wrapsfer-api",
+            PartnerOnboardingEnabled = true
+        };
+
+        ValidateOptionsResult result = DevelopmentValidator.Validate(null, options);
+
+        result.Failed.Should().BeTrue();
+        result.Failures.Should().Contain(f => f.Contains("AdminClientId"));
+        result.Failures.Should().Contain(f => f.Contains("AdminClientSecret"));
+    }
+
+    [Fact]
+    public void Validate_WhenPartnerOnboardingEnabledWithAdminCredentials_Succeeds()
+    {
+        KeycloakOptions options = new()
+        {
+            BaseUrl = "https://id.example.com",
+            OwnerRealm = "owner-realm",
+            Audience = "wrapsfer-api",
+            PartnerOnboardingEnabled = true,
+            AdminClientId = "wrapsfer-admin",
+            AdminClientSecret = "secret"
+        };
+
+        ValidateOptionsResult result = DevelopmentValidator.Validate(null, options);
+
+        result.Succeeded.Should().BeTrue();
+    }
+
     private static KeycloakOptionsValidator CreateValidator(string environmentName)
     {
         Mock<IHostEnvironment> environment = new();

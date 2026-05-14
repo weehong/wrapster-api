@@ -1,4 +1,6 @@
-.PHONY: format format-style format-all build clean restore test migrations-bundle
+.PHONY: format format-style format-all build clean restore test migrate run migrations-bundle
+
+WRAPSFER_DESIGN_CONNECTION ?= Host=localhost;Port=15432;Database=wrapsfer;Username=wrapsfer;Password=wrapsfer
 
 # Run whitespace/formatting fixes
 format:
@@ -20,6 +22,14 @@ build:
 
 test:
 	dotnet test --no-restore --no-build
+
+migrate:
+	WRAPSFER_DESIGN_CONNECTION="$(WRAPSFER_DESIGN_CONNECTION)" dotnet ef database update \
+		--project src/Wrapsfer.Infrastructure/Wrapsfer.Infrastructure.csproj \
+		--startup-project src/Wrapsfer.Api/Wrapsfer.Api.csproj
+
+run:
+	dotnet run --project src/Wrapsfer.Api/Wrapsfer.Api.csproj
 
 clean:
 	dotnet clean

@@ -154,7 +154,7 @@ public class UpdateProductCommandHandlerTests
             .ReturnsAsync(Array.Empty<Product>());
 
         UpdateProductCommand command = new(bundle.Id, null, null, false, null, null, false,
-            Components: [new(missingChildId, 1)]);
+            Components: [new BundleComponentInput(missingChildId, 1)]);
 
         Result result = await _handler.Handle(command, CancellationToken.None);
 
@@ -175,7 +175,7 @@ public class UpdateProductCommandHandlerTests
             .ReturnsAsync(new[] { nonSingleChild });
 
         UpdateProductCommand command = new(bundle.Id, null, null, false, null, null, false,
-            Components: [new(nonSingleChild.Id, 1)]);
+            Components: [new BundleComponentInput(nonSingleChild.Id, 1)]);
 
         Result result = await _handler.Handle(command, CancellationToken.None);
 
@@ -199,8 +199,8 @@ public class UpdateProductCommandHandlerTests
         UpdateProductCommand command = new(bundle.Id, null, null, false, null, null, false,
             Components:
             [
-                new(childA.Id, 2),
-                new(childB.Id, 1)
+                new BundleComponentInput(childA.Id, 2),
+                new BundleComponentInput(childB.Id, 1)
             ]);
 
         Result result = await _handler.Handle(command, CancellationToken.None);

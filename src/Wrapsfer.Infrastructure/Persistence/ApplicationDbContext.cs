@@ -9,6 +9,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     : DbContext(options), IUnitOfWork
 {
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<PartnerTenant> PartnerTenants => Set<PartnerTenant>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductComponent> ProductComponents => Set<ProductComponent>();
     public DbSet<TenantSettings> TenantSettings => Set<TenantSettings>();

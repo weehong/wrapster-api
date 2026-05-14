@@ -21,10 +21,12 @@ public sealed class MailProcessingConsumer(
 {
     private readonly MailQueueOptions _queueOptions = queueOptions.Value;
     private readonly RabbitMqOptions _rabbitOptions = rabbitOptions.Value;
+
     private readonly ResiliencePipeline<MailSendOutcome> _retryPolicy =
         MailRetryPolicy.Build(
             queueOptions.Value.MaxRetries,
             TimeSpan.FromSeconds(queueOptions.Value.InitialBackoffSeconds));
+
     private IChannel? _channel;
     private IConnection? _connection;
 

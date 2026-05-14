@@ -47,9 +47,9 @@ internal sealed class LowStockDetectedEventHandler(
                 domainEvent.CurrentStock,
                 domainEvent.Threshold,
                 StockAlertDeliveryStatus.Suppressed,
-                recipientsNotified: null,
-                failureReason: "DedupeWindow",
-                occurredOn: DateTime.UtcNow));
+                null,
+                "DedupeWindow",
+                DateTime.UtcNow));
             await unitOfWork.SaveChangesAsync(cancellationToken);
             return;
         }
@@ -77,9 +77,9 @@ internal sealed class LowStockDetectedEventHandler(
                 domainEvent.CurrentStock,
                 domainEvent.Threshold,
                 StockAlertDeliveryStatus.Failed,
-                recipientsNotified: null,
-                failureReason: "NoRecipients",
-                occurredOn: DateTime.UtcNow));
+                null,
+                "NoRecipients",
+                DateTime.UtcNow));
             await unitOfWork.SaveChangesAsync(cancellationToken);
             return;
         }
@@ -108,9 +108,9 @@ internal sealed class LowStockDetectedEventHandler(
             domainEvent.CurrentStock,
             domainEvent.Threshold,
             StockAlertDeliveryStatus.Sent,
-            recipientsNotified: string.Join(",", recipients),
-            failureReason: null,
-            occurredOn: DateTime.UtcNow));
+            string.Join(",", recipients),
+            null,
+            DateTime.UtcNow));
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

@@ -44,7 +44,7 @@ internal sealed class FluentEmailMailSender(
 
         if (rendered.Html is not null)
         {
-            email = email.Body(rendered.Html, isHtml: true);
+            email = email.Body(rendered.Html, true);
             if (rendered.Text is not null)
             {
                 email = email.PlaintextAlternativeBody(rendered.Text);

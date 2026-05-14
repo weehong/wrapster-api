@@ -14,10 +14,7 @@ public sealed class KeycloakOptionsValidator : IValidateOptions<KeycloakOptions>
 
     private readonly IHostEnvironment _environment;
 
-    public KeycloakOptionsValidator(IHostEnvironment environment)
-    {
-        _environment = environment;
-    }
+    public KeycloakOptionsValidator(IHostEnvironment environment) => _environment = environment;
 
     public ValidateOptionsResult Validate(string? name, KeycloakOptions options)
     {
@@ -49,6 +46,21 @@ public sealed class KeycloakOptionsValidator : IValidateOptions<KeycloakOptions>
         if (string.IsNullOrWhiteSpace(options.Audience))
         {
             failures.Add($"{KeycloakOptions.SectionName}:Audience is required.");
+        }
+
+        if (options.PartnerOnboardingEnabled)
+        {
+            if (string.IsNullOrWhiteSpace(options.AdminClientId))
+            {
+                failures.Add(
+                    $"{KeycloakOptions.SectionName}:AdminClientId is required when PartnerOnboardingEnabled is true.");
+            }
+
+            if (string.IsNullOrWhiteSpace(options.AdminClientSecret))
+            {
+                failures.Add(
+                    $"{KeycloakOptions.SectionName}:AdminClientSecret is required when PartnerOnboardingEnabled is true.");
+            }
         }
 
         if (_environment.IsProduction())
