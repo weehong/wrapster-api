@@ -32,8 +32,12 @@ public sealed class WaybillsController(ISender sender) : ApiControllerBase
     public async Task<IActionResult> Create([FromBody] CreateWaybillRequest request,
         CancellationToken cancellationToken)
     {
+        IReadOnlyList<CreateWaybillItem> items = request.Items is null
+            ? Array.Empty<CreateWaybillItem>()
+            : request.Items.Select(i => new CreateWaybillItem(i.Barcode, i.Quantity)).ToList();
+
         Result<Guid> result = await sender.Send(
-            new CreateWaybillCommand(request.PackagingDate, request.WaybillNumber), cancellationToken);
+            new CreateWaybillCommand(request.PackagingDate, request.WaybillNumber, items), cancellationToken);
         return ToCreatedResult(result);
     }
 

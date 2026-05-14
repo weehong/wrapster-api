@@ -86,6 +86,24 @@
       "realmRoles": [
         "admin"
       ]
+    },
+    {
+      "username": "adminbeta",
+      "email": "adminbeta@partner-beta.local",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Admin",
+      "lastName": "Beta",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "adminbeta",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin"
+      ]
     }
   ]
 }

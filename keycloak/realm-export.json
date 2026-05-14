@@ -105,6 +105,24 @@
       "realmRoles": [
         "admin"
       ]
+    },
+    {
+      "username": "adminowner",
+      "email": "adminowner@wrapsfer.local",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Admin",
+      "lastName": "Owner",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "adminowner",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin"
+      ]
     }
   ]
 }

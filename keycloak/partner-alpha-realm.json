@@ -86,6 +86,24 @@
       "realmRoles": [
         "admin"
       ]
+    },
+    {
+      "username": "adminalpha",
+      "email": "adminalpha@partner-alpha.local",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Admin",
+      "lastName": "Alpha",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "adminalpha",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin"
+      ]
     }
   ]
 }
