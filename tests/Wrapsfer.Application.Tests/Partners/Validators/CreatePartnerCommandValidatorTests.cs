@@ -8,7 +8,7 @@ public class CreatePartnerCommandValidatorTests
     private readonly CreatePartnerCommandValidator _validator = new();
 
     private static CreatePartnerCommand ValidCommand() =>
-        new("partner-acme", "Acme", "admin@acme.example", "acmeadmin", "TempPass1234!");
+        new("partner-acme", "Acme", "admin@acme.example", "acmeadmin", "TempPass1234!", true);
 
     [Fact]
     public void Validate_WithValidCommand_Succeeds()

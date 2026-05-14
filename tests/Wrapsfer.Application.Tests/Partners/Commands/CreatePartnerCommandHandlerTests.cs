@@ -40,8 +40,10 @@ public class CreatePartnerCommandHandlerTests
             NullLogger<CreatePartnerCommandHandler>.Instance);
     }
 
-    private static CreatePartnerCommand SampleCommand(string tenantId = "partner-acme") =>
-        new(tenantId, "Acme", "admin@acme.example", "acmeadmin", "TempPass1234!");
+    private static CreatePartnerCommand SampleCommand(
+        string tenantId = "partner-acme",
+        bool isTemporaryPassword = true) =>
+        new(tenantId, "Acme", "admin@acme.example", "acmeadmin", "TempPass1234!", isTemporaryPassword);
 
     [Fact]
     public async Task Handle_WhenTenantIdMatchesOwnerRealm_ReturnsOwnerRealmNotAllowed()
@@ -99,10 +101,28 @@ public class CreatePartnerCommandHandlerTests
             It.Is<PartnerRealmProvisioningRequest>(req =>
                 req.TenantId == "partner-acme" &&
                 req.AdminUsername == "acmeadmin" &&
-                req.AdminEmail == "admin@acme.example"),
+                req.AdminEmail == "admin@acme.example" &&
+                req.IsTemporaryPassword == true),
             It.IsAny<CancellationToken>()), Times.Once);
 
         _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.AtLeast(2));
+    }
+
+    [Fact]
+    public async Task Handle_WhenIsTemporaryPasswordFalse_ForwardsFlagInProvisioningRequest()
+    {
+        _provisioningService.Setup(p => p.CreatePartnerRealmAsync(
+                It.IsAny<PartnerRealmProvisioningRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PartnerRealmProvisioningResult(true));
+
+        Result<PartnerResponse> result =
+            await _handler.Handle(SampleCommand(isTemporaryPassword: false), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+
+        _provisioningService.Verify(p => p.CreatePartnerRealmAsync(
+            It.Is<PartnerRealmProvisioningRequest>(req => req.IsTemporaryPassword == false),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

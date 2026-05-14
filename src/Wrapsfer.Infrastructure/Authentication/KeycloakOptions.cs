@@ -14,4 +14,5 @@ public sealed class KeycloakOptions
     public string? AdminClientId { get; set; }
     public string? AdminClientSecret { get; set; }
     public string? AdminRealm { get; set; }
+    public string? PartnerApiClientSecret { get; set; }
 }

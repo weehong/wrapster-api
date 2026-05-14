@@ -49,7 +49,8 @@ internal sealed class RetryPartnerProvisioningCommandHandler(
             partner.DisplayName,
             request.AdminUsername,
             request.AdminEmail,
-            request.TemporaryPassword);
+            request.TemporaryPassword,
+            request.IsTemporaryPassword);
 
         PartnerRealmProvisioningResult provisioningResult =
             await provisioningService.CreatePartnerRealmAsync(provisioningRequest, cancellationToken);

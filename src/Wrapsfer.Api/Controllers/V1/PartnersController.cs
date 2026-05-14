@@ -26,6 +26,7 @@ public sealed class PartnersController(ISender sender) : ApiControllerBase
             request.AdminEmail,
             request.AdminUsername,
             request.TemporaryPassword,
+            request.IsTemporaryPassword,
             request.ContactEmail);
 
         Result<PartnerResponse> result = await sender.Send(command, cancellationToken);
@@ -69,7 +70,8 @@ public sealed class PartnersController(ISender sender) : ApiControllerBase
             tenantId,
             request.AdminEmail,
             request.AdminUsername,
-            request.TemporaryPassword);
+            request.TemporaryPassword,
+            request.IsTemporaryPassword);
 
         Result<PartnerResponse> result = await sender.Send(command, cancellationToken);
         return ToActionResult(result);

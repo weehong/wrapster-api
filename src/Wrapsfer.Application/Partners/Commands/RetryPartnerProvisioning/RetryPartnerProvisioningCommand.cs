@@ -7,4 +7,5 @@ public sealed record RetryPartnerProvisioningCommand(
     string TenantId,
     string AdminEmail,
     string AdminUsername,
-    string TemporaryPassword) : ICommand<PartnerResponse>;
+    string TemporaryPassword,
+    bool IsTemporaryPassword) : ICommand<PartnerResponse>;

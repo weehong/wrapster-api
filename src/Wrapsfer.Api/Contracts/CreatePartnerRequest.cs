@@ -6,4 +6,5 @@ public sealed record CreatePartnerRequest(
     string AdminEmail,
     string AdminUsername,
     string TemporaryPassword,
+    bool IsTemporaryPassword,
     string? ContactEmail = null);

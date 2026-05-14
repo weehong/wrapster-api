@@ -9,4 +9,5 @@ public sealed record CreatePartnerCommand(
     string AdminEmail,
     string AdminUsername,
     string TemporaryPassword,
+    bool IsTemporaryPassword,
     string? ContactEmail = null) : ICommand<PartnerResponse>;

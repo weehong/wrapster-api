@@ -18,6 +18,10 @@ public sealed class HttpTenantContext : ITenantContext
         _httpContextAccessor.HttpContext?.User.FindFirstValue("sub")
         ?? throw new InvalidOperationException("User is not authenticated.");
 
+    public string Username =>
+        _httpContextAccessor.HttpContext?.User.FindFirstValue("preferred_username")
+        ?? throw new InvalidOperationException("User is not authenticated.");
+
     public IReadOnlyList<string> Roles =>
         KeycloakClaimParser.ExtractRealmRoles(
             _httpContextAccessor.HttpContext?.User.FindFirstValue(KeycloakClaimParser.RealmAccessClaim));

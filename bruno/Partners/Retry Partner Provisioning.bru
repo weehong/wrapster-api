@@ -1,0 +1,28 @@
+meta {
+  name: Retry Partner Provisioning
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/partners/:tenantId/retry
+  body: json
+  auth: bearer
+}
+
+params:path {
+  tenantId: {{PARTNER_TENANT_ID}}
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:json {
+  {
+    "adminEmail": "alphaadmin@wrapsfer.dev",
+    "adminUsername": "alphaadmin",
+    "temporaryPassword": "ChangeMe-12345!",
+    "isTemporaryPassword": true
+  }
+}

@@ -1,0 +1,27 @@
+meta {
+  name: Create Partner
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/partners
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:json {
+  {
+    "tenantId": "{{PARTNER_TENANT_ID}}",
+    "displayName": "Partner Alpha",
+    "adminEmail": "alphaadmin@wrapsfer.dev",
+    "adminUsername": "alphaadmin",
+    "temporaryPassword": "ChangeMe-12345!",
+    "isTemporaryPassword": true,
+    "contactEmail": "contact@partner-alpha.dev"
+  }
+}

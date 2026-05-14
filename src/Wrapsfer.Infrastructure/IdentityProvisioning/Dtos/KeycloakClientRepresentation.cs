@@ -17,6 +17,8 @@ internal sealed class KeycloakClientRepresentation
     [JsonPropertyName("clientAuthenticatorType")]
     public string ClientAuthenticatorType { get; set; } = "client-secret";
 
+    [JsonPropertyName("secret")] public string? Secret { get; set; }
+
     [JsonPropertyName("directAccessGrantsEnabled")]
     public bool DirectAccessGrantsEnabled { get; set; } = true;
 

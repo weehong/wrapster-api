@@ -21,4 +21,6 @@ internal sealed class KeycloakUserRepresentation
     [JsonPropertyName("credentials")] public List<KeycloakCredentialRepresentation>? Credentials { get; set; }
 
     [JsonPropertyName("requiredActions")] public List<string>? RequiredActions { get; set; }
+
+    [JsonPropertyName("attributes")] public Dictionary<string, List<string>>? Attributes { get; set; }
 }

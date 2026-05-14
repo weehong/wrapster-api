@@ -5,4 +5,5 @@ public sealed record PartnerRealmProvisioningRequest(
     string DisplayName,
     string AdminUsername,
     string AdminEmail,
-    string TemporaryPassword);
+    string TemporaryPassword,
+    bool IsTemporaryPassword);

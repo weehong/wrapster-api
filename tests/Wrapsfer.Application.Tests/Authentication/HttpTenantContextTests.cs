@@ -58,6 +58,33 @@ public class HttpTenantContextTests
     }
 
     [Fact]
+    public void Username_WhenPreferredUsernamePresent_ReturnsValue()
+    {
+        DefaultHttpContext httpContext = new();
+        Claim[] claims = new[] { new Claim("preferred_username", "alphaadmin") };
+        httpContext.User = new ClaimsPrincipal(new ClaimsIdentity(claims, "test"));
+        IHttpContextAccessor accessor = CreateAccessor(httpContext);
+
+        HttpTenantContext tenantContext = new(accessor);
+
+        tenantContext.Username.Should().Be("alphaadmin");
+    }
+
+    [Fact]
+    public void Username_WhenNoPreferredUsername_ThrowsInvalidOperationException()
+    {
+        DefaultHttpContext httpContext = new();
+        httpContext.User = new ClaimsPrincipal(new ClaimsIdentity());
+        IHttpContextAccessor accessor = CreateAccessor(httpContext);
+
+        HttpTenantContext tenantContext = new(accessor);
+
+        Func<string> act = () => tenantContext.Username;
+
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
     public void Roles_WhenRealmAccessPresent_ReturnsRoles()
     {
         DefaultHttpContext httpContext = new();

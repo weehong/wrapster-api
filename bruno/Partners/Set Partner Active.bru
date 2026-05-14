@@ -1,0 +1,25 @@
+meta {
+  name: Set Partner Active
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{BASE_URL}}/api/v1/partners/:tenantId/active
+  body: json
+  auth: bearer
+}
+
+params:path {
+  tenantId: {{PARTNER_TENANT_ID}}
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:json {
+  {
+    "isActive": true
+  }
+}

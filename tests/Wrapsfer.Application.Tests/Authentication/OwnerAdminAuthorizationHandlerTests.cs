@@ -51,7 +51,7 @@ public class OwnerAdminAuthorizationHandlerTests
         OwnerAdminAuthorizationHandler handler = new(
             new HttpContextAccessor(),
             Options.Create(new KeycloakOptions
-                { BaseUrl = "http://kc/", OwnerRealm = "owner", Audience = "wrapsfer-api" }));
+            { BaseUrl = "http://kc/", OwnerRealm = "owner", Audience = "wrapsfer-api" }));
 
         await handler.HandleAsync(context);
 

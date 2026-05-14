@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -11,19 +10,18 @@ namespace Wrapsfer.Infrastructure.IdentityProvisioning;
 
 internal sealed class KeycloakTenantProvisioningService : IIdentityTenantProvisioningService
 {
-    internal const string HttpClientName = "KeycloakAdmin";
-    private const string DefaultAdminRealm = "master";
+    internal const string RequiresPasswordChangeAttribute = "requires_password_change";
 
-    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly KeycloakAdminHttpClient _adminHttp;
     private readonly ILogger<KeycloakTenantProvisioningService> _logger;
     private readonly KeycloakOptions _options;
 
     public KeycloakTenantProvisioningService(
-        IHttpClientFactory httpClientFactory,
+        KeycloakAdminHttpClient adminHttp,
         IOptions<KeycloakOptions> options,
         ILogger<KeycloakTenantProvisioningService> logger)
     {
-        _httpClientFactory = httpClientFactory;
+        _adminHttp = adminHttp;
         _options = options.Value;
         _logger = logger;
     }
@@ -36,11 +34,16 @@ internal sealed class KeycloakTenantProvisioningService : IIdentityTenantProvisi
 
         try
         {
-            using HttpClient client = _httpClientFactory.CreateClient(HttpClientName);
-            string token = await GetAdminTokenAsync(client, cancellationToken);
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using HttpClient client = await _adminHttp.CreateAuthorizedClientAsync(cancellationToken);
 
             await CreateRealmAsync(client, request.TenantId, request.DisplayName, cancellationToken);
+
+            // The admin token's `resource_access` is fixed at issuance time and does not include
+            // the newly-created realm's management client, so subsequent calls to that realm's
+            // admin endpoints return 403. Refresh the token to pick up the new resource_access entry.
+            await _adminHttp.RefreshAuthorizationAsync(client, cancellationToken);
+
+            await EnableUnmanagedAttributesAsync(client, request.TenantId, cancellationToken);
             await CreateRealmRoleAsync(client, request.TenantId, "admin", "Administrator role", cancellationToken);
             await CreateRealmRoleAsync(client, request.TenantId, "user", "Standard user role", cancellationToken);
             await CreateApiClientAsync(client, request.TenantId, cancellationToken);
@@ -67,9 +70,7 @@ internal sealed class KeycloakTenantProvisioningService : IIdentityTenantProvisi
 
         try
         {
-            using HttpClient client = _httpClientFactory.CreateClient(HttpClientName);
-            string token = await GetAdminTokenAsync(client, cancellationToken);
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using HttpClient client = await _adminHttp.CreateAuthorizedClientAsync(cancellationToken);
 
             KeycloakRealmRepresentation payload = new()
             {
@@ -110,9 +111,7 @@ internal sealed class KeycloakTenantProvisioningService : IIdentityTenantProvisi
 
         try
         {
-            using HttpClient client = _httpClientFactory.CreateClient(HttpClientName);
-            string token = await GetAdminTokenAsync(client, cancellationToken);
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using HttpClient client = await _adminHttp.CreateAuthorizedClientAsync(cancellationToken);
 
             HttpResponseMessage response = await client.DeleteAsync(
                 $"admin/realms/{Uri.EscapeDataString(tenantId)}",
@@ -147,50 +146,13 @@ internal sealed class KeycloakTenantProvisioningService : IIdentityTenantProvisi
     {
         if (!_options.PartnerOnboardingEnabled
             || string.IsNullOrWhiteSpace(_options.AdminClientId)
-            || string.IsNullOrWhiteSpace(_options.AdminClientSecret))
+            || string.IsNullOrWhiteSpace(_options.AdminClientSecret)
+            || string.IsNullOrWhiteSpace(_options.PartnerApiClientSecret))
         {
             throw new InvalidOperationException(
-                "Partner onboarding is not configured. Set Keycloak:PartnerOnboardingEnabled, Keycloak:AdminClientId, and Keycloak:AdminClientSecret.");
+                "Partner onboarding is not configured. Set Keycloak:PartnerOnboardingEnabled, " +
+                "Keycloak:AdminClientId, Keycloak:AdminClientSecret, and Keycloak:PartnerApiClientSecret.");
         }
-    }
-
-    private async Task<string> GetAdminTokenAsync(HttpClient client, CancellationToken cancellationToken)
-    {
-        string adminRealm = !string.IsNullOrWhiteSpace(_options.AdminRealm)
-            ? _options.AdminRealm
-            : DefaultAdminRealm;
-
-        Dictionary<string, string> form = new()
-        {
-            ["grant_type"] = "client_credentials",
-            ["client_id"] = _options.AdminClientId!,
-            ["client_secret"] = _options.AdminClientSecret!
-        };
-
-        using FormUrlEncodedContent content = new(form);
-        HttpResponseMessage response = await client.PostAsync(
-            $"realms/{Uri.EscapeDataString(adminRealm)}/protocol/openid-connect/token",
-            content,
-            cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            string body = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogError(
-                "Failed to obtain Keycloak admin token from realm {AdminRealm}: {Status} {Body}",
-                adminRealm, response.StatusCode, body);
-            throw new InvalidOperationException("Failed to obtain admin token from identity provider.");
-        }
-
-        KeycloakTokenResponse? token = await response.Content.ReadFromJsonAsync<KeycloakTokenResponse>(
-            cancellationToken);
-
-        if (token is null || string.IsNullOrWhiteSpace(token.AccessToken))
-        {
-            throw new InvalidOperationException("Identity provider returned an empty admin token.");
-        }
-
-        return token.AccessToken;
     }
 
     private async Task CreateRealmAsync(
@@ -207,7 +169,59 @@ internal sealed class KeycloakTenantProvisioningService : IIdentityTenantProvisi
         };
 
         HttpResponseMessage response = await client.PostAsJsonAsync("admin/realms", payload, cancellationToken);
-        await EnsureSuccessAsync(response, $"create realm {tenantId}", cancellationToken);
+        await _adminHttp.EnsureSuccessAsync(response, $"create realm {tenantId}", cancellationToken);
+    }
+
+    private async Task EnableUnmanagedAttributesAsync(
+        HttpClient client,
+        string tenantId,
+        CancellationToken cancellationToken)
+    {
+        // Keycloak 26's user profile (a) silently drops any attribute not declared in the realm's
+        // user profile config and (b) marks `firstName` / `lastName` as required for users by default.
+        // Onboarding doesn't capture either name, so the partner admin would be rejected by Keycloak
+        // ("Account is not fully set up") on every login. Switch the realm to `ADMIN_EDIT` so the API
+        // can set `requires_password_change`, and drop the required-flag on the name fields.
+        HttpResponseMessage getResponse = await client.GetAsync(
+            $"admin/realms/{Uri.EscapeDataString(tenantId)}/users/profile",
+            cancellationToken);
+
+        await _adminHttp.EnsureSuccessAsync(getResponse, $"read user profile for realm {tenantId}", cancellationToken);
+
+        string body = await getResponse.Content.ReadAsStringAsync(cancellationToken);
+        System.Text.Json.Nodes.JsonNode? profile = System.Text.Json.Nodes.JsonNode.Parse(body);
+
+        if (profile is null)
+        {
+            throw new InvalidOperationException(
+                $"Identity provider returned an empty user profile config for realm {tenantId}.");
+        }
+
+        profile["unmanagedAttributePolicy"] = "ADMIN_EDIT";
+
+        if (profile["attributes"] is System.Text.Json.Nodes.JsonArray attributes)
+        {
+            foreach (System.Text.Json.Nodes.JsonNode? attribute in attributes)
+            {
+                if (attribute is null)
+                {
+                    continue;
+                }
+
+                string? name = attribute["name"]?.GetValue<string>();
+                if (name is "firstName" or "lastName")
+                {
+                    attribute.AsObject().Remove("required");
+                }
+            }
+        }
+
+        HttpResponseMessage putResponse = await client.PutAsJsonAsync(
+            $"admin/realms/{Uri.EscapeDataString(tenantId)}/users/profile",
+            profile,
+            cancellationToken);
+
+        await _adminHttp.EnsureSuccessAsync(putResponse, $"enable unmanaged attributes for realm {tenantId}", cancellationToken);
     }
 
     private async Task CreateRealmRoleAsync(
@@ -233,7 +247,7 @@ internal sealed class KeycloakTenantProvisioningService : IIdentityTenantProvisi
             return;
         }
 
-        await EnsureSuccessAsync(response, $"create role {roleName} in realm {tenantId}", cancellationToken);
+        await _adminHttp.EnsureSuccessAsync(response, $"create role {roleName} in realm {tenantId}", cancellationToken);
     }
 
     private async Task CreateApiClientAsync(
@@ -256,16 +270,41 @@ internal sealed class KeycloakTenantProvisioningService : IIdentityTenantProvisi
             }
         };
 
+        KeycloakProtocolMapperRepresentation requiresPasswordChangeMapper = new()
+        {
+            Name = "requires-password-change-mapper",
+            Protocol = "openid-connect",
+            ProtocolMapper = "oidc-usermodel-attribute-mapper",
+            ConsentRequired = false,
+            Config = new Dictionary<string, string>
+            {
+                ["user.attribute"] = RequiresPasswordChangeAttribute,
+                ["claim.name"] = RequiresPasswordChangeAttribute,
+                ["jsonType.label"] = "boolean",
+                ["access.token.claim"] = "true",
+                ["id.token.claim"] = "false",
+                ["userinfo.token.claim"] = "false",
+                ["introspection.token.claim"] = "true",
+                ["multivalued"] = "false",
+                ["aggregate.attrs"] = "false"
+            }
+        };
+
         KeycloakClientRepresentation payload = new()
         {
             ClientId = _options.Audience,
             Name = "Wrapsfer API",
             Enabled = true,
             PublicClient = false,
+            Secret = _options.PartnerApiClientSecret,
             DirectAccessGrantsEnabled = true,
             StandardFlowEnabled = true,
             DefaultClientScopes = new List<string> { "basic", "profile", "email", "roles" },
-            ProtocolMappers = new List<KeycloakProtocolMapperRepresentation> { audienceMapper }
+            ProtocolMappers = new List<KeycloakProtocolMapperRepresentation>
+            {
+                audienceMapper,
+                requiresPasswordChangeMapper
+            }
         };
 
         HttpResponseMessage response = await client.PostAsJsonAsync(
@@ -273,7 +312,7 @@ internal sealed class KeycloakTenantProvisioningService : IIdentityTenantProvisi
             payload,
             cancellationToken);
 
-        await EnsureSuccessAsync(response, $"create client in realm {tenantId}", cancellationToken);
+        await _adminHttp.EnsureSuccessAsync(response, $"create client in realm {tenantId}", cancellationToken);
     }
 
     private async Task<string> CreateAdminUserAsync(
@@ -293,18 +332,25 @@ internal sealed class KeycloakTenantProvisioningService : IIdentityTenantProvisi
                 {
                     Type = "password",
                     Value = request.TemporaryPassword,
-                    Temporary = true
+                    Temporary = false
                 }
-            },
-            RequiredActions = new List<string> { "UPDATE_PASSWORD" }
+            }
         };
+
+        if (request.IsTemporaryPassword)
+        {
+            payload.Attributes = new Dictionary<string, List<string>>
+            {
+                [RequiresPasswordChangeAttribute] = new() { "true" }
+            };
+        }
 
         HttpResponseMessage response = await client.PostAsJsonAsync(
             $"admin/realms/{Uri.EscapeDataString(request.TenantId)}/users",
             payload,
             cancellationToken);
 
-        await EnsureSuccessAsync(response, $"create admin user in realm {request.TenantId}", cancellationToken);
+        await _adminHttp.EnsureSuccessAsync(response, $"create admin user in realm {request.TenantId}", cancellationToken);
 
         if (response.Headers.Location is not null)
         {
@@ -329,7 +375,7 @@ internal sealed class KeycloakTenantProvisioningService : IIdentityTenantProvisi
             $"admin/realms/{Uri.EscapeDataString(tenantId)}/users?exact=true&username={Uri.EscapeDataString(username)}",
             cancellationToken);
 
-        await EnsureSuccessAsync(response, $"lookup user {username} in realm {tenantId}", cancellationToken);
+        await _adminHttp.EnsureSuccessAsync(response, $"lookup user {username} in realm {tenantId}", cancellationToken);
 
         List<KeycloakUserRepresentation>? users =
             await response.Content.ReadFromJsonAsync<List<KeycloakUserRepresentation>>(
@@ -353,7 +399,7 @@ internal sealed class KeycloakTenantProvisioningService : IIdentityTenantProvisi
         HttpResponseMessage roleResponse = await client.GetAsync(
             $"admin/realms/{Uri.EscapeDataString(tenantId)}/roles/admin",
             cancellationToken);
-        await EnsureSuccessAsync(roleResponse, $"read admin role from realm {tenantId}", cancellationToken);
+        await _adminHttp.EnsureSuccessAsync(roleResponse, $"read admin role from realm {tenantId}", cancellationToken);
 
         KeycloakRoleRepresentation? adminRole =
             await roleResponse.Content.ReadFromJsonAsync<KeycloakRoleRepresentation>(
@@ -371,28 +417,6 @@ internal sealed class KeycloakTenantProvisioningService : IIdentityTenantProvisi
             payload,
             cancellationToken);
 
-        await EnsureSuccessAsync(assignResponse, $"assign admin role in realm {tenantId}", cancellationToken);
+        await _adminHttp.EnsureSuccessAsync(assignResponse, $"assign admin role in realm {tenantId}", cancellationToken);
     }
-
-    private async Task EnsureSuccessAsync(
-        HttpResponseMessage response,
-        string operation,
-        CancellationToken cancellationToken)
-    {
-        if (response.IsSuccessStatusCode)
-        {
-            return;
-        }
-
-        string body = await response.Content.ReadAsStringAsync(cancellationToken);
-        _logger.LogError(
-            "Keycloak operation '{Operation}' failed: {Status} {Body}",
-            operation, response.StatusCode, Truncate(body, 1024));
-
-        throw new HttpRequestException(
-            $"Keycloak admin call failed for '{operation}' with status {(int)response.StatusCode}.");
-    }
-
-    private static string Truncate(string value, int maxLength) =>
-        string.IsNullOrEmpty(value) || value.Length <= maxLength ? value : value[..maxLength];
 }

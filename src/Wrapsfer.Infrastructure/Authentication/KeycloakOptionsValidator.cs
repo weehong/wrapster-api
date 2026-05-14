@@ -61,6 +61,12 @@ public sealed class KeycloakOptionsValidator : IValidateOptions<KeycloakOptions>
                 failures.Add(
                     $"{KeycloakOptions.SectionName}:AdminClientSecret is required when PartnerOnboardingEnabled is true.");
             }
+
+            if (string.IsNullOrWhiteSpace(options.PartnerApiClientSecret))
+            {
+                failures.Add(
+                    $"{KeycloakOptions.SectionName}:PartnerApiClientSecret is required when PartnerOnboardingEnabled is true.");
+            }
         }
 
         if (_environment.IsProduction())

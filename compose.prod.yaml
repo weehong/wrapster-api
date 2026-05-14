@@ -18,6 +18,11 @@ services:
       Keycloak__OwnerRealm: ${KEYCLOAK_OWNER_REALM:-owner}
       Keycloak__Audience: ${KEYCLOAK_AUDIENCE:-wrapsfer-api}
       Keycloak__RequireHttpsMetadata: ${KEYCLOAK_REQUIRE_HTTPS:-true}
+      Keycloak__PartnerOnboardingEnabled: ${KEYCLOAK_PARTNER_ONBOARDING_ENABLED:-true}
+      Keycloak__AdminClientId: ${KEYCLOAK_ADMIN_CLIENT_ID}
+      Keycloak__AdminClientSecret: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+      Keycloak__AdminRealm: ${KEYCLOAK_ADMIN_REALM:-master}
+      Keycloak__PartnerApiClientSecret: ${KEYCLOAK_PARTNER_API_CLIENT_SECRET}
     ports:
       - "${API_PORT:-8080}:8080"
     depends_on:

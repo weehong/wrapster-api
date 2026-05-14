@@ -207,6 +207,7 @@ public class KeycloakOptionsValidatorTests
         result.Failed.Should().BeTrue();
         result.Failures.Should().Contain(f => f.Contains("AdminClientId"));
         result.Failures.Should().Contain(f => f.Contains("AdminClientSecret"));
+        result.Failures.Should().Contain(f => f.Contains("PartnerApiClientSecret"));
     }
 
     [Fact]
@@ -219,7 +220,8 @@ public class KeycloakOptionsValidatorTests
             Audience = "wrapsfer-api",
             PartnerOnboardingEnabled = true,
             AdminClientId = "wrapsfer-admin",
-            AdminClientSecret = "secret"
+            AdminClientSecret = "secret",
+            PartnerApiClientSecret = "partner-secret"
         };
 
         ValidateOptionsResult result = DevelopmentValidator.Validate(null, options);

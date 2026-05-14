@@ -1,0 +1,25 @@
+meta {
+  name: Get Token (New Partner)
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{KEYCLOAK_URL}}/realms/partner-beta/protocol/openid-connect/token
+  body: formUrlEncoded
+  auth: none
+}
+
+body:form-urlencoded {
+  grant_type: password
+  client_id: {{CLIENT_ID}}
+  client_secret: {{CLIENT_SECRET}}
+  username: betaadmin
+  password: betaadmin
+}
+
+script:post-response {
+  const body = res.getBody();
+  bru.setVar("ACCESS_TOKEN", body.access_token);
+  bru.setVar("TENANT_REALM", "partner-beta");
+}

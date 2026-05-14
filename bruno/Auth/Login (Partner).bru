@@ -1,0 +1,30 @@
+meta {
+  name: Login (Partner)
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/auth/login
+  body: json
+  auth: none
+}
+
+headers {
+  X-Tenant-Realm: {{PARTNER_TENANT_ID}}
+}
+
+body:json {
+  {
+    "username": "alphaadmin",
+    "password": "ChangeMe-12345!"
+  }
+}
+
+script:post-response {
+  const body = res.getBody();
+  if (body && body.token) {
+    bru.setVar("ACCESS_TOKEN", body.token);
+    bru.setVar("TENANT_REALM", "{{PARTNER_TENANT_ID}}");
+  }
+}

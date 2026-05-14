@@ -92,7 +92,7 @@ public static class DependencyInjection
 
         services.AddHttpClient("KeycloakOidc");
 
-        services.AddHttpClient(KeycloakTenantProvisioningService.HttpClientName, (sp, client) =>
+        services.AddHttpClient(KeycloakAdminHttpClient.HttpClientName, (sp, client) =>
         {
             KeycloakOptions opts = sp.GetRequiredService<IOptions<KeycloakOptions>>().Value;
             client.BaseAddress = new Uri(opts.BaseUrl.TrimEnd('/') + "/");
@@ -103,7 +103,9 @@ public static class DependencyInjection
         services.AddSingleton<IIdentityProviderSettings, KeycloakIdentityProviderSettings>();
         services.AddScoped<ITenantRealmResolver, SubdomainTenantRealmResolver>();
         services.AddScoped<MultiTenantJwtBearerEvents>();
+        services.AddSingleton<KeycloakAdminHttpClient>();
         services.AddScoped<IIdentityTenantProvisioningService, KeycloakTenantProvisioningService>();
+        services.AddScoped<IIdentityAuthService, KeycloakIdentityAuthService>();
         services.AddHostedService<KeycloakIssuerPreflight>();
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -122,6 +124,7 @@ public static class DependencyInjection
             });
 
         services.AddSingleton<IAuthorizationHandler, OwnerAdminAuthorizationHandler>();
+        services.AddSingleton<IAuthorizationHandler, NotPasswordChangeRequiredHandler>();
 
         services.AddAuthorization(options =>
         {
@@ -129,7 +132,13 @@ public static class DependencyInjection
             {
                 policy.RequireAuthenticatedUser();
                 policy.AddRequirements(new OwnerAdminRequirement());
+                policy.AddRequirements(new NotPasswordChangeRequiredRequirement());
             });
+
+            options.DefaultPolicy = new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .AddRequirements(new NotPasswordChangeRequiredRequirement())
+                .Build();
         });
 
         return services;
