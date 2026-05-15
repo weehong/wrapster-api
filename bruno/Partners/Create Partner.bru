@@ -17,11 +17,11 @@ auth:bearer {
 body:json {
   {
     "tenantId": "{{PARTNER_TENANT_ID}}",
-    "displayName": "Partner Alpha",
-    "adminEmail": "alphaadmin@wrapsfer.dev",
-    "adminUsername": "alphaadmin",
-    "temporaryPassword": "ChangeMe-12345!",
+    "displayName": "{{PARTNER_DISPLAY_NAME}}",
+    "adminEmail": "{{PARTNER_ADMIN_EMAIL}}",
+    "adminUsername": "{{PARTNER_ADMIN_USERNAME}}",
+    "temporaryPassword": "{{PARTNER_ADMIN_PASSWORD}}",
     "isTemporaryPassword": true,
-    "contactEmail": "contact@partner-alpha.dev"
+    "contactEmail": "{{PARTNER_CONTACT_EMAIL}}"
   }
 }
