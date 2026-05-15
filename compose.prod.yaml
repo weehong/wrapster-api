@@ -34,6 +34,8 @@ services:
         condition: service_healthy
       keycloak:
         condition: service_started
+      keycloak-bootstrap:
+        condition: service_completed_successfully
 
   migrate:
     image: ${DOCKER_IMAGE}:${IMAGE_TAG:-latest}
@@ -112,6 +114,22 @@ services:
     depends_on:
       keycloak-db:
         condition: service_healthy
+
+  keycloak-bootstrap:
+    image: quay.io/keycloak/keycloak:26.2
+    restart: "no"
+    entrypoint: ["/bin/bash", "/bootstrap/bootstrap-admin-client.sh"]
+    environment:
+      KC_BASE_URL: http://keycloak:8080
+      KEYCLOAK_ADMIN_USER: ${KEYCLOAK_ADMIN_USER:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+    volumes:
+      - ./keycloak/bootstrap-admin-client.sh:/bootstrap/bootstrap-admin-client.sh:ro
+    depends_on:
+      keycloak:
+        condition: service_started
 
 volumes:
   db_data:

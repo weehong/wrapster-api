@@ -39,6 +39,23 @@ services:
       keycloak-db:
         condition: service_healthy
 
+  keycloak-bootstrap:
+    image: quay.io/keycloak/keycloak:26.2
+    container_name: wrapsfer-keycloak-bootstrap
+    restart: "no"
+    entrypoint: ["/bin/bash", "/bootstrap/bootstrap-admin-client.sh"]
+    environment:
+      KC_BASE_URL: http://keycloak:8080
+      KEYCLOAK_ADMIN_USER: ${KEYCLOAK_ADMIN_USER:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID:-wrapsfer-admin}
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET:-wrapsfer-admin-secret}
+    volumes:
+      - ./keycloak/bootstrap-admin-client.sh:/bootstrap/bootstrap-admin-client.sh:ro
+    depends_on:
+      keycloak:
+        condition: service_started
+
   wrapsfer-db:
     image: postgres:17
     container_name: wrapsfer-db

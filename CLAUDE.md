@@ -40,7 +40,6 @@ docker compose -f compose.dev.yaml up -d
 - **No internal details in API responses**: Exception handlers must never leak internal messages (database errors, stack traces, configuration details) to the client. Log the details server-side, return a generic message.
 - **No silent fallback credentials**: Infrastructure configuration (database, message queue, etc.) must fail fast with `throw` on missing config — never fall back to default credentials like `"guest"`.
 - **Collection encapsulation**: Domain entity collection navigation properties must be `IReadOnlyCollection<T>` backed by a private `List<T>` field. Never expose mutable `ICollection<T>`.
-- **Code review on new files**: Always run a CodeRabbit code review (via the `coderabbit:review` skill or `coderabbit:code-reviewer` agent) whenever new files are added to the project. Do this proactively before committing.
 
 ## Architecture
 
