@@ -10,8 +10,8 @@ public class OwnerAdminAuthorizationHandlerTests
     public async Task Handle_WhenOwnerRealmAndAdminRole_Succeeds()
     {
         AuthorizationHandlerContext context =
-            CreateContext("owner", new[] { "admin" }, out HttpContextAccessor accessor);
-        OwnerAdminAuthorizationHandler handler = CreateHandler(accessor, "owner");
+            CreateContext("wrapsfer", new[] { "admin" }, out HttpContextAccessor accessor);
+        OwnerAdminAuthorizationHandler handler = CreateHandler(accessor, "wrapsfer");
 
         await handler.HandleAsync(context);
 
@@ -22,8 +22,8 @@ public class OwnerAdminAuthorizationHandlerTests
     public async Task Handle_WhenOwnerRealmAndNoAdminRole_DoesNotSucceed()
     {
         AuthorizationHandlerContext
-            context = CreateContext("owner", new[] { "user" }, out HttpContextAccessor accessor);
-        OwnerAdminAuthorizationHandler handler = CreateHandler(accessor, "owner");
+            context = CreateContext("wrapsfer", new[] { "user" }, out HttpContextAccessor accessor);
+        OwnerAdminAuthorizationHandler handler = CreateHandler(accessor, "wrapsfer");
 
         await handler.HandleAsync(context);
 
@@ -35,7 +35,7 @@ public class OwnerAdminAuthorizationHandlerTests
     {
         AuthorizationHandlerContext context =
             CreateContext("partner-acme", new[] { "admin" }, out HttpContextAccessor accessor);
-        OwnerAdminAuthorizationHandler handler = CreateHandler(accessor, "owner");
+        OwnerAdminAuthorizationHandler handler = CreateHandler(accessor, "wrapsfer");
 
         await handler.HandleAsync(context);
 
@@ -51,7 +51,7 @@ public class OwnerAdminAuthorizationHandlerTests
         OwnerAdminAuthorizationHandler handler = new(
             new HttpContextAccessor(),
             Options.Create(new KeycloakOptions
-            { BaseUrl = "http://kc/", OwnerRealm = "owner", Audience = "wrapsfer-api" }));
+            { BaseUrl = "http://kc/", OwnerRealm = "wrapsfer", Audience = "wrapsfer" }));
 
         await handler.HandleAsync(context);
 
@@ -87,7 +87,7 @@ public class OwnerAdminAuthorizationHandlerTests
         {
             BaseUrl = "http://kc/",
             OwnerRealm = ownerRealm,
-            Audience = "wrapsfer-api"
+            Audience = "wrapsfer"
         };
 
         return new OwnerAdminAuthorizationHandler(accessor, Options.Create(options));

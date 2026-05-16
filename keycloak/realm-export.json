@@ -1,15 +1,16 @@
 {
-  "id": "owner",
-  "realm": "owner",
-  "displayName": "Wrapsfer Owner Realm",
+  "id": "wrapsfer",
+  "realm": "wrapsfer",
+  "displayName": "Wrapsfer Realm",
   "enabled": true,
-  "sslRequired": "none",
+  "sslRequired": "external",
   "registrationAllowed": false,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
   "bruteForceProtected": true,
+  "passwordPolicy": "length(12) and upperCase(1) and lowerCase(1) and digits(1) and specialChars(1) and notUsername(undefined) and passwordHistory(3)",
   "roles": {
     "realm": [
       {
@@ -28,24 +29,18 @@
   },
   "clients": [
     {
-      "clientId": "wrapsfer-api",
-      "name": "Wrapsfer API",
+      "clientId": "wrapsfer",
+      "name": "Wrapsfer",
       "enabled": true,
       "publicClient": false,
       "clientAuthenticatorType": "client-secret",
-      "secret": "wrapsfer-api-secret",
+      "secret": "${KEYCLOAK_PARTNER_API_CLIENT_SECRET}",
       "directAccessGrantsEnabled": true,
-      "standardFlowEnabled": true,
+      "standardFlowEnabled": false,
       "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
       "protocol": "openid-connect",
-      "redirectUris": [
-        "http://localhost:*",
-        "https://localhost:*"
-      ],
-      "webOrigins": [
-        "http://localhost:5000",
-        "https://localhost:5001"
-      ],
+      "webOrigins": [],
       "defaultClientScopes": [
         "basic",
         "profile",
@@ -59,7 +54,7 @@
           "protocolMapper": "oidc-audience-mapper",
           "consentRequired": false,
           "config": {
-            "included.client.audience": "wrapsfer-api",
+            "included.client.audience": "wrapsfer",
             "id.token.claim": "false",
             "access.token.claim": "true",
             "introspection.token.claim": "true"
@@ -70,27 +65,8 @@
   ],
   "users": [
     {
-      "username": "testuser",
-      "email": "testuser@wrapsfer.local",
-      "emailVerified": true,
-      "enabled": true,
-      "firstName": "Test",
-      "lastName": "User",
-      "credentials": [
-        {
-          "type": "password",
-          "value": "testpassword",
-          "temporary": false
-        }
-      ],
-      "realmRoles": [
-        "admin",
-        "user"
-      ]
-    },
-    {
       "username": "owneradmin",
-      "email": "owneradmin@wrapsfer.local",
+      "email": "owneradmin@wrapsfer.dev",
       "emailVerified": true,
       "enabled": true,
       "firstName": "Owner",
@@ -98,25 +74,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "owneradmin",
-          "temporary": false
-        }
-      ],
-      "realmRoles": [
-        "admin"
-      ]
-    },
-    {
-      "username": "adminowner",
-      "email": "adminowner@wrapsfer.local",
-      "emailVerified": true,
-      "enabled": true,
-      "firstName": "Admin",
-      "lastName": "Owner",
-      "credentials": [
-        {
-          "type": "password",
-          "value": "adminowner",
+          "value": "${KEYCLOAK_OWNER_ADMIN_PASSWORD}",
           "temporary": false
         }
       ],

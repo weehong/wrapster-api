@@ -5,7 +5,7 @@ meta {
 }
 
 post {
-  url: {{KEYCLOAK_URL}}/realms/owner/protocol/openid-connect/token
+  url: {{KEYCLOAK_URL}}/realms/wrapsfer/protocol/openid-connect/token
   body: formUrlEncoded
   auth: none
 }
@@ -21,5 +21,5 @@ body:form-urlencoded {
 script:post-response {
   const body = res.getBody();
   bru.setVar("ACCESS_TOKEN", body.access_token);
-  bru.setVar("TENANT_REALM", "owner");
+  bru.setVar("TENANT_REALM", "wrapsfer");
 }

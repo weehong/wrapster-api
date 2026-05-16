@@ -7,7 +7,7 @@ namespace Wrapsfer.Domain.Tests.Entities;
 
 public class PartnerTenantTests
 {
-    private const string OwnerRealm = "owner";
+    private const string OwnerRealm = "wrapsfer";
 
     [Fact]
     public void Create_WithValidInputs_ReturnsSuccessAndProvisioning()
@@ -41,7 +41,7 @@ public class PartnerTenantTests
     [Fact]
     public void Create_WithTenantIdMatchingOwnerRealm_ReturnsFailure()
     {
-        Result<PartnerTenant> result = PartnerTenant.Create("owner", "Display", "Owner");
+        Result<PartnerTenant> result = PartnerTenant.Create("wrapsfer", "Display", "Wrapsfer");
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be(PartnerTenantErrors.OwnerRealmNotAllowed.Code);

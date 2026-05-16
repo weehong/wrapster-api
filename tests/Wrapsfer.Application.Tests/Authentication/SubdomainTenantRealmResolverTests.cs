@@ -2,7 +2,7 @@ namespace Wrapsfer.Application.Tests.Authentication;
 
 public class SubdomainTenantRealmResolverTests
 {
-    private const string OwnerRealm = "owner";
+    private const string OwnerRealm = "wrapsfer";
     private readonly SubdomainTenantRealmResolver _resolver;
 
     public SubdomainTenantRealmResolverTests()
@@ -11,7 +11,7 @@ public class SubdomainTenantRealmResolverTests
         {
             BaseUrl = "https://auth.domain.com",
             OwnerRealm = OwnerRealm,
-            Audience = "wrapsfer-api"
+            Audience = "wrapsfer"
         });
 
         _resolver = new SubdomainTenantRealmResolver(options);

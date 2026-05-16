@@ -15,8 +15,8 @@ services:
       Mailing__Resend__FromAddress: ${RESEND_FROM_ADDRESS}
       Mailing__Resend__FromName: ${RESEND_FROM_NAME}
       Keycloak__BaseUrl: ${KEYCLOAK_BASE_URL:-http://keycloak:8080}
-      Keycloak__OwnerRealm: ${KEYCLOAK_OWNER_REALM:-owner}
-      Keycloak__Audience: ${KEYCLOAK_AUDIENCE:-wrapsfer-api}
+      Keycloak__OwnerRealm: ${KEYCLOAK_OWNER_REALM:-wrapsfer}
+      Keycloak__Audience: ${KEYCLOAK_AUDIENCE:-wrapsfer}
       Keycloak__RequireHttpsMetadata: ${KEYCLOAK_REQUIRE_HTTPS:-true}
       Keycloak__PartnerOnboardingEnabled: ${KEYCLOAK_PARTNER_ONBOARDING_ENABLED:-true}
       Keycloak__AdminClientId: ${KEYCLOAK_ADMIN_CLIENT_ID}
@@ -25,6 +25,7 @@ services:
       Keycloak__PartnerApiClientSecret: ${KEYCLOAK_PARTNER_API_CLIENT_SECRET}
     ports:
       - "${API_PORT:-8080}:8080"
+    mem_limit: 320m
     depends_on:
       db:
         condition: service_healthy
@@ -33,7 +34,7 @@ services:
       rabbitmq:
         condition: service_healthy
       keycloak:
-        condition: service_started
+        condition: service_healthy
       keycloak-bootstrap:
         condition: service_completed_successfully
 
@@ -55,6 +56,7 @@ services:
       POSTGRES_DB: ${DB_NAME}
     volumes:
       - db_data:/var/lib/postgresql/data
+    mem_limit: 256m
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
       interval: 10s
@@ -69,6 +71,7 @@ services:
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    mem_limit: 300m
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
@@ -84,6 +87,7 @@ services:
       POSTGRES_DB: keycloak
     volumes:
       - keycloak_db_data:/var/lib/postgresql/data
+    mem_limit: 256m
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U keycloak"]
       interval: 10s
@@ -91,26 +95,44 @@ services:
       retries: 10
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.2
+    build:
+      context: keycloak
+      dockerfile: Dockerfile
+    image: wrapsfer-keycloak:26.2.5
     restart: unless-stopped
-    command: start-dev --import-realm
+    command: start --optimized --import-realm
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
       KC_DB_USERNAME: keycloak
       KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
       KC_HEALTH_ENABLED: "true"
+      KC_HTTP_ENABLED: "true"
       KC_HTTP_PORT: "8080"
       KC_HOSTNAME: ${KEYCLOAK_HOSTNAME}
       KC_PROXY_HEADERS: ${KEYCLOAK_PROXY_HEADERS:-xforwarded}
       KC_HOSTNAME_STRICT: ${KEYCLOAK_HOSTNAME_STRICT:-true}
-      KC_HOSTNAME_STRICT_HTTPS: ${KEYCLOAK_HOSTNAME_STRICT_HTTPS:-true}
-      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER:-admin}
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      JAVA_OPTS_KC_HEAP: "-Xms256m -Xmx512m"
+      # Consumed only by realm-export.json import-time ${env.*} substitution.
+      KEYCLOAK_PARTNER_API_CLIENT_SECRET: ${KEYCLOAK_PARTNER_API_CLIENT_SECRET}
+      KEYCLOAK_OWNER_ADMIN_PASSWORD: ${KEYCLOAK_OWNER_ADMIN_PASSWORD}
     volumes:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
     ports:
       - "${KEYCLOAK_PORT:-18080}:8080"
+    mem_limit: 768m
+    healthcheck:
+      test:
+        - CMD
+        - bash
+        - -c
+        - 'exec 3<>/dev/tcp/localhost/9000; printf "GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n" >&3; grep -q "\"status\": \"UP\"" <&3'
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 120s
     depends_on:
       keycloak-db:
         condition: service_healthy
@@ -129,7 +151,7 @@ services:
       - ./keycloak/bootstrap-admin-client.sh:/bootstrap/bootstrap-admin-client.sh:ro
     depends_on:
       keycloak:
-        condition: service_started
+        condition: service_healthy
 
 volumes:
   db_data:

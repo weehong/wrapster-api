@@ -6,12 +6,11 @@
 - **Username**: admin
 - **Password**: admin
 
-## Owner Realm (`owner`)
+## Main Realm (`wrapsfer`)
 
-| Username    | Password    | Roles        |
-|-------------|-------------|--------------|
-| testuser    | testpassword | admin, user |
-| owneradmin  | owneradmin   | admin       |
+| Username    | Password                          | Roles  |
+|-------------|-----------------------------------|--------|
+| owneradmin  | see `KEYCLOAK_OWNER_ADMIN_PASSWORD` | admin |
 
 ## Partner Alpha Realm (`partner-alpha`)
 
@@ -29,8 +28,8 @@
 
 All realms use the same client:
 
-- **Client ID**: wrapsfer-api
-- **Client Secret**: wrapsfer-api-secret
+- **Client ID**: wrapsfer
+- **Client Secret**: wrapsfer-secret
 - **Grant Type**: password
 
 ```

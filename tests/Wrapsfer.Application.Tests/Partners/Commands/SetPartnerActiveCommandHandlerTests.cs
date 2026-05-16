@@ -13,7 +13,7 @@ namespace Wrapsfer.Application.Tests.Partners.Commands;
 
 public class SetPartnerActiveCommandHandlerTests
 {
-    private const string OwnerRealm = "owner";
+    private const string OwnerRealm = "wrapsfer";
 
     private readonly SetPartnerActiveCommandHandler _handler;
     private readonly Mock<IIdentityProviderSettings> _identitySettings = new();

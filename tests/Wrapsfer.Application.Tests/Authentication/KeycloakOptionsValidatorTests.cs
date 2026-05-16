@@ -17,7 +17,7 @@ public class KeycloakOptionsValidatorTests
         {
             BaseUrl = "https://id.example.com",
             OwnerRealm = "owner-realm",
-            Audience = "wrapsfer-api"
+            Audience = "wrapsfer"
         };
 
         ValidateOptionsResult result = DevelopmentValidator.Validate(null, options);
@@ -32,7 +32,7 @@ public class KeycloakOptionsValidatorTests
         {
             BaseUrl = "",
             OwnerRealm = "owner-realm",
-            Audience = "wrapsfer-api"
+            Audience = "wrapsfer"
         };
 
         ValidateOptionsResult result = DevelopmentValidator.Validate(null, options);
@@ -48,7 +48,7 @@ public class KeycloakOptionsValidatorTests
         {
             BaseUrl = "/relative/path",
             OwnerRealm = "owner-realm",
-            Audience = "wrapsfer-api"
+            Audience = "wrapsfer"
         };
 
         ValidateOptionsResult result = DevelopmentValidator.Validate(null, options);
@@ -64,7 +64,7 @@ public class KeycloakOptionsValidatorTests
         {
             BaseUrl = "https://id.example.com",
             OwnerRealm = "",
-            Audience = "wrapsfer-api"
+            Audience = "wrapsfer"
         };
 
         ValidateOptionsResult result = DevelopmentValidator.Validate(null, options);
@@ -94,9 +94,9 @@ public class KeycloakOptionsValidatorTests
     {
         KeycloakOptions options = new()
         {
-            BaseUrl = "https://keycloak.example.com/realms/owner",
-            OwnerRealm = "owner",
-            Audience = "wrapsfer-api"
+            BaseUrl = "https://keycloak.example.com/realms/wrapsfer",
+            OwnerRealm = "wrapsfer",
+            Audience = "wrapsfer"
         };
 
         ValidateOptionsResult result = DevelopmentValidator.Validate(null, options);
@@ -111,8 +111,8 @@ public class KeycloakOptionsValidatorTests
         KeycloakOptions options = new()
         {
             BaseUrl = "http://keycloak.example.com",
-            OwnerRealm = "owner",
-            Audience = "wrapsfer-api",
+            OwnerRealm = "wrapsfer",
+            Audience = "wrapsfer",
             RequireHttpsMetadata = true
         };
 
@@ -128,8 +128,8 @@ public class KeycloakOptionsValidatorTests
         KeycloakOptions options = new()
         {
             BaseUrl = "https://keycloak.example.com",
-            OwnerRealm = "owner",
-            Audience = "wrapsfer-api",
+            OwnerRealm = "wrapsfer",
+            Audience = "wrapsfer",
             RequireHttpsMetadata = false
         };
 
@@ -148,8 +148,8 @@ public class KeycloakOptionsValidatorTests
         KeycloakOptions options = new()
         {
             BaseUrl = baseUrl,
-            OwnerRealm = "owner",
-            Audience = "wrapsfer-api",
+            OwnerRealm = "wrapsfer",
+            Audience = "wrapsfer",
             RequireHttpsMetadata = true
         };
 
@@ -165,8 +165,8 @@ public class KeycloakOptionsValidatorTests
         KeycloakOptions options = new()
         {
             BaseUrl = "https://keycloak.example.com",
-            OwnerRealm = "owner",
-            Audience = "wrapsfer-api",
+            OwnerRealm = "wrapsfer",
+            Audience = "wrapsfer",
             RequireHttpsMetadata = true
         };
 
@@ -181,8 +181,8 @@ public class KeycloakOptionsValidatorTests
         KeycloakOptions options = new()
         {
             BaseUrl = "http://localhost:18080",
-            OwnerRealm = "owner",
-            Audience = "wrapsfer-api",
+            OwnerRealm = "wrapsfer",
+            Audience = "wrapsfer",
             RequireHttpsMetadata = false
         };
 
@@ -198,7 +198,7 @@ public class KeycloakOptionsValidatorTests
         {
             BaseUrl = "https://id.example.com",
             OwnerRealm = "owner-realm",
-            Audience = "wrapsfer-api",
+            Audience = "wrapsfer",
             PartnerOnboardingEnabled = true
         };
 
@@ -217,7 +217,7 @@ public class KeycloakOptionsValidatorTests
         {
             BaseUrl = "https://id.example.com",
             OwnerRealm = "owner-realm",
-            Audience = "wrapsfer-api",
+            Audience = "wrapsfer",
             PartnerOnboardingEnabled = true,
             AdminClientId = "wrapsfer-admin",
             AdminClientSecret = "secret",
