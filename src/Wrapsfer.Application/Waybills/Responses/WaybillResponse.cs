@@ -4,6 +4,7 @@ namespace Wrapsfer.Application.Waybills.Responses;
 
 public sealed record WaybillResponse(
     Guid Id,
+    string TenantId,
     DateOnly PackagingDate,
     string WaybillNumber,
     WaybillStatus Status,

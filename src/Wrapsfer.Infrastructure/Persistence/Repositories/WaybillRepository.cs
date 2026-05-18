@@ -95,6 +95,53 @@ internal sealed class WaybillRepository(ApplicationDbContext context) : IWaybill
         return (items, totalCount);
     }
 
+    public async Task<(IReadOnlyList<Waybill> Items, int TotalCount)> ListByTenantIdsAsync(
+        IReadOnlyCollection<string> tenantIds,
+        DateOnly? fromDate = null,
+        DateOnly? toDate = null,
+        WaybillStatus? status = null,
+        string? search = null,
+        int page = 1,
+        int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        IQueryable<Waybill> query = context.Waybills
+            .Include(w => w.Items)
+            .Where(w => tenantIds.Contains(w.TenantId));
+
+        if (fromDate.HasValue)
+        {
+            query = query.Where(w => w.PackagingDate >= fromDate.Value);
+        }
+
+        if (toDate.HasValue)
+        {
+            query = query.Where(w => w.PackagingDate <= toDate.Value);
+        }
+
+        if (status.HasValue)
+        {
+            query = query.Where(w => w.Status == status.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            string pattern = $"%{search}%";
+            query = query.Where(w => EF.Functions.ILike(w.WaybillNumber, pattern));
+        }
+
+        int totalCount = await query.CountAsync(cancellationToken);
+
+        List<Waybill> items = await query
+            .OrderByDescending(w => w.PackagingDate)
+            .ThenByDescending(w => w.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
     public async Task<IReadOnlyList<Waybill>> GetStaleDraftsAsync(DateOnly olderThan,
         CancellationToken cancellationToken = default) =>
         await context.Waybills

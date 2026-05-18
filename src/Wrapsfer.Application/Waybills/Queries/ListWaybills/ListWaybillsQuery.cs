@@ -11,4 +11,5 @@ public sealed record ListWaybillsQuery(
     WaybillStatus? Status,
     string? Search,
     int Page = 1,
-    int PageSize = 20) : IQuery<PagedResult<WaybillResponse>>;
+    int PageSize = 20,
+    bool IncludeAllPartnerTenants = false) : IQuery<PagedResult<WaybillResponse>>;

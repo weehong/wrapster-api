@@ -12,32 +12,65 @@ namespace Wrapsfer.Application.Waybills.Queries.ListWaybills;
 internal sealed class ListWaybillsQueryHandler(
     IWaybillRepository waybillRepository,
     IProductRepository productRepository,
+    IPartnerTenantRepository partnerTenantRepository,
     ITenantContext tenantContext) : IQueryHandler<ListWaybillsQuery, PagedResult<WaybillResponse>>
 {
     public async Task<Result<PagedResult<WaybillResponse>>> Handle(ListWaybillsQuery request,
         CancellationToken cancellationToken)
     {
-        string tenantId = tenantContext.TenantId;
+        IReadOnlyList<Waybill> items;
+        int totalCount;
+        IReadOnlyDictionary<Guid, string> namesById;
 
-        (IReadOnlyList<Waybill> items, int totalCount) = await waybillRepository.ListAsync(
-            tenantId,
-            request.From,
-            request.To,
-            request.Status,
-            request.Search,
-            request.Page,
-            request.PageSize,
-            cancellationToken);
+        if (request.IncludeAllPartnerTenants)
+        {
+            IReadOnlyList<PartnerTenant> partnerTenants = await partnerTenantRepository.ListAsync(cancellationToken);
+            IReadOnlyList<string> tenantIds = partnerTenants.Select(p => p.TenantId).ToList();
 
-        HashSet<Guid> productIds = items
-            .SelectMany(w => w.Items)
-            .Select(i => i.ProductId)
-            .ToHashSet();
+            (items, totalCount) = await waybillRepository.ListByTenantIdsAsync(
+                tenantIds,
+                request.From,
+                request.To,
+                request.Status,
+                request.Search,
+                request.Page,
+                request.PageSize,
+                cancellationToken);
 
-        IReadOnlyDictionary<Guid, string> namesById = productIds.Count == 0
-            ? new Dictionary<Guid, string>()
-            : (await productRepository.GetByIdsAsync(productIds, tenantId, cancellationToken))
-            .ToDictionary(p => p.Id, p => p.Name);
+            HashSet<Guid> productIds = items
+                .SelectMany(w => w.Items)
+                .Select(i => i.ProductId)
+                .ToHashSet();
+
+            namesById = productIds.Count == 0
+                ? new Dictionary<Guid, string>()
+                : (await productRepository.GetByIdsByTenantIdsAsync(productIds, tenantIds, cancellationToken))
+                .ToDictionary(p => p.Id, p => p.Name);
+        }
+        else
+        {
+            string tenantId = tenantContext.TenantId;
+
+            (items, totalCount) = await waybillRepository.ListAsync(
+                tenantId,
+                request.From,
+                request.To,
+                request.Status,
+                request.Search,
+                request.Page,
+                request.PageSize,
+                cancellationToken);
+
+            HashSet<Guid> productIds = items
+                .SelectMany(w => w.Items)
+                .Select(i => i.ProductId)
+                .ToHashSet();
+
+            namesById = productIds.Count == 0
+                ? new Dictionary<Guid, string>()
+                : (await productRepository.GetByIdsAsync(productIds, tenantId, cancellationToken))
+                .ToDictionary(p => p.Id, p => p.Name);
+        }
 
         List<WaybillResponse> responses = items
             .Select(w => WaybillResponseMapper.ToResponse(w, namesById))

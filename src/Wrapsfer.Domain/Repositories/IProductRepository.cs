@@ -12,6 +12,9 @@ public interface IProductRepository
     Task<IReadOnlyList<Product>> GetByIdsAsync(IEnumerable<Guid> ids, string tenantId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<Product>> GetByIdsByTenantIdsAsync(IEnumerable<Guid> ids,
+        IReadOnlyCollection<string> tenantIds, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<Product>> GetByBarcodesAsync(IEnumerable<string> barcodes, string tenantId,
         CancellationToken cancellationToken = default);
 

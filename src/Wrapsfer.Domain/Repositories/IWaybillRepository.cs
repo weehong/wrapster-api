@@ -31,6 +31,16 @@ public interface IWaybillRepository
         int pageSize = 20,
         CancellationToken cancellationToken = default);
 
+    Task<(IReadOnlyList<Waybill> Items, int TotalCount)> ListByTenantIdsAsync(
+        IReadOnlyCollection<string> tenantIds,
+        DateOnly? fromDate = null,
+        DateOnly? toDate = null,
+        WaybillStatus? status = null,
+        string? search = null,
+        int page = 1,
+        int pageSize = 20,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<Waybill>> GetStaleDraftsAsync(DateOnly olderThan,
         CancellationToken cancellationToken = default);
 

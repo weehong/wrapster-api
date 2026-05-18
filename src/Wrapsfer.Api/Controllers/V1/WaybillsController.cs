@@ -43,7 +43,9 @@ public sealed class WaybillsController(ISender sender) : ApiControllerBase
     }
 
     [HttpGet]
+    [AllowOwnerTenantScope]
     public async Task<IActionResult> List(
+        [FromQuery] string? tenantId,
         [FromQuery] DateOnly? from,
         [FromQuery] DateOnly? to,
         [FromQuery] WaybillStatus? status,
@@ -52,8 +54,12 @@ public sealed class WaybillsController(ISender sender) : ApiControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
+        bool includeAllPartnerTenants =
+            HttpContext.Items[TenantResolutionFilter.OwnerCrossTenantScopeKey] is true;
+
         Result<PagedResult<WaybillResponse>> result = await sender.Send(
-            new ListWaybillsQuery(from, to, status, search, page, pageSize), cancellationToken);
+            new ListWaybillsQuery(from, to, status, search, page, pageSize, includeAllPartnerTenants),
+            cancellationToken);
         return ToActionResult(result);
     }
 

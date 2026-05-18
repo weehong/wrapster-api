@@ -18,6 +18,7 @@ internal static class WaybillResponseMapper
 
         return new WaybillResponse(
             waybill.Id,
+            waybill.TenantId,
             waybill.PackagingDate,
             waybill.WaybillNumber,
             waybill.Status,

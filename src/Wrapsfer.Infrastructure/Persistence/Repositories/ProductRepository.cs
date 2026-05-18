@@ -30,6 +30,15 @@ internal sealed class ProductRepository(ApplicationDbContext context) : IProduct
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Product>> GetByIdsByTenantIdsAsync(IEnumerable<Guid> ids,
+        IReadOnlyCollection<string> tenantIds, CancellationToken cancellationToken = default)
+    {
+        List<Guid> idList = ids.ToList();
+        return await context.Products
+            .Where(p => tenantIds.Contains(p.TenantId) && idList.Contains(p.Id))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Product>> GetByBarcodesAsync(IEnumerable<string> barcodes, string tenantId,
         CancellationToken cancellationToken = default)
     {
