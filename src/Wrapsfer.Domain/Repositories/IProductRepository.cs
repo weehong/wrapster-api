@@ -18,8 +18,16 @@ public interface IProductRepository
     Task<(IReadOnlyList<Product> Items, int TotalCount)> ListAsync(string tenantId, string? search = null,
         ProductType? type = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
 
+    Task<(IReadOnlyList<Product> Items, int TotalCount)> ListByTenantIdsAsync(IReadOnlyCollection<string> tenantIds,
+        string? search = null, ProductType? type = null, int page = 1, int pageSize = 20,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyDictionary<Guid, IReadOnlyList<(int ChildStock, int Ratio)>>> GetBundleComponentDataAsync(
         IEnumerable<Guid> bundleIds, string tenantId, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyDictionary<Guid, IReadOnlyList<(int ChildStock, int Ratio)>>> GetBundleComponentDataByTenantIdsAsync(
+        IEnumerable<Guid> bundleIds, IReadOnlyCollection<string> tenantIds,
+        CancellationToken cancellationToken = default);
 
     Task<bool> IsReferencedAsUnpackTargetAsync(Guid productId, string tenantId,
         CancellationToken cancellationToken = default);

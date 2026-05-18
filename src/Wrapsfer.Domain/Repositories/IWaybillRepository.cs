@@ -9,6 +9,9 @@ public interface IWaybillRepository
 
     Task<Waybill?> GetByIdWithItemsAsync(Guid id, string tenantId, CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<Waybill>> GetByIdsWithItemsAsync(IEnumerable<Guid> ids, string tenantId,
+        CancellationToken cancellationToken = default);
+
     Task<bool> ExistsByNumberAsync(string waybillNumber, string tenantId,
         CancellationToken cancellationToken = default);
 
@@ -36,4 +39,10 @@ public interface IWaybillRepository
 
     void Add(Waybill waybill);
     void Remove(Waybill waybill);
+
+    /// <summary>
+    /// Stops tracking the waybill so pending in-memory changes are not persisted by a later save.
+    /// Used to discard a failed transition during partial-success batch processing.
+    /// </summary>
+    void Detach(Waybill waybill);
 }

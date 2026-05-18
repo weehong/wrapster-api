@@ -49,15 +49,21 @@ public sealed class ProductsController(ISender sender, IProductFileWriter fileWr
     }
 
     [HttpGet]
+    [AllowOwnerTenantScope]
     public async Task<IActionResult> List(
+        [FromQuery] string? tenantId,
         [FromQuery] string? search,
         [FromQuery] ProductType? type,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
+        bool includeAllPartnerTenants =
+            HttpContext.Items[TenantResolutionFilter.OwnerCrossTenantScopeKey] is true;
+
         Result<PagedResult<ProductResponse>> result =
-            await sender.Send(new ListProductsQuery(search, type, page, pageSize), cancellationToken);
+            await sender.Send(new ListProductsQuery(search, type, page, pageSize, includeAllPartnerTenants),
+                cancellationToken);
         return ToActionResult(result);
     }
 

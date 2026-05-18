@@ -18,6 +18,17 @@ internal sealed class WaybillRepository(ApplicationDbContext context) : IWaybill
             .Include(w => w.Items)
             .FirstOrDefaultAsync(w => w.Id == id && w.TenantId == tenantId, cancellationToken);
 
+    public async Task<IReadOnlyList<Waybill>> GetByIdsWithItemsAsync(IEnumerable<Guid> ids, string tenantId,
+        CancellationToken cancellationToken = default)
+    {
+        List<Guid> idList = ids.ToList();
+
+        return await context.Waybills
+            .Include(w => w.Items)
+            .Where(w => w.TenantId == tenantId && idList.Contains(w.Id))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<bool> ExistsByNumberAsync(string waybillNumber, string tenantId,
         CancellationToken cancellationToken = default) =>
         await context.Waybills
@@ -106,4 +117,6 @@ internal sealed class WaybillRepository(ApplicationDbContext context) : IWaybill
     public void Add(Waybill waybill) => context.Waybills.Add(waybill);
 
     public void Remove(Waybill waybill) => context.Waybills.Remove(waybill);
+
+    public void Detach(Waybill waybill) => context.Entry(waybill).State = EntityState.Detached;
 }

@@ -5,6 +5,7 @@ namespace Wrapsfer.Application.Products.Responses;
 
 public sealed record ProductResponse(
     Guid Id,
+    string TenantId,
     string Barcode,
     string? SkuCode,
     string Name,
@@ -22,6 +23,7 @@ public sealed record ProductResponse(
         IReadOnlyList<ProductComponentResponse>? components = null) =>
         new(
             product.Id,
+            product.TenantId,
             product.Barcode,
             product.SkuCode,
             product.Name,

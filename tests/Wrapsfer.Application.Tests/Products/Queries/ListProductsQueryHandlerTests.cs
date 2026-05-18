@@ -16,12 +16,16 @@ public class ListProductsQueryHandlerTests
     private readonly ListProductsQueryHandler _handler;
 
     private readonly Mock<IProductRepository> _productRepository = new();
+    private readonly Mock<IPartnerTenantRepository> _partnerTenantRepository = new();
     private readonly Mock<ITenantContext> _tenantContext = new();
 
     public ListProductsQueryHandlerTests()
     {
         _tenantContext.Setup(x => x.TenantId).Returns(TenantId);
-        _handler = new ListProductsQueryHandler(_productRepository.Object, _tenantContext.Object);
+        _handler = new ListProductsQueryHandler(
+            _productRepository.Object,
+            _partnerTenantRepository.Object,
+            _tenantContext.Object);
     }
 
     [Fact]
@@ -81,5 +85,72 @@ public class ListProductsQueryHandlerTests
         result.IsSuccess.Should().BeTrue();
         _productRepository.Verify(r => r.GetBundleComponentDataAsync(
             It.IsAny<IEnumerable<Guid>>(), TenantId, It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_WhenIncludingAllPartnerTenants_ListsProductsForAllPartnerTenantIds()
+    {
+        PartnerTenant partnerA = PartnerTenant.Create("partner-a", "Partner A", "owner").Value;
+        PartnerTenant partnerB = PartnerTenant.Create("partner-b", "Partner B", "owner").Value;
+        Product productA = ProductTestFactory.CreateSingle(tenantId: "partner-a", stockQuantity: 5);
+        Product productB = ProductTestFactory.CreateSingle(tenantId: "partner-b", stockQuantity: 9);
+
+        _partnerTenantRepository.Setup(r => r.ListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<PartnerTenant> { partnerA, partnerB });
+
+        _productRepository.Setup(r => r.ListByTenantIdsAsync(
+                It.Is<IReadOnlyCollection<string>>(ids => ids.Contains("partner-a") && ids.Contains("partner-b")),
+                null,
+                null,
+                1,
+                20,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((new List<Product> { productA, productB } as IReadOnlyList<Product>, 2));
+
+        Result<PagedResult<ProductResponse>> result = await _handler.Handle(
+            new ListProductsQuery(null, null, IncludeAllPartnerTenants: true), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Should().HaveCount(2);
+        result.Value.Items.Select(p => p.TenantId).Should().BeEquivalentTo("partner-a", "partner-b");
+    }
+
+    [Fact]
+    public async Task Handle_WhenIncludingAllPartnerTenantsWithBundles_FetchesBundleComponentDataAcrossTenants()
+    {
+        PartnerTenant partnerA = PartnerTenant.Create("partner-a", "Partner A", "owner").Value;
+        PartnerTenant partnerB = PartnerTenant.Create("partner-b", "Partner B", "owner").Value;
+        Product single = ProductTestFactory.CreateSingle(tenantId: "partner-a", stockQuantity: 7);
+        Product bundle = ProductTestFactory.CreateBundle(tenantId: "partner-b", stockQuantity: 0);
+
+        _partnerTenantRepository.Setup(r => r.ListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<PartnerTenant> { partnerA, partnerB });
+
+        _productRepository.Setup(r => r.ListByTenantIdsAsync(
+                It.IsAny<IReadOnlyCollection<string>>(),
+                null,
+                null,
+                1,
+                20,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((new List<Product> { single, bundle } as IReadOnlyList<Product>, 2));
+
+        _productRepository.Setup(r => r.GetBundleComponentDataByTenantIdsAsync(
+                It.Is<IEnumerable<Guid>>(ids => ids.Contains(bundle.Id)),
+                It.Is<IReadOnlyCollection<string>>(ids => ids.Contains("partner-a") && ids.Contains("partner-b")),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, IReadOnlyList<(int ChildStock, int Ratio)>>
+            {
+                [bundle.Id] = new List<(int, int)> { (20, 4) }
+            });
+
+        Result<PagedResult<ProductResponse>> result = await _handler.Handle(
+            new ListProductsQuery(null, null, IncludeAllPartnerTenants: true), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.First(r => r.Type == ProductType.Bundle).StockQuantity.Should().Be(5); // floor(20/4)
+
+        _productRepository.Verify(r => r.GetBundleComponentDataAsync(
+            It.IsAny<IEnumerable<Guid>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

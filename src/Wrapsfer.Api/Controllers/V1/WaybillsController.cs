@@ -5,6 +5,7 @@ using Wrapsfer.Api.Filters;
 using Wrapsfer.Application.Abstractions.FileProcessing;
 using Wrapsfer.Application.Common;
 using Wrapsfer.Application.Waybills.Commands.AddWaybillItem;
+using Wrapsfer.Application.Waybills.Commands.BulkUpdateWaybillStatus;
 using Wrapsfer.Application.Waybills.Commands.CancelWaybill;
 using Wrapsfer.Application.Waybills.Commands.CreateWaybill;
 using Wrapsfer.Application.Waybills.Commands.DeleteWaybill;
@@ -149,6 +150,16 @@ public sealed class WaybillsController(ISender sender) : ApiControllerBase
         CancellationToken cancellationToken)
     {
         Result result = await sender.Send(new CancelWaybillCommand(id, request.Reason), cancellationToken);
+        return ToActionResult(result);
+    }
+
+    [HttpPost("bulk/status")]
+    public async Task<IActionResult> BulkUpdateStatus(
+        [FromBody] BulkUpdateWaybillStatusRequest request,
+        CancellationToken cancellationToken)
+    {
+        BulkUpdateWaybillStatusCommand command = new(request.Ids, request.Status, request.Reason);
+        Result<BulkWaybillStatusUpdateResult> result = await sender.Send(command, cancellationToken);
         return ToActionResult(result);
     }
 

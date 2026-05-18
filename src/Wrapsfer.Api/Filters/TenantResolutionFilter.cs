@@ -9,6 +9,14 @@ namespace Wrapsfer.Api.Filters;
 public sealed class TenantResolutionFilter(IOptions<KeycloakOptions> options) : IAsyncActionFilter
 {
     private const string TenantRealmKey = "TenantRealm";
+
+    /// <summary>
+    /// <see cref="HttpContext.Items"/> key set to <c>true</c> when an owner account invokes an
+    /// <see cref="AllowOwnerTenantScopeAttribute"/> endpoint without a <c>tenantId</c>, signalling
+    /// that the request should span all partner tenants.
+    /// </summary>
+    public const string OwnerCrossTenantScopeKey = "OwnerCrossTenantScope";
+
     private readonly string _ownerRealm = options.Value.OwnerRealm;
 
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
@@ -17,9 +25,20 @@ public sealed class TenantResolutionFilter(IOptions<KeycloakOptions> options) : 
 
         if (string.Equals(currentRealm, _ownerRealm, StringComparison.OrdinalIgnoreCase))
         {
+            bool allowOwnerTenantScope = context.ActionDescriptor.EndpointMetadata
+                .OfType<AllowOwnerTenantScopeAttribute>()
+                .Any();
+
             if (!context.HttpContext.Request.Query.TryGetValue("tenantId", out StringValues tenantIdValues)
                 || string.IsNullOrWhiteSpace(tenantIdValues.ToString()))
             {
+                if (allowOwnerTenantScope)
+                {
+                    context.HttpContext.Items[OwnerCrossTenantScopeKey] = true;
+                    await next();
+                    return;
+                }
+
                 context.Result = new BadRequestObjectResult(new ProblemDetails
                 {
                     Status = StatusCodes.Status400BadRequest,

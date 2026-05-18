@@ -75,20 +75,74 @@ internal sealed class ProductRepository(ApplicationDbContext context) : IProduct
         return (items, totalCount);
     }
 
+    public async Task<(IReadOnlyList<Product> Items, int TotalCount)> ListByTenantIdsAsync(
+        IReadOnlyCollection<string> tenantIds,
+        string? search = null,
+        ProductType? type = null,
+        int page = 1,
+        int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        IQueryable<Product> query = context.Products
+            .Where(p => tenantIds.Contains(p.TenantId));
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            string searchPattern = $"%{search}%";
+            query = query.Where(p =>
+                EF.Functions.ILike(p.Name, searchPattern) ||
+                EF.Functions.ILike(p.Barcode, searchPattern) ||
+                (p.SkuCode != null && EF.Functions.ILike(p.SkuCode, searchPattern)));
+        }
+
+        if (type.HasValue)
+        {
+            query = query.Where(p => p.Type == type.Value);
+        }
+
+        int totalCount = await query.CountAsync(cancellationToken);
+
+        List<Product> items = await query
+            .OrderBy(p => p.TenantId)
+            .ThenBy(p => p.Name)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
     public async Task<IReadOnlyDictionary<Guid, IReadOnlyList<(int ChildStock, int Ratio)>>>
         GetBundleComponentDataAsync(IEnumerable<Guid> bundleIds, string tenantId,
             CancellationToken cancellationToken = default)
     {
         List<Guid> ids = bundleIds.ToList();
 
-        var rows = await context.ProductComponents
+        List<BundleComponentStockRow> rows = await context.ProductComponents
             .Where(pc => ids.Contains(pc.ParentProductId) && pc.TenantId == tenantId)
-            .Select(pc => new
-            {
-                pc.ParentProductId,
-                ChildStock = pc.Child.StockQuantity,
-                Ratio = pc.Quantity
-            })
+            .Select(pc => new BundleComponentStockRow(pc.ParentProductId, pc.Child.StockQuantity, pc.Quantity))
+            .ToListAsync(cancellationToken);
+
+        Dictionary<Guid, IReadOnlyList<(int ChildStock, int Ratio)>> result = rows
+            .GroupBy(r => r.ParentProductId)
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyList<(int ChildStock, int Ratio)>)g
+                    .Select(r => (r.ChildStock, r.Ratio))
+                    .ToList());
+
+        return result;
+    }
+
+    public async Task<IReadOnlyDictionary<Guid, IReadOnlyList<(int ChildStock, int Ratio)>>>
+        GetBundleComponentDataByTenantIdsAsync(IEnumerable<Guid> bundleIds, IReadOnlyCollection<string> tenantIds,
+            CancellationToken cancellationToken = default)
+    {
+        List<Guid> ids = bundleIds.ToList();
+
+        List<BundleComponentStockRow> rows = await context.ProductComponents
+            .Where(pc => ids.Contains(pc.ParentProductId) && tenantIds.Contains(pc.TenantId))
+            .Select(pc => new BundleComponentStockRow(pc.ParentProductId, pc.Child.StockQuantity, pc.Quantity))
             .ToListAsync(cancellationToken);
 
         Dictionary<Guid, IReadOnlyList<(int ChildStock, int Ratio)>> result = rows
