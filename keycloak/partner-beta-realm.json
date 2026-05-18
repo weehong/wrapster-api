@@ -10,6 +10,7 @@
   "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
   "bruteForceProtected": true,
+  "ssoSessionIdleTimeout": 86400,
   "roles": {
     "realm": [
       {

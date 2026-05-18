@@ -21,4 +21,8 @@ internal sealed class KeycloakRealmRepresentation
 
     [JsonPropertyName("bruteForceProtected")]
     public bool BruteForceProtected { get; set; } = true;
+
+    [JsonPropertyName("ssoSessionIdleTimeout")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? SsoSessionIdleTimeout { get; set; }
 }

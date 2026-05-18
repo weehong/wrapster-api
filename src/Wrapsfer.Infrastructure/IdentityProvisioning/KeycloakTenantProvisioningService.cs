@@ -12,6 +12,9 @@ internal sealed class KeycloakTenantProvisioningService : IIdentityTenantProvisi
 {
     internal const string RequiresPasswordChangeAttribute = "requires_password_change";
 
+    // Extend the refresh token idle validity from Keycloak's 30-minute default to 1 day.
+    private const int SsoSessionIdleTimeoutSeconds = 86400;
+
     private readonly KeycloakAdminHttpClient _adminHttp;
     private readonly ILogger<KeycloakTenantProvisioningService> _logger;
     private readonly KeycloakOptions _options;
@@ -165,7 +168,8 @@ internal sealed class KeycloakTenantProvisioningService : IIdentityTenantProvisi
         {
             Realm = tenantId,
             DisplayName = displayName,
-            Enabled = true
+            Enabled = true,
+            SsoSessionIdleTimeout = SsoSessionIdleTimeoutSeconds
         };
 
         HttpResponseMessage response = await client.PostAsJsonAsync("admin/realms", payload, cancellationToken);
