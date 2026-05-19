@@ -18,6 +18,13 @@ public class LoginCommandHandlerTests
     {
         IdentityLoginResult identity = new(
             "jwt-token-value",
+            ExpiresIn: 300,
+            RefreshExpiresIn: 36000,
+            RefreshToken: "refresh-token-value",
+            TokenType: "Bearer",
+            NotBeforePolicy: 0,
+            SessionState: "session-id",
+            Scope: "email profile",
             "user-uuid",
             "alphaadmin",
             RequiresPasswordChange: true);
@@ -33,6 +40,14 @@ public class LoginCommandHandlerTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Success.Should().BeTrue();
         result.Value.Token.Should().Be("jwt-token-value");
+        result.Value.AccessToken.Should().Be("jwt-token-value");
+        result.Value.ExpiresIn.Should().Be(300);
+        result.Value.RefreshExpiresIn.Should().Be(36000);
+        result.Value.RefreshToken.Should().Be("refresh-token-value");
+        result.Value.TokenType.Should().Be("Bearer");
+        result.Value.NotBeforePolicy.Should().Be(0);
+        result.Value.SessionState.Should().Be("session-id");
+        result.Value.Scope.Should().Be("email profile");
         result.Value.User.Id.Should().Be("user-uuid");
         result.Value.User.Username.Should().Be("alphaadmin");
         result.Value.User.RequiresPasswordChange.Should().BeTrue();

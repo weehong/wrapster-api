@@ -25,7 +25,18 @@ internal sealed class LoginCommandHandler(IIdentityAuthService authService)
             identity.Username,
             identity.RequiresPasswordChange);
 
-        LoginResponse response = new(true, identity.AccessToken, user);
+        LoginResponse response = new(
+            true,
+            identity.AccessToken,
+            identity.AccessToken,
+            identity.ExpiresIn,
+            identity.RefreshExpiresIn,
+            identity.RefreshToken,
+            identity.TokenType,
+            identity.NotBeforePolicy,
+            identity.SessionState,
+            identity.Scope,
+            user);
 
         return Result<LoginResponse>.Success(response);
     }

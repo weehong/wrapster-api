@@ -58,6 +58,13 @@ internal sealed class KeycloakIdentityAuthService : IIdentityAuthService
 
         IdentityLoginResult result = new(
             tokenResponse.AccessToken,
+            tokenResponse.ExpiresIn,
+            tokenResponse.RefreshExpiresIn,
+            tokenResponse.RefreshToken,
+            tokenResponse.TokenType,
+            tokenResponse.NotBeforePolicy,
+            tokenResponse.SessionState,
+            tokenResponse.Scope,
             userId,
             resolvedUsername,
             requiresPasswordChange);
