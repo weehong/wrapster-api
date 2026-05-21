@@ -59,6 +59,103 @@ public sealed class Waybill : AuditableEntity
         return Result<Waybill>.Success(waybill);
     }
 
+    public Result UpdatePackagingDate(DateOnly newPackagingDate)
+    {
+        if (Status != WaybillStatus.Draft)
+        {
+            return Result.Failure(WaybillErrors.CannotEditNonDraft);
+        }
+
+        PackagingDate = newPackagingDate;
+        return Result.Success();
+    }
+
+    public Result<IReadOnlyList<QuantityChange>> ReplaceItems(
+        IReadOnlyList<(Guid ProductId, string ProductBarcode, int Quantity)> targetItems)
+    {
+        if (Status != WaybillStatus.Draft)
+        {
+            return Result<IReadOnlyList<QuantityChange>>.Failure(WaybillErrors.CannotEditNonDraft);
+        }
+
+        Dictionary<Guid, int> targetByProductId = new();
+        Dictionary<Guid, string> barcodeByProductId = new();
+
+        foreach ((Guid productId, string productBarcode, int quantity) in targetItems)
+        {
+            if (productId == Guid.Empty)
+            {
+                return Result<IReadOnlyList<QuantityChange>>.Failure(WaybillErrors.InvalidProductId);
+            }
+
+            if (string.IsNullOrWhiteSpace(productBarcode))
+            {
+                return Result<IReadOnlyList<QuantityChange>>.Failure(WaybillErrors.InvalidBarcode);
+            }
+
+            if (quantity <= 0)
+            {
+                return Result<IReadOnlyList<QuantityChange>>.Failure(WaybillErrors.InvalidQuantity);
+            }
+
+            if (targetByProductId.TryGetValue(productId, out int existing))
+            {
+                targetByProductId[productId] = existing + quantity;
+            }
+            else
+            {
+                targetByProductId[productId] = quantity;
+                barcodeByProductId[productId] = productBarcode;
+            }
+        }
+
+        List<QuantityChange> changes = [];
+        List<WaybillItem> currentItems = _items.ToList();
+
+        foreach (WaybillItem existing in currentItems)
+        {
+            if (targetByProductId.TryGetValue(existing.ProductId, out int newQuantity))
+            {
+                if (newQuantity != existing.Quantity)
+                {
+                    int delta = newQuantity - existing.Quantity;
+                    Result setResult = existing.SetQuantity(newQuantity);
+                    if (setResult.IsFailure)
+                    {
+                        return Result<IReadOnlyList<QuantityChange>>.Failure(setResult.Error);
+                    }
+
+                    changes.Add(new QuantityChange(existing.ProductId, delta));
+                }
+            }
+            else
+            {
+                _items.Remove(existing);
+                changes.Add(new QuantityChange(existing.ProductId, -existing.Quantity));
+            }
+        }
+
+        foreach ((Guid productId, int quantity) in targetByProductId)
+        {
+            if (currentItems.Any(i => i.ProductId == productId))
+            {
+                continue;
+            }
+
+            Result<WaybillItem> createResult = WaybillItem.Create(
+                TenantId, Id, productId, barcodeByProductId[productId], quantity);
+            if (createResult.IsFailure)
+            {
+                return Result<IReadOnlyList<QuantityChange>>.Failure(createResult.Error);
+            }
+
+            _items.Add(createResult.Value);
+            changes.Add(new QuantityChange(productId, quantity));
+        }
+
+        return Result<IReadOnlyList<QuantityChange>>.Success(changes);
+    }
+
     public Result UpdateWaybillNumber(string newWaybillNumber)
     {
         if (Status != WaybillStatus.Draft)

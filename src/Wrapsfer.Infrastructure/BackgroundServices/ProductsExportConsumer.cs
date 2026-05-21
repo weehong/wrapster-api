@@ -120,7 +120,7 @@ public sealed class ProductsExportConsumer(
         do
         {
             (IReadOnlyList<Product> items, int total) = await productRepository.ListAsync(
-                message.TenantId, null, null, page, ExportPageSize,
+                message.TenantId, null, null, true, page, ExportPageSize,
                 cancellationToken);
             allProducts.AddRange(items);
             totalCount = total;

@@ -19,10 +19,11 @@ public interface IProductRepository
         CancellationToken cancellationToken = default);
 
     Task<(IReadOnlyList<Product> Items, int TotalCount)> ListAsync(string tenantId, string? search = null,
-        ProductType? type = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
+        ProductType? type = null, bool includeInactive = false, int page = 1, int pageSize = 20,
+        CancellationToken cancellationToken = default);
 
     Task<(IReadOnlyList<Product> Items, int TotalCount)> ListByTenantIdsAsync(IReadOnlyCollection<string> tenantIds,
-        string? search = null, ProductType? type = null, int page = 1, int pageSize = 20,
+        string? search = null, ProductType? type = null, bool includeInactive = false, int page = 1, int pageSize = 20,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyDictionary<Guid, IReadOnlyList<(int ChildStock, int Ratio)>>> GetBundleComponentDataAsync(

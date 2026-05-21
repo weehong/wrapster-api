@@ -461,4 +461,64 @@ public class ProductTests
 
         product.DomainEvents.Should().BeEmpty();
     }
+
+    // --- Active state ---
+
+    [Fact]
+    public void Create_DefaultsToActive()
+    {
+        Product product = ProductFactory.CreateSingle();
+
+        product.IsActive.Should().BeTrue();
+        product.DeactivatedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public void Deactivate_WhenActive_SetsInactiveAndStampsDate()
+    {
+        Product product = ProductFactory.CreateSingle();
+        DateTime now = new(2026, 5, 21, 10, 0, 0, DateTimeKind.Utc);
+
+        Result result = product.Deactivate(now);
+
+        result.IsSuccess.Should().BeTrue();
+        product.IsActive.Should().BeFalse();
+        product.DeactivatedAt.Should().Be(now);
+    }
+
+    [Fact]
+    public void Deactivate_WhenAlreadyInactive_ReturnsFailure()
+    {
+        Product product = ProductFactory.CreateSingle();
+        product.Deactivate(DateTime.UtcNow);
+
+        Result result = product.Deactivate(DateTime.UtcNow);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be(ProductErrors.AlreadyInactive.Code);
+    }
+
+    [Fact]
+    public void Reactivate_WhenInactive_RestoresActiveAndClearsDate()
+    {
+        Product product = ProductFactory.CreateSingle();
+        product.Deactivate(DateTime.UtcNow);
+
+        Result result = product.Reactivate();
+
+        result.IsSuccess.Should().BeTrue();
+        product.IsActive.Should().BeTrue();
+        product.DeactivatedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public void Reactivate_WhenAlreadyActive_ReturnsFailure()
+    {
+        Product product = ProductFactory.CreateSingle();
+
+        Result result = product.Reactivate();
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be(ProductErrors.AlreadyActive.Code);
+    }
 }

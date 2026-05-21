@@ -8,6 +8,7 @@ using Wrapsfer.Application.Products.Commands.CreateProduct;
 using Wrapsfer.Application.Products.Commands.DeleteProduct;
 using Wrapsfer.Application.Products.Commands.ImportProducts;
 using Wrapsfer.Application.Products.Commands.RequestProductsExport;
+using Wrapsfer.Application.Products.Commands.SetProductActive;
 using Wrapsfer.Application.Products.Commands.UnpackPackage;
 using Wrapsfer.Application.Products.Commands.UpdateProduct;
 using Wrapsfer.Application.Products.Commands.UpdateProductStock;
@@ -56,13 +57,15 @@ public sealed class ProductsController(ISender sender, IProductFileWriter fileWr
         [FromQuery] ProductType? type,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
+        [FromQuery] bool includeInactive = false,
         CancellationToken cancellationToken = default)
     {
         bool includeAllPartnerTenants =
             HttpContext.Items[TenantResolutionFilter.OwnerCrossTenantScopeKey] is true;
 
         Result<PagedResult<ProductResponse>> result =
-            await sender.Send(new ListProductsQuery(search, type, page, pageSize, includeAllPartnerTenants),
+            await sender.Send(
+                new ListProductsQuery(search, type, page, pageSize, includeAllPartnerTenants, includeInactive),
                 cancellationToken);
         return ToActionResult(result);
     }
@@ -113,6 +116,14 @@ public sealed class ProductsController(ISender sender, IProductFileWriter fileWr
     {
         UpdateProductStockCommand command = new(id, request.NewQuantity);
         Result result = await sender.Send(command, cancellationToken);
+        return ToActionResult(result);
+    }
+
+    [HttpPatch("{id:guid}/active")]
+    public async Task<IActionResult> SetActive(Guid id, [FromBody] SetProductActiveRequest request,
+        CancellationToken cancellationToken)
+    {
+        Result result = await sender.Send(new SetProductActiveCommand(id, request.IsActive), cancellationToken);
         return ToActionResult(result);
     }
 

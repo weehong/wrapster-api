@@ -59,6 +59,12 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
 
         builder.Property(p => p.UnpackQuantityPerPackage);
 
+        builder.Property(p => p.IsActive)
+            .IsRequired()
+            .HasDefaultValue(true);
+
+        builder.Property(p => p.DeactivatedAt);
+
         builder.HasOne<Product>()
             .WithMany()
             .HasForeignKey(p => p.UnpackTargetProductId)
@@ -80,6 +86,7 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.HasIndex(p => new { p.TenantId, p.SkuCode });
         builder.HasIndex(p => p.TenantId);
         builder.HasIndex(p => new { p.TenantId, p.Name });
+        builder.HasIndex(p => new { p.TenantId, p.IsActive });
         builder.HasIndex(p => p.UnpackTargetProductId);
     }
 }

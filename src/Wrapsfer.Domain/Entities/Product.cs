@@ -25,6 +25,8 @@ public sealed class Product : AuditableEntity
     public int? LowStockThreshold { get; private set; }
     public Guid? UnpackTargetProductId { get; private set; }
     public int? UnpackQuantityPerPackage { get; private set; }
+    public bool IsActive { get; private set; } = true;
+    public DateTime? DeactivatedAt { get; private set; }
 
     public IReadOnlyCollection<ProductComponent> Components => _components.AsReadOnly();
 
@@ -357,6 +359,30 @@ public sealed class Product : AuditableEntity
         {
             CheckLowStock(fallbackThreshold);
         }
+    }
+
+    public Result Deactivate(DateTime deactivatedAt)
+    {
+        if (!IsActive)
+        {
+            return Result.Failure(ProductErrors.AlreadyInactive);
+        }
+
+        IsActive = false;
+        DeactivatedAt = deactivatedAt;
+        return Result.Success();
+    }
+
+    public Result Reactivate()
+    {
+        if (IsActive)
+        {
+            return Result.Failure(ProductErrors.AlreadyActive);
+        }
+
+        IsActive = true;
+        DeactivatedAt = null;
+        return Result.Success();
     }
 
     public Result UpdateUnpackConfig(Guid targetProductId, int quantityPerPackage)

@@ -31,7 +31,7 @@ public class ListProductsQueryHandlerTests
     [Fact]
     public async Task Handle_WhenNoProducts_ReturnsEmptyPagedResult()
     {
-        _productRepository.Setup(r => r.ListAsync(TenantId, null, null, 1, 20, It.IsAny<CancellationToken>()))
+        _productRepository.Setup(r => r.ListAsync(TenantId, null, null, false, 1, 20, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Array.Empty<Product>() as IReadOnlyList<Product>, 0));
 
         Result<PagedResult<ProductResponse>> result = await _handler.Handle(
@@ -48,7 +48,7 @@ public class ListProductsQueryHandlerTests
         Product single = ProductTestFactory.CreateSingle(stockQuantity: 42);
         Product bundle = ProductTestFactory.CreateBundle(stockQuantity: 0);
 
-        _productRepository.Setup(r => r.ListAsync(TenantId, null, null, 1, 20, It.IsAny<CancellationToken>()))
+        _productRepository.Setup(r => r.ListAsync(TenantId, null, null, false, 1, 20, It.IsAny<CancellationToken>()))
             .ReturnsAsync((new List<Product> { single, bundle } as IReadOnlyList<Product>, 2));
 
         _productRepository.Setup(r => r.GetBundleComponentDataAsync(
@@ -76,7 +76,7 @@ public class ListProductsQueryHandlerTests
     {
         Product single = ProductTestFactory.CreateSingle(stockQuantity: 10);
 
-        _productRepository.Setup(r => r.ListAsync(TenantId, null, null, 1, 20, It.IsAny<CancellationToken>()))
+        _productRepository.Setup(r => r.ListAsync(TenantId, null, null, false, 1, 20, It.IsAny<CancellationToken>()))
             .ReturnsAsync((new List<Product> { single } as IReadOnlyList<Product>, 1));
 
         Result<PagedResult<ProductResponse>> result = await _handler.Handle(
@@ -102,6 +102,7 @@ public class ListProductsQueryHandlerTests
                 It.Is<IReadOnlyCollection<string>>(ids => ids.Contains("partner-a") && ids.Contains("partner-b")),
                 null,
                 null,
+                false,
                 1,
                 20,
                 It.IsAny<CancellationToken>()))
@@ -113,6 +114,21 @@ public class ListProductsQueryHandlerTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Items.Should().HaveCount(2);
         result.Value.Items.Select(p => p.TenantId).Should().BeEquivalentTo("partner-a", "partner-b");
+    }
+
+    [Fact]
+    public async Task Handle_WhenIncludeInactiveRequested_PassesFlagToRepository()
+    {
+        _productRepository.Setup(r =>
+                r.ListAsync(TenantId, null, null, true, 1, 20, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Array.Empty<Product>() as IReadOnlyList<Product>, 0));
+
+        Result<PagedResult<ProductResponse>> result = await _handler.Handle(
+            new ListProductsQuery(null, null, IncludeInactive: true), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        _productRepository.Verify(r =>
+            r.ListAsync(TenantId, null, null, true, 1, 20, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -130,6 +146,7 @@ public class ListProductsQueryHandlerTests
                 It.IsAny<IReadOnlyCollection<string>>(),
                 null,
                 null,
+                false,
                 1,
                 20,
                 It.IsAny<CancellationToken>()))

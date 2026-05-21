@@ -13,6 +13,7 @@ using Wrapsfer.Application.Waybills.Commands.MarkWaybillHandedOff;
 using Wrapsfer.Application.Waybills.Commands.MarkWaybillPacked;
 using Wrapsfer.Application.Waybills.Commands.RemoveWaybillItem;
 using Wrapsfer.Application.Waybills.Commands.RequestWaybillsExport;
+using Wrapsfer.Application.Waybills.Commands.UpdateWaybill;
 using Wrapsfer.Application.Waybills.Commands.UpdateWaybillItemQuantity;
 using Wrapsfer.Application.Waybills.Commands.UpdateWaybillNumber;
 using Wrapsfer.Application.Waybills.Queries.CheckWaybillNumberAvailable;
@@ -97,6 +98,21 @@ public sealed class WaybillsController(ISender sender) : ApiControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateWaybillRequest request,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyList<UpdateWaybillItem> items = request.Items is null
+            ? Array.Empty<UpdateWaybillItem>()
+            : request.Items
+                .Select(i => new UpdateWaybillItem(i.ProductId, i.Barcode, i.Quantity))
+                .ToList();
+
+        Result result = await sender.Send(
+            new UpdateWaybillCommand(id, request.PackagingDate, request.WaybillNumber, items), cancellationToken);
+        return ToActionResult(result);
+    }
+
+    [HttpPatch("{id:guid}/waybill-number")]
     public async Task<IActionResult> UpdateNumber(Guid id, [FromBody] UpdateWaybillNumberRequest request,
         CancellationToken cancellationToken)
     {

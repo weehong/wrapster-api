@@ -52,12 +52,18 @@ internal sealed class ProductRepository(ApplicationDbContext context) : IProduct
         string tenantId,
         string? search = null,
         ProductType? type = null,
+        bool includeInactive = false,
         int page = 1,
         int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
         IQueryable<Product> query = context.Products
             .Where(p => p.TenantId == tenantId);
+
+        if (!includeInactive)
+        {
+            query = query.Where(p => p.IsActive);
+        }
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -88,12 +94,18 @@ internal sealed class ProductRepository(ApplicationDbContext context) : IProduct
         IReadOnlyCollection<string> tenantIds,
         string? search = null,
         ProductType? type = null,
+        bool includeInactive = false,
         int page = 1,
         int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
         IQueryable<Product> query = context.Products
             .Where(p => tenantIds.Contains(p.TenantId));
+
+        if (!includeInactive)
+        {
+            query = query.Where(p => p.IsActive);
+        }
 
         if (!string.IsNullOrWhiteSpace(search))
         {

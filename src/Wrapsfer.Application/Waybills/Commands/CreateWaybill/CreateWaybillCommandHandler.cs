@@ -40,9 +40,14 @@ internal sealed class CreateWaybillCommandHandler(
 
         foreach (string barcode in distinctBarcodes)
         {
-            if (!productsByBarcode.ContainsKey(barcode))
+            if (!productsByBarcode.TryGetValue(barcode, out Product? lookupProduct))
             {
                 return Result<Guid>.Failure(ProductErrors.NotFound);
+            }
+
+            if (!lookupProduct.IsActive)
+            {
+                return Result<Guid>.Failure(ProductErrors.Inactive);
             }
         }
 

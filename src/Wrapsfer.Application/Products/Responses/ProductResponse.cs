@@ -13,6 +13,8 @@ public sealed record ProductResponse(
     decimal Cost,
     int StockQuantity,
     int? LowStockThreshold,
+    bool IsActive,
+    DateTime? DeactivatedAt,
     DateTime CreatedAt,
     DateTime? UpdatedAt,
     IReadOnlyList<ProductComponentResponse> Components)
@@ -31,6 +33,8 @@ public sealed record ProductResponse(
             product.Cost,
             computedStock ?? product.StockQuantity,
             product.LowStockThreshold,
+            product.IsActive,
+            product.DeactivatedAt,
             product.CreatedAt,
             product.UpdatedAt,
             components ?? []);

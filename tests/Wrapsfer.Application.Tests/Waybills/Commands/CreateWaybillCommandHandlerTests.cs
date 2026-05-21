@@ -101,6 +101,32 @@ public class CreateWaybillCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_WhenProductInactive_ReturnsInactiveAndDoesNotSave()
+    {
+        Product product = ProductTestFactory.CreateSingle(barcode: "BC-1", stockQuantity: 10);
+        product.Deactivate(DateTime.UtcNow);
+
+        _waybillRepository.Setup(r =>
+                r.ExistsByNumberAsync(It.IsAny<string>(), TenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _productRepository.Setup(r =>
+                r.GetByBarcodesAsync(It.IsAny<IEnumerable<string>>(), TenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Product> { product });
+
+        CreateWaybillCommand command = new(
+            new DateOnly(2026, 4, 13),
+            "WB-1",
+            new List<CreateWaybillItem> { new("BC-1", 2) });
+
+        Result<Guid> result = await _handler.Handle(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be(ProductErrors.Inactive.Code);
+        _waybillRepository.Verify(r => r.Add(It.IsAny<Waybill>()), Times.Never);
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task Handle_WhenReservationFails_ReturnsErrorAndDoesNotSave()
     {
         Product product = ProductTestFactory.CreateSingle(barcode: "BC-1", stockQuantity: 1);

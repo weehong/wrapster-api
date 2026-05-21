@@ -270,6 +270,144 @@ public class WaybillTests
         waybill.Items.Should().BeAssignableTo<IReadOnlyCollection<WaybillItem>>();
     }
 
+    [Fact]
+    public void UpdatePackagingDate_OnDraft_Succeeds()
+    {
+        Waybill waybill = Waybill.Create(TenantId, TestDate, "WB-001").Value;
+        DateOnly newDate = new(2026, 6, 1);
+
+        Result result = waybill.UpdatePackagingDate(newDate);
+
+        result.IsSuccess.Should().BeTrue();
+        waybill.PackagingDate.Should().Be(newDate);
+    }
+
+    [Fact]
+    public void UpdatePackagingDate_AfterPacked_Fails()
+    {
+        Waybill waybill = CreateWaybillWithItem(out _);
+        waybill.MarkPacked();
+
+        Result result = waybill.UpdatePackagingDate(new DateOnly(2026, 6, 1));
+
+        result.Error.Code.Should().Be(WaybillErrors.CannotEditNonDraft.Code);
+    }
+
+    [Fact]
+    public void ReplaceItems_AddsNewItemAndReturnsPositiveDelta()
+    {
+        Waybill waybill = Waybill.Create(TenantId, TestDate, "WB-001").Value;
+        Guid productId = Guid.NewGuid();
+
+        Result<IReadOnlyList<QuantityChange>> result = waybill.ReplaceItems(
+            new List<(Guid, string, int)> { (productId, "BC-1", 4) });
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().ContainSingle();
+        result.Value[0].ProductId.Should().Be(productId);
+        result.Value[0].Delta.Should().Be(4);
+        waybill.Items.Should().ContainSingle()
+            .Which.Quantity.Should().Be(4);
+    }
+
+    [Fact]
+    public void ReplaceItems_IncreasesExistingQuantityWithPositiveDelta()
+    {
+        Waybill waybill = CreateWaybillWithItem(out WaybillItem item);
+
+        Result<IReadOnlyList<QuantityChange>> result = waybill.ReplaceItems(
+            new List<(Guid, string, int)> { (item.ProductId, item.ProductBarcode, 5) });
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().ContainSingle()
+            .Which.Delta.Should().Be(3);
+        item.Quantity.Should().Be(5);
+    }
+
+    [Fact]
+    public void ReplaceItems_DecreasesExistingQuantityWithNegativeDelta()
+    {
+        Waybill waybill = CreateWaybillWithItem(out WaybillItem item);
+
+        Result<IReadOnlyList<QuantityChange>> result = waybill.ReplaceItems(
+            new List<(Guid, string, int)> { (item.ProductId, item.ProductBarcode, 1) });
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().ContainSingle()
+            .Which.Delta.Should().Be(-1);
+        item.Quantity.Should().Be(1);
+    }
+
+    [Fact]
+    public void ReplaceItems_RemovesOmittedItemsAndReturnsNegativeDelta()
+    {
+        Waybill waybill = CreateWaybillWithItem(out WaybillItem item);
+
+        Result<IReadOnlyList<QuantityChange>> result =
+            waybill.ReplaceItems(new List<(Guid, string, int)>());
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().ContainSingle();
+        result.Value[0].ProductId.Should().Be(item.ProductId);
+        result.Value[0].Delta.Should().Be(-item.Quantity);
+        waybill.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ReplaceItems_NoChange_ReturnsEmptyChanges()
+    {
+        Waybill waybill = CreateWaybillWithItem(out WaybillItem item);
+
+        Result<IReadOnlyList<QuantityChange>> result = waybill.ReplaceItems(
+            new List<(Guid, string, int)> { (item.ProductId, item.ProductBarcode, item.Quantity) });
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ReplaceItems_SumsDuplicateProductIds()
+    {
+        Waybill waybill = Waybill.Create(TenantId, TestDate, "WB-001").Value;
+        Guid productId = Guid.NewGuid();
+
+        Result<IReadOnlyList<QuantityChange>> result = waybill.ReplaceItems(
+            new List<(Guid, string, int)>
+            {
+                (productId, "BC-1", 2),
+                (productId, "BC-1", 3)
+            });
+
+        result.IsSuccess.Should().BeTrue();
+        waybill.Items.Should().ContainSingle()
+            .Which.Quantity.Should().Be(5);
+        result.Value.Should().ContainSingle()
+            .Which.Delta.Should().Be(5);
+    }
+
+    [Fact]
+    public void ReplaceItems_AfterPacked_Fails()
+    {
+        Waybill waybill = CreateWaybillWithItem(out _);
+        waybill.MarkPacked();
+
+        Result<IReadOnlyList<QuantityChange>> result = waybill.ReplaceItems(
+            new List<(Guid, string, int)> { (Guid.NewGuid(), "BC-2", 1) });
+
+        result.Error.Code.Should().Be(WaybillErrors.CannotEditNonDraft.Code);
+    }
+
+    [Fact]
+    public void ReplaceItems_InvalidQuantity_Fails()
+    {
+        Waybill waybill = Waybill.Create(TenantId, TestDate, "WB-001").Value;
+
+        Result<IReadOnlyList<QuantityChange>> result = waybill.ReplaceItems(
+            new List<(Guid, string, int)> { (Guid.NewGuid(), "BC-1", 0) });
+
+        result.Error.Code.Should().Be(WaybillErrors.InvalidQuantity.Code);
+    }
+
     private static Waybill CreateWaybillWithItem(out WaybillItem item)
     {
         Waybill waybill = Waybill.Create(TenantId, TestDate, "WB-001").Value;

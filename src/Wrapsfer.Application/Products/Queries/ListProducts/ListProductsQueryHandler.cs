@@ -32,6 +32,7 @@ internal sealed class ListProductsQueryHandler(
                 tenantIds,
                 request.Search,
                 request.Type,
+                request.IncludeInactive,
                 request.Page,
                 request.PageSize,
                 cancellationToken);
@@ -43,6 +44,7 @@ internal sealed class ListProductsQueryHandler(
                 tenantId,
                 request.Search,
                 request.Type,
+                request.IncludeInactive,
                 request.Page,
                 request.PageSize,
                 cancellationToken);

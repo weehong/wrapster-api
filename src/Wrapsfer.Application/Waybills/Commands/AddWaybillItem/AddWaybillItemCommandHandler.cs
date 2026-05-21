@@ -34,6 +34,11 @@ internal sealed class AddWaybillItemCommandHandler(
             return Result<Guid>.Failure(ProductErrors.NotFound);
         }
 
+        if (!product.IsActive)
+        {
+            return Result<Guid>.Failure(ProductErrors.Inactive);
+        }
+
         Result reserveResult =
             await stockReservationService.ReserveAsync(product.Id, request.Quantity, tenantId, cancellationToken);
         if (reserveResult.IsFailure)

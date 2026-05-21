@@ -10,4 +10,5 @@ public sealed record ListProductsQuery(
     ProductType? Type,
     int Page = 1,
     int PageSize = 20,
-    bool IncludeAllPartnerTenants = false) : IQuery<PagedResult<ProductResponse>>;
+    bool IncludeAllPartnerTenants = false,
+    bool IncludeInactive = false) : IQuery<PagedResult<ProductResponse>>;

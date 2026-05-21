@@ -168,4 +168,19 @@ public static class ProductErrors
         "Product.ComponentsOnNonBundle",
         "Components can only be configured on bundle products",
         ErrorType.Validation);
+
+    public static readonly Error AlreadyActive = new(
+        "Product.AlreadyActive",
+        "The product is already active",
+        ErrorType.Conflict);
+
+    public static readonly Error AlreadyInactive = new(
+        "Product.AlreadyInactive",
+        "The product is already inactive",
+        ErrorType.Conflict);
+
+    public static readonly Error Inactive = new(
+        "Product.Inactive",
+        "The product is inactive and cannot be used in this operation",
+        ErrorType.Validation);
 }
