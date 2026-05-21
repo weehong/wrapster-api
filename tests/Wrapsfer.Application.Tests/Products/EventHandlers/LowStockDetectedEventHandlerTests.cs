@@ -1,6 +1,9 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Wrapsfer.Application.Abstractions;
+using Wrapsfer.Application.Products;
 using Wrapsfer.Application.Products.EventHandlers;
+using Wrapsfer.Application.Products.Services;
 using Wrapsfer.Domain.Abstractions;
 using Wrapsfer.Domain.Entities;
 using Wrapsfer.Domain.Enums;
@@ -17,12 +20,20 @@ public class LowStockDetectedEventHandlerTests
     private readonly Mock<ITenantSettingsRepository> _tenantSettingsRepository = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
 
-    private LowStockDetectedEventHandler CreateHandler() =>
-        new(_mailer.Object,
+    private LowStockDetectedEventHandler CreateHandler(int reminderIntervalHours = 24)
+    {
+        LowStockAlertService alertService = new(
+            _mailer.Object,
             _tenantSettingsRepository.Object,
             _stockAlertLogRepository.Object,
             _unitOfWork.Object,
-            NullLogger<LowStockDetectedEventHandler>.Instance);
+            NullLogger<LowStockAlertService>.Instance);
+
+        IOptions<ProductSettings> options =
+            Options.Create(new ProductSettings { LowStockReminderIntervalHours = reminderIntervalHours });
+
+        return new LowStockDetectedEventHandler(alertService, options);
+    }
 
     private static DomainEventNotification<LowStockDetectedEvent> CreateNotification(string tenantId = "tenant-1",
         Guid? productId = null)

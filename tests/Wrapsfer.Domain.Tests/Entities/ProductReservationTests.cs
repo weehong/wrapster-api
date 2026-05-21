@@ -1,6 +1,7 @@
 using Wrapsfer.Domain.Common;
 using Wrapsfer.Domain.Entities;
 using Wrapsfer.Domain.Errors;
+using Wrapsfer.Domain.Events;
 using Wrapsfer.Domain.Tests.Helpers;
 
 namespace Wrapsfer.Domain.Tests.Entities;
@@ -119,5 +120,31 @@ public class ProductReservationTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be(ProductErrors.CannotDeductBundleStock.Code);
+    }
+
+    [Fact]
+    public void Consume_CrossingFallbackThreshold_RaisesLowStockEvent()
+    {
+        Product product = ProductFactory.CreateSingle(stockQuantity: 12, lowStockThreshold: null);
+        product.Reserve(4);
+
+        Result result = product.Consume(4, fallbackThreshold: 10);
+
+        result.IsSuccess.Should().BeTrue();
+        product.StockQuantity.Should().Be(8);
+        product.DomainEvents.Should().ContainSingle(e => e is LowStockDetectedEvent);
+    }
+
+    [Fact]
+    public void Consume_WithoutFallbackThreshold_DoesNotRaiseLowStockEvent()
+    {
+        Product product = ProductFactory.CreateSingle(stockQuantity: 12, lowStockThreshold: null);
+        product.Reserve(4);
+
+        Result result = product.Consume(4);
+
+        result.IsSuccess.Should().BeTrue();
+        product.StockQuantity.Should().Be(8);
+        product.DomainEvents.Should().NotContain(e => e is LowStockDetectedEvent);
     }
 }

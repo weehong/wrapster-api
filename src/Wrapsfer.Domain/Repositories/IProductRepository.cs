@@ -36,6 +36,13 @@ public interface IProductRepository
     Task<bool> IsReferencedAsUnpackTargetAsync(Guid productId, string tenantId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<string>> GetDistinctTenantIdsAsync(CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<Product>> GetLowStockCandidatesAsync(
+        string tenantId,
+        int effectiveDefaultThreshold,
+        CancellationToken cancellationToken = default);
+
     void Add(Product product);
     void Remove(Product product);
 }

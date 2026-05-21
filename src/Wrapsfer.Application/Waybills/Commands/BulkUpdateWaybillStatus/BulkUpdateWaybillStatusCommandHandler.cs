@@ -1,5 +1,7 @@
+using Microsoft.Extensions.Options;
 using Wrapsfer.Application.Abstractions;
 using Wrapsfer.Application.Abstractions.Messaging;
+using Wrapsfer.Application.Products;
 using Wrapsfer.Application.Waybills.Responses;
 using Wrapsfer.Application.Waybills.Services;
 using Wrapsfer.Domain.Abstractions;
@@ -8,14 +10,18 @@ using Wrapsfer.Domain.Entities;
 using Wrapsfer.Domain.Enums;
 using Wrapsfer.Domain.Errors;
 using Wrapsfer.Domain.Repositories;
+using TenantSettingsEntity = Wrapsfer.Domain.Entities.TenantSettings;
 
 namespace Wrapsfer.Application.Waybills.Commands.BulkUpdateWaybillStatus;
 
 internal sealed class BulkUpdateWaybillStatusCommandHandler(
     IWaybillRepository waybillRepository,
+    ITenantSettingsRepository tenantSettingsRepository,
     StockReservationService stockReservationService,
     ITenantContext tenantContext,
-    IUnitOfWork unitOfWork) : ICommandHandler<BulkUpdateWaybillStatusCommand, BulkWaybillStatusUpdateResult>
+    IUnitOfWork unitOfWork,
+    IOptions<ProductSettings> productSettings)
+    : ICommandHandler<BulkUpdateWaybillStatusCommand, BulkWaybillStatusUpdateResult>
 {
     public async Task<Result<BulkWaybillStatusUpdateResult>> Handle(
         BulkUpdateWaybillStatusCommand request, CancellationToken cancellationToken)
@@ -38,6 +44,8 @@ internal sealed class BulkUpdateWaybillStatusCommandHandler(
             await waybillRepository.GetByIdsWithItemsAsync(orderedIds, tenantId, cancellationToken);
         Dictionary<Guid, Waybill> waybillsById = waybills.ToDictionary(w => w.Id);
 
+        int? fallbackThreshold = null;
+
         List<BulkWaybillStatusUpdateItemResult> results = new(orderedIds.Count);
 
         foreach (Guid id in orderedIds)
@@ -48,7 +56,16 @@ internal sealed class BulkUpdateWaybillStatusCommandHandler(
                 continue;
             }
 
-            Result transitionResult = await ApplyTransitionAsync(waybill, request, tenantId, cancellationToken);
+            if (request.Status == WaybillStatus.HandedOff && fallbackThreshold is null)
+            {
+                TenantSettingsEntity? settings =
+                    await tenantSettingsRepository.GetByTenantIdAsync(tenantId, cancellationToken);
+                fallbackThreshold = settings?.DefaultLowStockThreshold
+                                    ?? productSettings.Value.GlobalLowStockThreshold;
+            }
+
+            Result transitionResult =
+                await ApplyTransitionAsync(waybill, request, tenantId, fallbackThreshold ?? 0, cancellationToken);
             if (transitionResult.IsFailure)
             {
                 results.Add(Failed(id, transitionResult.Error));
@@ -71,7 +88,7 @@ internal sealed class BulkUpdateWaybillStatusCommandHandler(
     }
 
     private async Task<Result> ApplyTransitionAsync(
-        Waybill waybill, BulkUpdateWaybillStatusCommand request, string tenantId,
+        Waybill waybill, BulkUpdateWaybillStatusCommand request, string tenantId, int fallbackThreshold,
         CancellationToken cancellationToken)
     {
         switch (request.Status)
@@ -88,7 +105,8 @@ internal sealed class BulkUpdateWaybillStatusCommandHandler(
                     }
 
                     Result consumeResult =
-                        await stockReservationService.ConsumeItemsAsync(waybill.Items, tenantId, cancellationToken);
+                        await stockReservationService.ConsumeItemsAsync(
+                            waybill.Items, tenantId, fallbackThreshold, cancellationToken);
                     if (consumeResult.IsFailure)
                     {
                         // Discard the in-memory transition so a later successful save cannot persist it.

@@ -65,5 +65,29 @@ internal sealed class StockAlertLogRepository(ApplicationDbContext context) : IS
         return (items, totalCount);
     }
 
+    public async Task<IReadOnlyDictionary<Guid, StockAlertLog>> GetLastSentAlertsByProductIdsAsync(
+        string tenantId,
+        IEnumerable<Guid> productIds,
+        StockAlertType alertType,
+        CancellationToken cancellationToken = default)
+    {
+        List<Guid> idList = productIds.ToList();
+        if (idList.Count == 0)
+        {
+            return new Dictionary<Guid, StockAlertLog>();
+        }
+
+        List<StockAlertLog> logs = await context.StockAlertLogs
+            .Where(l => l.TenantId == tenantId
+                        && idList.Contains(l.ProductId)
+                        && l.AlertType == alertType
+                        && l.DeliveryStatus == StockAlertDeliveryStatus.Sent)
+            .ToListAsync(cancellationToken);
+
+        return logs
+            .GroupBy(l => l.ProductId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(l => l.OccurredOn).First());
+    }
+
     public void Add(StockAlertLog log) => context.StockAlertLogs.Add(log);
 }

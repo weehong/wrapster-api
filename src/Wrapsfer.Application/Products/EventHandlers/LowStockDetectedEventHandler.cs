@@ -1,121 +1,30 @@
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Wrapsfer.Application.Abstractions;
-using Wrapsfer.Domain.Abstractions;
-using Wrapsfer.Domain.Entities;
-using Wrapsfer.Domain.Enums;
+using Wrapsfer.Application.Products.Services;
 using Wrapsfer.Domain.Events;
-using Wrapsfer.Domain.Repositories;
-using Wrapsfer.Mailing.Abstractions;
-using TenantSettingsEntity = Wrapsfer.Domain.Entities.TenantSettings;
 
 namespace Wrapsfer.Application.Products.EventHandlers;
 
 internal sealed class LowStockDetectedEventHandler(
-    IMailer mailer,
-    ITenantSettingsRepository tenantSettingsRepository,
-    IStockAlertLogRepository stockAlertLogRepository,
-    IUnitOfWork unitOfWork,
-    ILogger<LowStockDetectedEventHandler> logger)
+    LowStockAlertService lowStockAlertService,
+    IOptions<ProductSettings> productSettings)
     : IDomainEventHandler<LowStockDetectedEvent>
 {
-    private static readonly TimeSpan s_dedupeWindow = TimeSpan.FromHours(24);
-
-    public async Task Handle(DomainEventNotification<LowStockDetectedEvent> notification,
+    public Task Handle(DomainEventNotification<LowStockDetectedEvent> notification,
         CancellationToken cancellationToken)
     {
         LowStockDetectedEvent domainEvent = notification.DomainEvent;
 
-        StockAlertLog? lastSent = await stockAlertLogRepository.GetLastAlertAsync(
-            domainEvent.TenantId,
-            domainEvent.ProductId,
-            StockAlertType.LowStock,
-            StockAlertDeliveryStatus.Sent,
-            cancellationToken);
-
-        if (lastSent is not null && DateTime.UtcNow - lastSent.OccurredOn < s_dedupeWindow)
-        {
-            logger.LogInformation(
-                "Suppressing low-stock alert for tenant {TenantId} product {ProductId} — last sent {OccurredOn}",
-                domainEvent.TenantId, domainEvent.ProductId, lastSent.OccurredOn);
-
-            stockAlertLogRepository.Add(StockAlertLog.Create(
-                domainEvent.TenantId,
-                domainEvent.ProductId,
-                domainEvent.ProductName,
-                domainEvent.Barcode,
-                StockAlertType.LowStock,
-                domainEvent.CurrentStock,
-                domainEvent.Threshold,
-                StockAlertDeliveryStatus.Suppressed,
-                null,
-                "DedupeWindow",
-                DateTime.UtcNow));
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-            return;
-        }
-
-        TenantSettingsEntity? settings =
-            await tenantSettingsRepository.GetByTenantIdAsync(domainEvent.TenantId, cancellationToken);
-
-        List<string> recipients = settings?.Recipients
-            .Where(r => r.IsActive)
-            .Select(r => r.Email)
-            .ToList() ?? [];
-
-        if (recipients.Count == 0)
-        {
-            logger.LogWarning(
-                "No active recipients configured for tenant {TenantId} — skipping low stock alert for product {ProductName} ({Barcode})",
-                domainEvent.TenantId, domainEvent.ProductName, domainEvent.Barcode);
-
-            stockAlertLogRepository.Add(StockAlertLog.Create(
-                domainEvent.TenantId,
-                domainEvent.ProductId,
-                domainEvent.ProductName,
-                domainEvent.Barcode,
-                StockAlertType.LowStock,
-                domainEvent.CurrentStock,
-                domainEvent.Threshold,
-                StockAlertDeliveryStatus.Failed,
-                null,
-                "NoRecipients",
-                DateTime.UtcNow));
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-            return;
-        }
-
-        MailMessage mail = new()
-        {
-            To = recipients,
-            TemplateName = "low-stock-alert",
-            Tokens = new Dictionary<string, object?>
-            {
-                ["ProductName"] = domainEvent.ProductName,
-                ["Barcode"] = domainEvent.Barcode,
-                ["CurrentStock"] = domainEvent.CurrentStock,
-                ["Threshold"] = domainEvent.Threshold
-            }
-        };
-
-        MailRequestId requestId = await mailer.SendAsync(mail, cancellationToken);
-
-        stockAlertLogRepository.Add(StockAlertLog.Create(
+        LowStockAlertContext context = new(
             domainEvent.TenantId,
             domainEvent.ProductId,
             domainEvent.ProductName,
             domainEvent.Barcode,
-            StockAlertType.LowStock,
             domainEvent.CurrentStock,
-            domainEvent.Threshold,
-            StockAlertDeliveryStatus.Sent,
-            string.Join(",", recipients),
-            null,
-            DateTime.UtcNow));
+            domainEvent.Threshold);
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        TimeSpan dedupeWindow = TimeSpan.FromHours(productSettings.Value.LowStockReminderIntervalHours);
 
-        logger.LogInformation(
-            "Enqueued low-stock alert {MailRequestId} for tenant {TenantId} product {ProductName} ({Barcode}) to {RecipientCount} recipient(s)",
-            requestId, domainEvent.TenantId, domainEvent.ProductName, domainEvent.Barcode, recipients.Count);
+        return lowStockAlertService.SendAsync(context, dedupeWindow, cancellationToken);
     }
 }

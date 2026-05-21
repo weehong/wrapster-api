@@ -1,4 +1,6 @@
+using Microsoft.Extensions.Options;
 using Wrapsfer.Application.Abstractions;
+using Wrapsfer.Application.Products;
 using Wrapsfer.Application.Tests.Helpers;
 using Wrapsfer.Application.Waybills.Commands.BulkUpdateWaybillStatus;
 using Wrapsfer.Application.Waybills.Responses;
@@ -22,6 +24,7 @@ public class BulkUpdateWaybillStatusCommandHandlerTests
     private readonly BulkUpdateWaybillStatusCommandHandler _handler;
     private readonly Mock<IProductRepository> _productRepository = new();
     private readonly Mock<ITenantContext> _tenantContext = new();
+    private readonly Mock<ITenantSettingsRepository> _tenantSettingsRepository = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly Mock<IWaybillRepository> _waybillRepository = new();
 
@@ -31,8 +34,14 @@ public class BulkUpdateWaybillStatusCommandHandlerTests
         _tenantContext.Setup(x => x.UserId).Returns(UserId);
         StockReservationService stockService =
             new(_productRepository.Object, _componentRepository.Object);
+        IOptions<ProductSettings> productSettings = Options.Create(new ProductSettings());
         _handler = new BulkUpdateWaybillStatusCommandHandler(
-            _waybillRepository.Object, stockService, _tenantContext.Object, _unitOfWork.Object);
+            _waybillRepository.Object,
+            _tenantSettingsRepository.Object,
+            stockService,
+            _tenantContext.Object,
+            _unitOfWork.Object,
+            productSettings);
     }
 
     [Fact]
@@ -76,6 +85,31 @@ public class BulkUpdateWaybillStatusCommandHandlerTests
         waybill.Status.Should().Be(WaybillStatus.HandedOff);
         product.ReservedQuantity.Should().Be(0);
         _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_BulkMarkHandedOff_RaisesLowStockEventUsingTenantFallbackThreshold()
+    {
+        Product product = ProductTestFactory.CreateSingle(
+            barcode: "BC-1", stockQuantity: 12, lowStockThreshold: null);
+        product.Reserve(4);
+        Waybill waybill = CreateDraftWaybill("WB-1", product.Id, product.Barcode, 4);
+        waybill.SetCreatedBy(UserId);
+        waybill.MarkPacked();
+        SetupBatchFetch(waybill);
+        SetupProducts(product);
+
+        Domain.Entities.TenantSettings settings = Domain.Entities.TenantSettings.Create(TenantId, 10).Value;
+        _tenantSettingsRepository.Setup(r => r.GetByTenantIdAsync(TenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(settings);
+
+        Result<BulkWaybillStatusUpdateResult> result = await _handler.Handle(
+            new BulkUpdateWaybillStatusCommand([waybill.Id], WaybillStatus.HandedOff, null),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        product.StockQuantity.Should().Be(8);
+        product.DomainEvents.Should().ContainSingle(e => e is Domain.Events.LowStockDetectedEvent);
     }
 
     [Fact]

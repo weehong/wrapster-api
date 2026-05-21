@@ -182,6 +182,24 @@ internal sealed class ProductRepository(ApplicationDbContext context) : IProduct
         await context.Products
             .AnyAsync(p => p.UnpackTargetProductId == productId && p.TenantId == tenantId, cancellationToken);
 
+    public async Task<IReadOnlyList<string>> GetDistinctTenantIdsAsync(
+        CancellationToken cancellationToken = default) =>
+        await context.Products
+            .Select(p => p.TenantId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Product>> GetLowStockCandidatesAsync(
+        string tenantId,
+        int effectiveDefaultThreshold,
+        CancellationToken cancellationToken = default) =>
+        await context.Products
+            .Where(p => p.TenantId == tenantId
+                        && p.IsActive
+                        && p.Type != ProductType.Bundle
+                        && p.StockQuantity < (p.LowStockThreshold ?? effectiveDefaultThreshold))
+            .ToListAsync(cancellationToken);
+
     public void Add(Product product) => context.Products.Add(product);
 
     public void Remove(Product product) => context.Products.Remove(product);

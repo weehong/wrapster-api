@@ -13,27 +13,27 @@ public sealed class StockReservationService(
     public Task<Result> ReserveAsync(Guid productId, int quantity, string tenantId,
         CancellationToken cancellationToken) =>
         ApplyAsync(new Dictionary<Guid, int> { [productId] = quantity }, tenantId, ReservationOperation.Reserve,
-            cancellationToken);
+            0, cancellationToken);
 
     public Task<Result> ReleaseAsync(Guid productId, int quantity, string tenantId,
         CancellationToken cancellationToken) =>
         ApplyAsync(new Dictionary<Guid, int> { [productId] = quantity }, tenantId, ReservationOperation.Release,
-            cancellationToken);
+            0, cancellationToken);
 
     public Task<Result> ReserveItemsAsync(IEnumerable<WaybillItem> items, string tenantId,
         CancellationToken cancellationToken) =>
-        AggregateAndApplyAsync(items, tenantId, ReservationOperation.Reserve, cancellationToken);
+        AggregateAndApplyAsync(items, tenantId, ReservationOperation.Reserve, 0, cancellationToken);
 
     public Task<Result> ReleaseItemsAsync(IEnumerable<WaybillItem> items, string tenantId,
         CancellationToken cancellationToken) =>
-        AggregateAndApplyAsync(items, tenantId, ReservationOperation.Release, cancellationToken);
+        AggregateAndApplyAsync(items, tenantId, ReservationOperation.Release, 0, cancellationToken);
 
     public Task<Result> ConsumeItemsAsync(IEnumerable<WaybillItem> items, string tenantId,
-        CancellationToken cancellationToken) =>
-        AggregateAndApplyAsync(items, tenantId, ReservationOperation.Consume, cancellationToken);
+        int fallbackThreshold, CancellationToken cancellationToken) =>
+        AggregateAndApplyAsync(items, tenantId, ReservationOperation.Consume, fallbackThreshold, cancellationToken);
 
     private async Task<Result> AggregateAndApplyAsync(IEnumerable<WaybillItem> items, string tenantId,
-        ReservationOperation operation, CancellationToken cancellationToken)
+        ReservationOperation operation, int fallbackThreshold, CancellationToken cancellationToken)
     {
         Dictionary<Guid, int> totalsByProduct = new();
         foreach (WaybillItem item in items)
@@ -48,11 +48,11 @@ public sealed class StockReservationService(
             }
         }
 
-        return await ApplyAsync(totalsByProduct, tenantId, operation, cancellationToken);
+        return await ApplyAsync(totalsByProduct, tenantId, operation, fallbackThreshold, cancellationToken);
     }
 
     private async Task<Result> ApplyAsync(Dictionary<Guid, int> productDemand, string tenantId,
-        ReservationOperation operation, CancellationToken cancellationToken)
+        ReservationOperation operation, int fallbackThreshold, CancellationToken cancellationToken)
     {
         if (productDemand.Count == 0)
         {
@@ -140,7 +140,7 @@ public sealed class StockReservationService(
             {
                 ReservationOperation.Reserve => leaf.Reserve(quantity),
                 ReservationOperation.Release => leaf.Release(quantity),
-                ReservationOperation.Consume => leaf.Consume(quantity),
+                ReservationOperation.Consume => leaf.Consume(quantity, fallbackThreshold),
                 _ => Result.Failure(Error.Failure)
             };
 

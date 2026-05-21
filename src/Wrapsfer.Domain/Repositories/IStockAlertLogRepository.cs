@@ -22,5 +22,11 @@ public interface IStockAlertLogRepository
         int pageSize,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyDictionary<Guid, StockAlertLog>> GetLastSentAlertsByProductIdsAsync(
+        string tenantId,
+        IEnumerable<Guid> productIds,
+        StockAlertType alertType,
+        CancellationToken cancellationToken = default);
+
     void Add(StockAlertLog log);
 }

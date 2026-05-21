@@ -72,6 +72,7 @@ public static class DependencyInjection
         services.AddHostedService<ProductsExportConsumer>();
         services.AddHostedService<WaybillsExportConsumer>();
         services.AddHostedService<AutoCancelStaleDraftsJob>();
+        services.AddHostedService<LowStockReminderJob>();
 
         return services;
     }

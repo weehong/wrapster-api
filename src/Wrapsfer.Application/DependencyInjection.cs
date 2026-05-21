@@ -3,6 +3,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Wrapsfer.Application.Behaviors;
+using Wrapsfer.Application.Products.Services;
 using Wrapsfer.Application.Waybills.Services;
 
 namespace Wrapsfer.Application;
@@ -23,6 +24,8 @@ public static class DependencyInjection
         services.AddValidatorsFromAssembly(assembly);
 
         services.AddScoped<StockReservationService>();
+        services.AddScoped<LowStockAlertService>();
+        services.AddScoped<LowStockReminderProcessor>();
 
         return services;
     }
