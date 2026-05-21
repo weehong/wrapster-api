@@ -107,7 +107,7 @@ public class ListWaybillsQueryHandlerTests
         Waybill waybillA = CreateWaybill("partner-a", "WB-A");
         Waybill waybillB = CreateWaybill("partner-b", "WB-B");
 
-        _partnerTenantRepository.Setup(r => r.ListAsync(It.IsAny<CancellationToken>()))
+        _partnerTenantRepository.Setup(r => r.ListAsync(It.IsAny<bool?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<PartnerTenant> { partnerA, partnerB });
         _waybillRepository.Setup(r => r.ListByTenantIdsAsync(
                 It.Is<IReadOnlyCollection<string>>(ids => ids.Contains("partner-a") && ids.Contains("partner-b")),
@@ -136,7 +136,7 @@ public class ListWaybillsQueryHandlerTests
         Waybill waybillA = CreateWaybill("partner-a", "WB-A", productA.Id, "BC-A");
         Waybill waybillB = CreateWaybill("partner-b", "WB-B", productB.Id, "BC-B");
 
-        _partnerTenantRepository.Setup(r => r.ListAsync(It.IsAny<CancellationToken>()))
+        _partnerTenantRepository.Setup(r => r.ListAsync(It.IsAny<bool?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<PartnerTenant> { partnerA, partnerB });
         _waybillRepository.Setup(r => r.ListByTenantIdsAsync(
                 It.IsAny<IReadOnlyCollection<string>>(),

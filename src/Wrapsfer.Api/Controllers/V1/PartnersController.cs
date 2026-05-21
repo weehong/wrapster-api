@@ -34,10 +34,12 @@ public sealed class PartnersController(ISender sender) : ApiControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> List(CancellationToken cancellationToken)
+    public async Task<IActionResult> List(
+        [FromQuery] bool? isActive,
+        CancellationToken cancellationToken)
     {
         Result<IReadOnlyList<PartnerResponse>> result =
-            await sender.Send(new ListPartnersQuery(), cancellationToken);
+            await sender.Send(new ListPartnersQuery(isActive), cancellationToken);
         return ToActionResult(result);
     }
 

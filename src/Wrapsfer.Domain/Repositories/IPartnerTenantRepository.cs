@@ -8,7 +8,7 @@ public interface IPartnerTenantRepository
 
     Task<bool> ExistsAsync(string tenantId, CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<PartnerTenant>> ListAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PartnerTenant>> ListAsync(bool? isActive = null, CancellationToken cancellationToken = default);
 
     void Add(PartnerTenant partnerTenant);
 }

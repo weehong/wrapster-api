@@ -95,7 +95,7 @@ public class ListProductsQueryHandlerTests
         Product productA = ProductTestFactory.CreateSingle(tenantId: "partner-a", stockQuantity: 5);
         Product productB = ProductTestFactory.CreateSingle(tenantId: "partner-b", stockQuantity: 9);
 
-        _partnerTenantRepository.Setup(r => r.ListAsync(It.IsAny<CancellationToken>()))
+        _partnerTenantRepository.Setup(r => r.ListAsync(It.IsAny<bool?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<PartnerTenant> { partnerA, partnerB });
 
         _productRepository.Setup(r => r.ListByTenantIdsAsync(
@@ -139,7 +139,7 @@ public class ListProductsQueryHandlerTests
         Product single = ProductTestFactory.CreateSingle(tenantId: "partner-a", stockQuantity: 7);
         Product bundle = ProductTestFactory.CreateBundle(tenantId: "partner-b", stockQuantity: 0);
 
-        _partnerTenantRepository.Setup(r => r.ListAsync(It.IsAny<CancellationToken>()))
+        _partnerTenantRepository.Setup(r => r.ListAsync(It.IsAny<bool?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<PartnerTenant> { partnerA, partnerB });
 
         _productRepository.Setup(r => r.ListByTenantIdsAsync(

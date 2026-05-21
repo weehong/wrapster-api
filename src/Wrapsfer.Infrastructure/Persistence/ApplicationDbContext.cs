@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Wrapsfer.Domain.Abstractions;
 using Wrapsfer.Domain.Common;
 using Wrapsfer.Domain.Entities;
@@ -21,6 +22,24 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+
+        // BaseEntity.Id is initialised client-side via Guid.NewGuid(). Without this,
+        // EF treats a new child added to a tracked parent's collection as Modified
+        // (because the PK is non-sentinel) and emits an UPDATE instead of INSERT.
+        foreach (IMutableEntityType entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (!typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
+            {
+                continue;
+            }
+
+            IMutableProperty? idProperty = entityType.FindProperty(nameof(BaseEntity.Id));
+            if (idProperty is not null)
+            {
+                idProperty.ValueGenerated = ValueGenerated.Never;
+            }
+        }
+
         base.OnModelCreating(modelBuilder);
     }
 }

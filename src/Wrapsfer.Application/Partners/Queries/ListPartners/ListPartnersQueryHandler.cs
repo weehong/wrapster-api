@@ -12,7 +12,8 @@ internal sealed class ListPartnersQueryHandler(IPartnerTenantRepository partnerT
     public async Task<Result<IReadOnlyList<PartnerResponse>>> Handle(ListPartnersQuery request,
         CancellationToken cancellationToken)
     {
-        IReadOnlyList<PartnerTenant> partners = await partnerTenantRepository.ListAsync(cancellationToken);
+        IReadOnlyList<PartnerTenant> partners =
+            await partnerTenantRepository.ListAsync(request.IsActive, cancellationToken);
         IReadOnlyList<PartnerResponse> responses =
             partners.Select(PartnerResponse.FromEntity).ToList();
         return Result<IReadOnlyList<PartnerResponse>>.Success(responses);

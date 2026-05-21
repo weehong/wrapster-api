@@ -1,6 +1,7 @@
 using System.Net.Sockets;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
 namespace Wrapsfer.Api.Extensions;
@@ -26,6 +27,11 @@ public static class WebApplicationExtensions
                 ProblemDetails problemDetails = ClassifyException(exception, logger);
 
                 problemDetails.Extensions["traceId"] = context.TraceIdentifier;
+                if (problemDetails.Status == StatusCodes.Status500InternalServerError)
+                {
+                    problemDetails.Detail =
+                        $"Something went wrong on our side. Quote reference {context.TraceIdentifier} when reporting this.";
+                }
 
                 context.Response.StatusCode = problemDetails.Status ?? StatusCodes.Status500InternalServerError;
                 context.Response.ContentType = "application/problem+json";
@@ -88,6 +94,16 @@ public static class WebApplicationExtensions
 
         return exception switch
         {
+            DbUpdateConcurrencyException =>
+                CreateProblem(409, "Conflict",
+                    "This record was modified by another request while you were working on it. Refresh and try again.",
+                    logger, exception),
+
+            DbUpdateException =>
+                CreateProblem(409, "Conflict",
+                    "The change conflicts with existing data (for example, a duplicate value or missing reference). Refresh and try again.",
+                    logger, exception),
+
             InvalidOperationException { Message: "Tenant realm has not been resolved." } =>
                 CreateProblem(401, "Authentication Error",
                     "Tenant could not be identified. Ensure the request includes a valid authorization token.",

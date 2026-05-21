@@ -5,9 +5,14 @@ meta {
 }
 
 get {
-  url: {{BASE_URL}}/api/v1/partners
+  url: {{BASE_URL}}/api/v1/partners?isActive=true
   body: none
   auth: bearer
+}
+
+params:query {
+  isActive: true
+  ~isActive: false
 }
 
 auth:bearer {

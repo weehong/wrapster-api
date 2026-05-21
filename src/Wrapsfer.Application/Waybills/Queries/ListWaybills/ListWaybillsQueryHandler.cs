@@ -24,7 +24,8 @@ internal sealed class ListWaybillsQueryHandler(
 
         if (request.IncludeAllPartnerTenants)
         {
-            IReadOnlyList<PartnerTenant> partnerTenants = await partnerTenantRepository.ListAsync(cancellationToken);
+            IReadOnlyList<PartnerTenant> partnerTenants =
+                await partnerTenantRepository.ListAsync(cancellationToken: cancellationToken);
             IReadOnlyList<string> tenantIds = partnerTenants.Select(p => p.TenantId).ToList();
 
             (items, totalCount) = await waybillRepository.ListByTenantIdsAsync(

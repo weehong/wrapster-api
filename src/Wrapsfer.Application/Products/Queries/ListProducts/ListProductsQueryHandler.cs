@@ -25,7 +25,8 @@ internal sealed class ListProductsQueryHandler(
 
         if (request.IncludeAllPartnerTenants)
         {
-            IReadOnlyList<PartnerTenant> partnerTenants = await partnerTenantRepository.ListAsync(cancellationToken);
+            IReadOnlyList<PartnerTenant> partnerTenants =
+                await partnerTenantRepository.ListAsync(cancellationToken: cancellationToken);
             tenantIds = partnerTenants.Select(p => p.TenantId).ToList();
 
             (items, totalCount) = await productRepository.ListByTenantIdsAsync(

@@ -3,4 +3,4 @@ using Wrapsfer.Application.Partners.Responses;
 
 namespace Wrapsfer.Application.Partners.Queries.ListPartners;
 
-public sealed record ListPartnersQuery : IQuery<IReadOnlyList<PartnerResponse>>;
+public sealed record ListPartnersQuery(bool? IsActive = null) : IQuery<IReadOnlyList<PartnerResponse>>;
