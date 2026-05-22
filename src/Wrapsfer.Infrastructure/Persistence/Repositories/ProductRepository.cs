@@ -83,6 +83,7 @@ internal sealed class ProductRepository(ApplicationDbContext context) : IProduct
 
         List<Product> items = await query
             .OrderBy(p => p.Name)
+            .ThenBy(p => p.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
@@ -126,6 +127,7 @@ internal sealed class ProductRepository(ApplicationDbContext context) : IProduct
         List<Product> items = await query
             .OrderBy(p => p.TenantId)
             .ThenBy(p => p.Name)
+            .ThenBy(p => p.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);

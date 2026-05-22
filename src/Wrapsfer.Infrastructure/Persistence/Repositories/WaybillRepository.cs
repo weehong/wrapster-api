@@ -88,6 +88,7 @@ internal sealed class WaybillRepository(ApplicationDbContext context) : IWaybill
         List<Waybill> items = await query
             .OrderByDescending(w => w.PackagingDate)
             .ThenByDescending(w => w.CreatedAt)
+            .ThenByDescending(w => w.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
@@ -135,6 +136,7 @@ internal sealed class WaybillRepository(ApplicationDbContext context) : IWaybill
         List<Waybill> items = await query
             .OrderByDescending(w => w.PackagingDate)
             .ThenByDescending(w => w.CreatedAt)
+            .ThenByDescending(w => w.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
