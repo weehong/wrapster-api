@@ -7,8 +7,7 @@ using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using Wrapsfer.Application.Waybills.Messaging;
-using Wrapsfer.Domain.Entities;
-using Wrapsfer.Domain.Repositories;
+using Wrapsfer.Application.Waybills.Services;
 using Wrapsfer.Infrastructure.Queue;
 
 namespace Wrapsfer.Infrastructure.BackgroundServices;
@@ -18,7 +17,6 @@ public sealed class WaybillsExportConsumer(
     IOptions<RabbitMqOptions> rabbitOptions,
     ILogger<WaybillsExportConsumer> logger) : BackgroundService
 {
-    private const int ExportPageSize = 500;
     private readonly RabbitMqOptions _rabbitOptions = rabbitOptions.Value;
     private IChannel? _channel;
     private IConnection? _connection;
@@ -101,25 +99,9 @@ public sealed class WaybillsExportConsumer(
     {
         using IServiceScope scope = scopeFactory.CreateScope();
 
-        IWaybillRepository waybillRepository = scope.ServiceProvider.GetRequiredService<IWaybillRepository>();
+        WaybillExportProcessor processor = scope.ServiceProvider.GetRequiredService<WaybillExportProcessor>();
 
-        List<Waybill> all = [];
-        int page = 1;
-        int totalCount;
-        do
-        {
-            (IReadOnlyList<Waybill> items, int total) = await waybillRepository.ListAsync(
-                message.TenantId, null, null, null, null,
-                page, ExportPageSize, cancellationToken);
-            all.AddRange(items);
-            totalCount = total;
-            page++;
-        } while (all.Count < totalCount);
-
-        logger.LogInformation(
-            "Waybills export prepared for tenant {TenantId}: {Count} waybills in {Format}. " +
-            "Delivery pipeline (file generation + email) is a future iteration.",
-            message.TenantId, all.Count, message.Format);
+        await processor.ProcessAsync(message, cancellationToken);
     }
 
     public override async Task StopAsync(CancellationToken cancellationToken)

@@ -29,6 +29,7 @@
     <ResendFluentEmailVersion>0.2.1</ResendFluentEmailVersion>
     <FluidVersion>2.31.0</FluidVersion>
     <PollyVersion>8.6.4</PollyVersion>
+    <AwsSdkS3Version>4.0.23.4</AwsSdkS3Version>
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="Asp.Versioning.Mvc" Version="$(AspVersioningMvcVersion)"/>
@@ -67,6 +68,7 @@
     <PackageVersion Include="Resend.FluentEmail" Version="$(ResendFluentEmailVersion)"/>
     <PackageVersion Include="Fluid.Core" Version="$(FluidVersion)"/>
     <PackageVersion Include="Polly" Version="$(PollyVersion)"/>
+    <PackageVersion Include="AWSSDK.S3" Version="$(AwsSdkS3Version)"/>
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="$(DotNetCorePackagesVersion)"/>
     <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="$(DotNetCorePackagesVersion)"/>
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="$(DotNetCorePackagesVersion)"/>

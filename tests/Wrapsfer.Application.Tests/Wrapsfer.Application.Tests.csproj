@@ -14,6 +14,7 @@
     <PackageReference Include="Moq"/>
     <PackageReference Include="xunit"/>
     <PackageReference Include="xunit.runner.visualstudio"/>
+    <PackageReference Include="AWSSDK.S3"/>
   </ItemGroup>
 
   <ItemGroup>

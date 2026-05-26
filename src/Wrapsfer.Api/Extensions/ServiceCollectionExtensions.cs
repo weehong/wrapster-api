@@ -93,6 +93,24 @@ public static class ServiceCollectionExtensions
                     return new BadRequestObjectResult(problemDetails);
                 };
             });
+
+        string[] corsAllowedOrigins = (builder.Configuration["Cors:AllowedOrigins"] ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        builder.Services.AddCors(options =>
+        {
+            options.AddDefaultPolicy(policy =>
+            {
+                if (corsAllowedOrigins.Length > 0)
+                {
+                    policy
+                        .WithOrigins(corsAllowedOrigins)
+                        .AllowAnyHeader()
+                        .AllowAnyMethod()
+                        .AllowCredentials();
+                }
+            });
+        });
+
         builder.Services.AddScoped<TenantResolutionFilter>();
         builder.Services.AddOpenApi();
         builder.Services.AddProblemDetails();

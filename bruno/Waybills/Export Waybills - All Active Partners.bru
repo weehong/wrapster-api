@@ -1,0 +1,25 @@
+meta {
+  name: Export Waybills - All Active Partners
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/waybills/export?format=Pdf
+  body: none
+  auth: bearer
+}
+
+params:query {
+  format: Pdf
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+docs {
+  Owner-only. With no tenantId and no partnerTenantIds, the export fans out to every active
+  partner tenant. Each partner gets its own report uploaded to S3 and a download link emailed
+  to that tenant's active recipients only.
+}

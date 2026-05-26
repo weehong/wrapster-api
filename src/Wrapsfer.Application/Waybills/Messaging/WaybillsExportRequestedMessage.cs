@@ -1,12 +1,17 @@
-using Wrapsfer.Application.Abstractions.FileProcessing;
+using Wrapsfer.Application.Waybills.Commands.RequestWaybillsExport;
+using Wrapsfer.Domain.Enums;
 
 namespace Wrapsfer.Application.Waybills.Messaging;
 
 public sealed record WaybillsExportRequestedMessage(
-    string TenantId,
+    IReadOnlyList<string> TenantIds,
     string? RequestedBy,
-    ProductFileFormat Format,
-    DateTime RequestedAt)
+    WaybillExportFormat Format,
+    DateTime RequestedAt,
+    DateOnly? From,
+    DateOnly? To,
+    WaybillStatus? Status,
+    string? Search)
 {
     public const string QueueName = "waybills.export";
 }

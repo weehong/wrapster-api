@@ -2,7 +2,6 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Wrapsfer.Api.Contracts;
 using Wrapsfer.Api.Filters;
-using Wrapsfer.Application.Abstractions.FileProcessing;
 using Wrapsfer.Application.Common;
 using Wrapsfer.Application.Waybills.Commands.AddWaybillItem;
 using Wrapsfer.Application.Waybills.Commands.BulkUpdateWaybillStatus;
@@ -186,10 +185,25 @@ public sealed class WaybillsController(ISender sender) : ApiControllerBase
     }
 
     [HttpPost("export")]
-    public async Task<IActionResult> Export([FromQuery] ProductFileFormat format,
+    [AllowOwnerTenantScope]
+    public async Task<IActionResult> Export(
+        [FromQuery] string? tenantId,
+        [FromQuery] WaybillExportFormat format,
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        [FromQuery] WaybillStatus? status,
+        [FromQuery] string? search,
+        [FromQuery] string[]? partnerTenantIds,
         CancellationToken cancellationToken)
     {
-        Result result = await sender.Send(new RequestWaybillsExportCommand(format), cancellationToken);
+        bool includeAllPartnerTenants =
+            HttpContext.Items[TenantResolutionFilter.OwnerCrossTenantScopeKey] is true;
+
+        Result result = await sender.Send(
+            new RequestWaybillsExportCommand(
+                format, from, to, status, search, includeAllPartnerTenants, partnerTenantIds),
+            cancellationToken);
+
         return result.IsSuccess
             ? Accepted(new { message = "Export requested.", format })
             : ToActionResult(result);

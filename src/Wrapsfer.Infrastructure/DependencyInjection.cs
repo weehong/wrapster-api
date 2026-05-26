@@ -18,6 +18,7 @@ using Wrapsfer.Infrastructure.Persistence;
 using Wrapsfer.Infrastructure.Persistence.Interceptors;
 using Wrapsfer.Infrastructure.Persistence.Repositories;
 using Wrapsfer.Infrastructure.Queue;
+using Wrapsfer.Infrastructure.Storage;
 
 namespace Wrapsfer.Infrastructure;
 
@@ -61,6 +62,7 @@ public static class DependencyInjection
 
         services.AddKeycloakAuthentication(configuration);
         services.AddQueueService(configuration);
+        services.AddReportStorage(configuration);
 
         services.AddSingleton<CsvProductFileParser>();
         services.AddSingleton<ExcelProductFileParser>();
@@ -68,6 +70,10 @@ public static class DependencyInjection
         services.AddSingleton<CsvProductFileWriter>();
         services.AddSingleton<ExcelProductFileWriter>();
         services.AddSingleton<IProductFileWriter, CompositeProductFileWriter>();
+        services.AddSingleton<CsvWaybillReportFileWriter>();
+        services.AddSingleton<ExcelWaybillReportFileWriter>();
+        services.AddSingleton<PdfWaybillReportFileWriter>();
+        services.AddSingleton<IWaybillReportFileWriter, CompositeWaybillReportFileWriter>();
 
         services.AddHostedService<ProductsExportConsumer>();
         services.AddHostedService<WaybillsExportConsumer>();
