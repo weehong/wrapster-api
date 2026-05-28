@@ -15,7 +15,7 @@ services:
       Mailing__Resend__FromAddress: ${RESEND_FROM_ADDRESS}
       Mailing__Resend__FromName: ${RESEND_FROM_NAME}
       Cors__AllowedOrigins: ${CORS_ALLOWED_ORIGINS:-}
-      Keycloak__BaseUrl: ${KEYCLOAK_BASE_URL:-http://keycloak:8080}
+      Keycloak__BaseUrl: ${KEYCLOAK_BASE_URL:?Set KEYCLOAK_BASE_URL to the public HTTPS Keycloak URL}
       Keycloak__OwnerRealm: ${KEYCLOAK_OWNER_REALM:-wrapsfer}
       Keycloak__Audience: ${KEYCLOAK_AUDIENCE:-wrapsfer}
       Keycloak__RequireHttpsMetadata: ${KEYCLOAK_REQUIRE_HTTPS:-true}

@@ -36,6 +36,7 @@ services:
     ports:
       - "18080:8080"
     volumes:
+      # Import only the owner realm. Partner realms are created by the API.
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
     depends_on:
       keycloak-db:

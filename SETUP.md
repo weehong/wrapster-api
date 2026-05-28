@@ -1,6 +1,6 @@
 # Local Setup
 
-This guide starts the local infrastructure with `docker run` and then runs the Wrapsfer API with .NET.
+This guide starts the local infrastructure with `compose.dev.yaml` and then runs the Wrapsfer API with .NET.
 
 ## Prerequisites
 
@@ -12,122 +12,48 @@ This guide starts the local infrastructure with `docker run` and then runs the W
 dotnet tool install --global dotnet-ef
 ```
 
-## 1. Create Docker Network
-
-Create the shared Docker network before starting any containers.
+## 1. Start Infrastructure
 
 ```bash
-docker network create workspace-network
+docker compose -f compose.dev.yaml up -d
 ```
 
-If the network already exists, Docker will return an error. That is safe to ignore.
+This starts PostgreSQL, RabbitMQ, Keycloak, and the Keycloak admin-client bootstrap job.
 
-## 2. Start PostgreSQL
+Local endpoints:
+
+- PostgreSQL: `localhost:15432`, database `wrapsfer`, username `wrapsfer`, password `wrapsfer`
+- RabbitMQ: `localhost:5672`, username `wrapsfer`, password `wrapsfer`
+- RabbitMQ management UI: `http://localhost:15672`, username `wrapsfer`, password `wrapsfer`
+- Keycloak admin console: `http://localhost:18080/admin`, username `admin`, password `admin`
+
+## 2. Keycloak Model
+
+The dev compose file imports only `keycloak/realm-export.json`, which creates the owner realm `wrapsfer`.
+
+Partner realms are created dynamically through the API with `POST /api/v1/partners`. Do not import partner realms during normal setup; this keeps the Keycloak realm and the application `PartnerTenant` database record in sync.
+
+Static partner realm JSON files live under `keycloak/fixtures/` as examples only.
+
+## 3. Local API Configuration
+
+The tracked `appsettings.Development.json` is aligned with `compose.dev.yaml`:
+
+- `Keycloak:BaseUrl` is `http://localhost:18080`
+- `Keycloak:PartnerOnboardingEnabled` is `true`
+- `Keycloak:AdminClientId` is `wrapsfer-admin`
+- `Keycloak:AdminClientSecret` is `wrapsfer-admin-secret`
+- `Keycloak:PartnerApiClientSecret` is `wrapsfer-secret`
+
+`Keycloak:PartnerApiClientSecret` is the shared API OIDC client secret for the `wrapsfer` client in both the owner realm and every provisioned partner realm.
+
+Use .NET user secrets only when you need local overrides:
 
 ```bash
-docker run \
-  --name postgres \
-  --network workspace-network \
-  --env POSTGRES_USER=vernon \
-  --env POSTGRES_PASSWORD=password \
-  --publish 5432:5432 \
-  --volume db_data:/var/lib/postgresql \
-  --detach \
-  --restart unless-stopped \
-  postgres:latest
+dotnet user-secrets set "Keycloak:AdminClientSecret" "your-local-secret" --project src/Wrapsfer.Api/Wrapsfer.Api.csproj
 ```
 
-This creates a PostgreSQL server at `localhost:5432` with:
-
-- Username: `vernon`
-- Password: `password`
-- Default database: `vernon`
-
-The API expects a database named `wrapsfer`, so create it once after PostgreSQL starts:
-
-```bash
-docker exec postgres createdb -U vernon wrapsfer
-```
-
-## 3. Start Keycloak
-
-```bash
-docker run -d -p 8180:8080 \
-  --name keycloak \
-  --network workspace-network \
-  -e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
-  -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
-  -e KC_DB=postgres \
-  -e KC_DB_URL=jdbc:postgresql://postgres:5432/vernon \
-  -e KC_DB_USERNAME=vernon \
-  -e KC_DB_PASSWORD=password \
-  quay.io/keycloak/keycloak:latest \
-  start-dev
-```
-
-Keycloak admin console:
-
-- URL: `http://localhost:8180/admin`
-- Username: `admin`
-- Password: `admin`
-
-This command starts a blank Keycloak instance. Configure or import the required realms and clients before making authenticated API requests.
-
-## 4. Start Redis
-
-```bash
-docker run \
-  --name redis \
-  --network workspace-network \
-  --publish 6379:6379 \
-  --detach \
-  --restart unless-stopped \
-  --memory="512m" \
-  --volume $HOME/docker/redis-data:/data \
-  redis:latest \
-  redis-server --requirepass password --appendonly yes
-```
-
-Redis is available at `localhost:6379` with password `password`.
-
-## 5. Start RabbitMQ
-
-```bash
-docker run \
-  --name rabbitmq \
-  --network workspace-network \
-  --env RABBITMQ_DEFAULT_USER=vernon \
-  --env RABBITMQ_DEFAULT_PASS=password \
-  --publish 5672:5672 \
-  --publish 15672:15672 \
-  --volume $HOME/docker/log/rabbitmq:/var/log/rabbitmq \
-  --detach \
-  --restart unless-stopped \
-  rabbitmq:management
-```
-
-RabbitMQ management UI:
-
-- URL: `http://localhost:15672`
-- Username: `vernon`
-- Password: `password`
-
-## 6. Configure The API
-
-Use environment variables or .NET user secrets for local overrides. User secrets are preferred for passwords because they are not committed to the repository.
-
-```bash
-dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=wrapsfer;Username=vernon;Password=password" --project src/Wrapsfer.Api/Wrapsfer.Api.csproj
-dotnet user-secrets set "Keycloak:BaseUrl" "http://localhost:8180" --project src/Wrapsfer.Api/Wrapsfer.Api.csproj
-dotnet user-secrets set "Keycloak:RequireHttpsMetadata" "false" --project src/Wrapsfer.Api/Wrapsfer.Api.csproj
-dotnet user-secrets set "RabbitMq:HostName" "localhost" --project src/Wrapsfer.Api/Wrapsfer.Api.csproj
-dotnet user-secrets set "RabbitMq:Port" "5672" --project src/Wrapsfer.Api/Wrapsfer.Api.csproj
-dotnet user-secrets set "RabbitMq:UserName" "vernon" --project src/Wrapsfer.Api/Wrapsfer.Api.csproj
-dotnet user-secrets set "RabbitMq:Password" "password" --project src/Wrapsfer.Api/Wrapsfer.Api.csproj
-dotnet user-secrets set "RabbitMq:VirtualHost" "/" --project src/Wrapsfer.Api/Wrapsfer.Api.csproj
-```
-
-## 7. Restore And Build
+## 4. Restore And Build
 
 ```bash
 make restore
@@ -141,18 +67,16 @@ dotnet restore
 dotnet build --no-restore
 ```
 
-## 8. Apply Database Migrations
-
-Set the design-time connection string so EF uses the local PostgreSQL container.
+## 5. Apply Database Migrations
 
 ```bash
-export WRAPSFER_DESIGN_CONNECTION="Host=localhost;Port=5432;Database=wrapsfer;Username=vernon;Password=password"
+export WRAPSFER_DESIGN_CONNECTION="Host=localhost;Port=15432;Database=wrapsfer;Username=wrapsfer;Password=wrapsfer"
 dotnet ef database update \
   --project src/Wrapsfer.Infrastructure/Wrapsfer.Infrastructure.csproj \
   --startup-project src/Wrapsfer.Api/Wrapsfer.Api.csproj
 ```
 
-## 9. Run The API
+## 6. Run The API
 
 ```bash
 dotnet run --project src/Wrapsfer.Api/Wrapsfer.Api.csproj
@@ -165,7 +89,16 @@ Useful local endpoints:
 
 Use the port printed by `dotnet run` if it differs from the launch profile defaults.
 
-## 10. Run Tests
+## 7. Create Partner Realms
+
+Log in as the owner admin first, then call `POST /api/v1/partners` with the owner token. The API creates the partner database record, provisions the matching Keycloak realm, creates the partner admin user, and marks the partner active.
+
+The owner admin user is seeded in the `wrapsfer` realm:
+
+- Username: `owneradmin`
+- Password: value of `KEYCLOAK_OWNER_ADMIN_PASSWORD`, default `ChangeMe-12345!` in `compose.dev.yaml`
+
+## 8. Run Tests
 
 ```bash
 make test
@@ -179,32 +112,27 @@ dotnet test --no-restore --no-build
 
 ## Useful Container Commands
 
-Stop the local containers:
+Stop the local stack:
 
 ```bash
-docker stop postgres keycloak redis rabbitmq
+docker compose -f compose.dev.yaml stop
 ```
 
-Start existing containers again:
+Start it again:
 
 ```bash
-docker start postgres keycloak redis rabbitmq
+docker compose -f compose.dev.yaml up -d
 ```
 
-Remove the containers:
+Remove the local stack and volumes:
 
 ```bash
-docker rm -f postgres keycloak redis rabbitmq
+docker compose -f compose.dev.yaml down -v
 ```
 
-Remove the shared network:
+## Production Notes
 
-```bash
-docker network rm workspace-network
-```
-
-## Notes
-
-- The tracked `appsettings.Development.json` uses different local ports and credentials than this guide, so keep local overrides in user secrets or environment variables.
-- Keycloak must have the expected realms, client, roles, and users configured before authenticated endpoints can be exercised.
-- If Infisical is not configured, the API logs that it is skipping secret fetch and continues with local configuration.
+- `KEYCLOAK_BASE_URL` is required in production and must be the public HTTPS Keycloak URL, for example `https://auth.example.com`.
+- `KEYCLOAK_BASE_URL` must match the issuer emitted by Keycloak, which is derived from `KC_HOSTNAME`.
+- The production API rejects internal HTTP Keycloak URLs such as `http://keycloak:8080`.
+- Partner onboarding requires `KEYCLOAK_ADMIN_CLIENT_ID`, `KEYCLOAK_ADMIN_CLIENT_SECRET`, and `KEYCLOAK_PARTNER_API_CLIENT_SECRET`.
