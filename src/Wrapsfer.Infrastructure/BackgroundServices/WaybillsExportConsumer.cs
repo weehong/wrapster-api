@@ -8,6 +8,8 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using Wrapsfer.Application.Waybills.Messaging;
 using Wrapsfer.Application.Waybills.Services;
+using Wrapsfer.Domain.Abstractions;
+using Wrapsfer.Domain.Repositories;
 using Wrapsfer.Infrastructure.Queue;
 
 namespace Wrapsfer.Infrastructure.BackgroundServices;
@@ -100,8 +102,39 @@ public sealed class WaybillsExportConsumer(
         using IServiceScope scope = scopeFactory.CreateScope();
 
         WaybillExportProcessor processor = scope.ServiceProvider.GetRequiredService<WaybillExportProcessor>();
+        IWaybillExportJobRepository jobRepository =
+            scope.ServiceProvider.GetRequiredService<IWaybillExportJobRepository>();
+        IUnitOfWork unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-        await processor.ProcessAsync(message, cancellationToken);
+        if (message.JobId != Guid.Empty)
+        {
+            await jobRepository.MarkProcessingAsync(message.JobId, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
+        try
+        {
+            await processor.ProcessAsync(message, cancellationToken);
+
+            if (message.JobId != Guid.Empty)
+            {
+                await jobRepository.MarkCompletedAsync(message.JobId, cancellationToken);
+                await unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+        }
+        catch (Exception)
+        {
+            if (message.JobId != Guid.Empty)
+            {
+                await jobRepository.MarkFailedAsync(
+                    message.JobId,
+                    "Export processing failed.",
+                    cancellationToken);
+                await unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+
+            throw;
+        }
     }
 
     public override async Task StopAsync(CancellationToken cancellationToken)

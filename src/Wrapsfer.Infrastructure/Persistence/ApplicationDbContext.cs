@@ -18,6 +18,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<StockAlertLog> StockAlertLogs => Set<StockAlertLog>();
     public DbSet<Waybill> Waybills => Set<Waybill>();
     public DbSet<WaybillItem> WaybillItems => Set<WaybillItem>();
+    public DbSet<WaybillExportJob> WaybillExportJobs => Set<WaybillExportJob>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

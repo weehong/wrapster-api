@@ -16,6 +16,8 @@ using Wrapsfer.Application.Waybills.Commands.UpdateWaybill;
 using Wrapsfer.Application.Waybills.Commands.UpdateWaybillItemQuantity;
 using Wrapsfer.Application.Waybills.Commands.UpdateWaybillNumber;
 using Wrapsfer.Application.Waybills.Queries.CheckWaybillNumberAvailable;
+using Wrapsfer.Application.Waybills.Queries.DownloadWaybillsExportFile;
+using Wrapsfer.Application.Waybills.Queries.ListWaybillExportJobs;
 using Wrapsfer.Application.Waybills.Queries.GetStaleDraftsReport;
 using Wrapsfer.Application.Waybills.Queries.GetWaybillById;
 using Wrapsfer.Application.Waybills.Queries.GetWaybillsByDate;
@@ -184,6 +186,20 @@ public sealed class WaybillsController(ISender sender) : ApiControllerBase
         return ToActionResult(result);
     }
 
+    [HttpGet("export/jobs")]
+    [AllowOwnerTenantScope]
+    public async Task<IActionResult> ListExportJobs(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken cancellationToken = default)
+    {
+        Result<PagedResult<WaybillExportJobResponse>> result = await sender.Send(
+            new ListWaybillExportJobsQuery(page, pageSize),
+            cancellationToken);
+
+        return ToActionResult(result);
+    }
+
     [HttpPost("export")]
     [AllowOwnerTenantScope]
     public async Task<IActionResult> Export(
@@ -194,6 +210,7 @@ public sealed class WaybillsController(ISender sender) : ApiControllerBase
         [FromQuery] WaybillStatus? status,
         [FromQuery] string? search,
         [FromQuery] string[]? partnerTenantIds,
+        [FromBody] WaybillsExportRequest? request,
         CancellationToken cancellationToken)
     {
         bool includeAllPartnerTenants =
@@ -201,11 +218,41 @@ public sealed class WaybillsController(ISender sender) : ApiControllerBase
 
         Result result = await sender.Send(
             new RequestWaybillsExportCommand(
-                format, from, to, status, search, includeAllPartnerTenants, partnerTenantIds),
+                format,
+                from,
+                to,
+                status,
+                search,
+                includeAllPartnerTenants,
+                partnerTenantIds,
+                request?.RecipientEmails),
             cancellationToken);
 
         return result.IsSuccess
             ? Accepted(new { message = "Export requested.", format })
+            : ToActionResult(result);
+    }
+
+    [HttpGet("export/file")]
+    [AllowOwnerTenantScope]
+    public async Task<IActionResult> DownloadExportFile(
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        [FromQuery] WaybillStatus? status,
+        [FromQuery] string? search,
+        [FromQuery] string[]? partnerTenantIds,
+        CancellationToken cancellationToken)
+    {
+        bool includeAllPartnerTenants =
+            HttpContext.Items[TenantResolutionFilter.OwnerCrossTenantScopeKey] is true;
+
+        Result<DownloadWaybillsExportFileResult> result = await sender.Send(
+            new DownloadWaybillsExportFileQuery(
+                from, to, status, search, includeAllPartnerTenants, partnerTenantIds),
+            cancellationToken);
+
+        return result.IsSuccess
+            ? File(result.Value.Content, result.Value.ContentType, result.Value.FileName)
             : ToActionResult(result);
     }
 }
