@@ -6,25 +6,31 @@ using Wrapsfer.Application.Waybills.Messaging;
 using Wrapsfer.Domain.Entities;
 using Wrapsfer.Domain.Repositories;
 using Wrapsfer.Mailing.Abstractions;
-using TenantSettingsEntity = Wrapsfer.Domain.Entities.TenantSettings;
 
 namespace Wrapsfer.Application.Waybills.Services;
 
 /// <summary>
 /// Generates one waybill report per target tenant, uploads each to private object storage, and
-/// emails that tenant's own active recipients a time-limited download link. Tenants are processed
-/// independently so that one tenant's missing recipients or failure does not block the others.
+/// emails a time-limited download link. Tenants are processed independently so that one tenant's
+/// failure does not block the others.
+/// TEMPORARY (dev): the download link is sent to a single inbox tagged per partner
+/// (weehongkane+{tenantId}@gmail.com) rather than each tenant's configured recipients.
 /// </summary>
 public sealed class WaybillExportProcessor(
     IWaybillRepository waybillRepository,
     IProductRepository productRepository,
     IWaybillReportFileWriter writer,
     IReportStorage reportStorage,
-    ITenantSettingsRepository tenantSettingsRepository,
     IMailer mailer,
     ILogger<WaybillExportProcessor> logger)
 {
     private const int ExportPageSize = 500;
+
+    // TEMPORARY (dev): route every export email to a single inbox, tagged per
+    // partner via Gmail subaddressing, instead of each tenant's configured
+    // recipients. Revert to ITenantSettingsRepository-based recipients later.
+    private const string TemporaryMailboxLocalPart = "weehongkane";
+    private const string TemporaryMailboxDomain = "gmail.com";
 
     public async Task ProcessAsync(WaybillsExportRequestedMessage message, CancellationToken cancellationToken)
     {
@@ -57,14 +63,10 @@ public sealed class WaybillExportProcessor(
         Guid exportId,
         CancellationToken cancellationToken)
     {
-        IReadOnlyList<string> recipients = await GetActiveRecipientsAsync(tenantId, cancellationToken);
-        if (recipients.Count == 0)
-        {
-            logger.LogWarning(
-                "Waybills export skipped for tenant {TenantId}: no active recipients are configured",
-                tenantId);
-            return;
-        }
+        IReadOnlyList<string> recipients =
+            message.RecipientEmails is { Count: > 0 } explicitRecipients
+                ? explicitRecipients
+                : [BuildTemporaryRecipient(tenantId)];
 
         List<Waybill> waybills = await LoadWaybillsAsync(message, tenantId, cancellationToken);
 
@@ -132,19 +134,9 @@ public sealed class WaybillExportProcessor(
         return all;
     }
 
-    private async Task<IReadOnlyList<string>> GetActiveRecipientsAsync(
-        string tenantId,
-        CancellationToken cancellationToken)
-    {
-        TenantSettingsEntity? tenantSettings =
-            await tenantSettingsRepository.GetByTenantIdAsync(tenantId, cancellationToken);
-
-        return tenantSettings?.Recipients
-            .Where(r => r.IsActive)
-            .Select(r => r.Email)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList() ?? [];
-    }
+    // TEMPORARY (dev): weehongkane+{tenantId}@gmail.com — see constants above.
+    private static string BuildTemporaryRecipient(string tenantId) =>
+        $"{TemporaryMailboxLocalPart}+{tenantId}@{TemporaryMailboxDomain}";
 
     private static string BuildEmailBody(
         string reportName,

@@ -8,7 +8,6 @@ using Wrapsfer.Domain.Entities;
 using Wrapsfer.Domain.Enums;
 using Wrapsfer.Domain.Repositories;
 using Wrapsfer.Mailing.Abstractions;
-using TenantSettingsEntity = Wrapsfer.Domain.Entities.TenantSettings;
 
 namespace Wrapsfer.Application.Tests.Waybills.Services;
 
@@ -18,7 +17,6 @@ public class WaybillExportProcessorTests
     private readonly Mock<IProductRepository> _productRepository = new();
     private readonly Mock<IWaybillReportFileWriter> _writer = new();
     private readonly Mock<IReportStorage> _reportStorage = new();
-    private readonly Mock<ITenantSettingsRepository> _tenantSettingsRepository = new();
     private readonly Mock<IMailer> _mailer = new();
 
     private readonly List<MailMessage> _sentMails = [];
@@ -51,30 +49,12 @@ public class WaybillExportProcessorTests
             _productRepository.Object,
             _writer.Object,
             _reportStorage.Object,
-            _tenantSettingsRepository.Object,
             _mailer.Object,
             NullLogger<WaybillExportProcessor>.Instance);
     }
 
-    private void SetupTenant(string tenantId, params string[] recipientEmails)
+    private void SetupTenant(string tenantId)
     {
-        if (recipientEmails.Length > 0)
-        {
-            TenantSettingsEntity settings = TenantSettingsEntity.Create(tenantId).Value;
-            foreach (string email in recipientEmails)
-            {
-                settings.AddRecipient(email);
-            }
-
-            _tenantSettingsRepository.Setup(r => r.GetByTenantIdAsync(tenantId, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(settings);
-        }
-        else
-        {
-            _tenantSettingsRepository.Setup(r => r.GetByTenantIdAsync(tenantId, It.IsAny<CancellationToken>()))
-                .ReturnsAsync((TenantSettingsEntity?)null);
-        }
-
         Waybill waybill = Waybill.Create(tenantId, new DateOnly(2026, 5, 1), $"WB-{tenantId}").Value;
         _waybillRepository.Setup(r => r.ListByTenantIdsAsync(
                 It.Is<IReadOnlyCollection<string>>(c => c.Count == 1 && c.Contains(tenantId)),
@@ -84,14 +64,15 @@ public class WaybillExportProcessorTests
     }
 
     private static WaybillsExportRequestedMessage Message(params string[] tenantIds) =>
-        new(tenantIds, "owner-user", WaybillExportFormat.Csv, new DateTime(2026, 5, 26, 8, 30, 0, DateTimeKind.Utc),
+        new(Guid.Empty, tenantIds, "owner-user", WaybillExportFormat.Csv,
+            new DateTime(2026, 5, 26, 8, 30, 0, DateTimeKind.Utc),
             null, null, null, null);
 
     [Fact]
     public async Task ProcessAsync_WithMultipleTenants_UploadsOneReportPerTenant()
     {
-        SetupTenant("partner-a", "a@example.com");
-        SetupTenant("partner-b", "b@example.com");
+        SetupTenant("partner-a");
+        SetupTenant("partner-b");
 
         await _processor.ProcessAsync(Message("partner-a", "partner-b"), CancellationToken.None);
 
@@ -105,47 +86,28 @@ public class WaybillExportProcessorTests
     }
 
     [Fact]
-    public async Task ProcessAsync_SendsSeparateEmailsPerTenant_WithoutMixingRecipients()
+    public async Task ProcessAsync_SendsEachPartnersReportToItsTaggedMailbox()
     {
-        SetupTenant("partner-a", "a@example.com");
-        SetupTenant("partner-b", "b@example.com");
+        SetupTenant("partner-a");
+        SetupTenant("partner-b");
 
         await _processor.ProcessAsync(Message("partner-a", "partner-b"), CancellationToken.None);
 
         _sentMails.Should().HaveCount(2);
 
-        MailMessage mailA = _sentMails.Single(m => m.To.Contains("a@example.com"));
-        MailMessage mailB = _sentMails.Single(m => m.To.Contains("b@example.com"));
+        // TEMPORARY: every export is routed to weehongkane+{tenantId}@gmail.com,
+        // tagged per partner, regardless of configured recipients.
+        MailMessage mailA = _sentMails.Single(m => m.To.Contains("weehongkane+partner-a@gmail.com"));
+        MailMessage mailB = _sentMails.Single(m => m.To.Contains("weehongkane+partner-b@gmail.com"));
 
-        mailA.To.Should().ContainSingle().Which.Should().Be("a@example.com");
-        mailB.To.Should().ContainSingle().Which.Should().Be("b@example.com");
-    }
-
-    [Fact]
-    public async Task ProcessAsync_TenantWithNoActiveRecipients_IsSkipped_AndOthersContinue()
-    {
-        SetupTenant("partner-a"); // no recipients configured
-        SetupTenant("partner-b", "b@example.com");
-
-        await _processor.ProcessAsync(Message("partner-a", "partner-b"), CancellationToken.None);
-
-        _reportStorage.Verify(s => s.UploadAsync(
-            It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
-            Times.Once);
-        _mailer.Verify(m => m.SendAsync(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()), Times.Once);
-        _uploadedKeys.Should().OnlyContain(k => k.Contains("waybills/partner-b/"));
-
-        // The skipped tenant's waybills are never even queried.
-        _waybillRepository.Verify(r => r.ListByTenantIdsAsync(
-            It.Is<IReadOnlyCollection<string>>(c => c.Contains("partner-a")),
-            It.IsAny<DateOnly?>(), It.IsAny<DateOnly?>(), It.IsAny<WaybillStatus?>(),
-            It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+        mailA.To.Should().ContainSingle().Which.Should().Be("weehongkane+partner-a@gmail.com");
+        mailB.To.Should().ContainSingle().Which.Should().Be("weehongkane+partner-b@gmail.com");
     }
 
     [Fact]
     public async Task ProcessAsync_EmailContainsDownloadLinkAndNoAttachment()
     {
-        SetupTenant("partner-a", "a@example.com");
+        SetupTenant("partner-a");
 
         await _processor.ProcessAsync(Message("partner-a"), CancellationToken.None);
 

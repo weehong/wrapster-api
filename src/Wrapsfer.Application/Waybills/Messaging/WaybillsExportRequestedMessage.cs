@@ -4,6 +4,7 @@ using Wrapsfer.Domain.Enums;
 namespace Wrapsfer.Application.Waybills.Messaging;
 
 public sealed record WaybillsExportRequestedMessage(
+    Guid JobId,
     IReadOnlyList<string> TenantIds,
     string? RequestedBy,
     WaybillExportFormat Format,
@@ -11,7 +12,8 @@ public sealed record WaybillsExportRequestedMessage(
     DateOnly? From,
     DateOnly? To,
     WaybillStatus? Status,
-    string? Search)
+    string? Search,
+    IReadOnlyList<string>? RecipientEmails = null)
 {
-    public const string QueueName = "waybills.export";
+    public const string QueueName = "wrapsfer.report";
 }

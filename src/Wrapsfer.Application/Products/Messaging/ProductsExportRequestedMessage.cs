@@ -8,5 +8,5 @@ public sealed record ProductsExportRequestedMessage(
     ProductFileFormat Format,
     DateTime RequestedAt)
 {
-    public const string QueueName = "products.export";
+    public const string QueueName = "wrapsfer.products";
 }
