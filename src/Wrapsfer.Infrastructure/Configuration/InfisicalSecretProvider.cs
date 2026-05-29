@@ -10,7 +10,20 @@ public static class InfisicalSecretProvider
 {
     private static readonly Dictionary<string, string> SecretConfigMappings = new()
     {
-        ["RESEND_API_KEY"] = "Resend:ApiKey"
+        ["RESEND_API_KEY"] = "Mailing:Resend:ApiKey",
+        ["REPORT_STORAGE_S3_BUCKET"] = "ReportStorage:S3:BucketName",
+        ["REPORT_STORAGE_S3_REGION"] = "ReportStorage:S3:Region",
+        ["REPORT_STORAGE_S3_PREFIX"] = "ReportStorage:S3:Prefix",
+        ["REPORT_STORAGE_S3_TTL_MINUTES"] = "ReportStorage:S3:DownloadUrlTtlMinutes"
+    };
+
+    // The AWS SDK reads credentials only from process env vars / shared profiles / IMDS — never from
+    // IConfiguration — so these secrets are exported as process env vars before the IAmazonS3 factory runs.
+    private static readonly HashSet<string> EnvironmentVariablePassthrough = new(StringComparer.Ordinal)
+    {
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY",
+        "AWS_REGION"
     };
 
     public static IServiceCollection AddInfisicalSecrets(
@@ -134,6 +147,22 @@ public static class InfisicalSecretProvider
                 logger.LogDebug("Mapped Infisical secret '{SecretName}' -> {ConfigPath}",
                     secret.SecretKey, configPath);
             }
+
+            if (EnvironmentVariablePassthrough.Contains(secret.SecretKey))
+            {
+                Environment.SetEnvironmentVariable(secret.SecretKey, secret.SecretValue);
+                logger.LogDebug("Set Infisical secret '{SecretName}' as process environment variable",
+                    secret.SecretKey);
+            }
+        }
+
+        // REPORT_STORAGE_S3_REGION doubles as AWS_REGION in compose.prod.yaml. Mirror the same fallback
+        // here so the AWS SDK can locate the region even if only REPORT_STORAGE_S3_REGION is stored in Infisical.
+        if (configOverrides.TryGetValue("ReportStorage:S3:Region", out string? region)
+            && !string.IsNullOrWhiteSpace(region)
+            && string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("AWS_REGION")))
+        {
+            Environment.SetEnvironmentVariable("AWS_REGION", region);
         }
 
         if (configOverrides.Count > 0)

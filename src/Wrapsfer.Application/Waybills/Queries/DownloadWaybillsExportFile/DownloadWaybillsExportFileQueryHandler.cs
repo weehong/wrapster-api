@@ -41,11 +41,22 @@ internal sealed class DownloadWaybillsExportFileQueryHandler(
             .ToDictionary(p => p.Id);
 
         List<WaybillReportRow> rows = waybills.SelectMany(w => ToRows(w, productsById)).ToList();
-        byte[] fileBytes = await writer.WriteAsync(rows, WaybillExportFormat.Pdf, cancellationToken);
-        string fileName = $"waybills-report-{DateTime.UtcNow:yyyyMMdd-HHmmss}.pdf";
+        byte[] fileBytes = await writer.WriteAsync(rows, request.Format, cancellationToken);
+        (string contentType, string extension) = GetFileInfo(request.Format);
+        string fileName = $"waybills-report-{DateTime.UtcNow:yyyyMMdd-HHmmss}{extension}";
 
-        return new DownloadWaybillsExportFileResult(fileBytes, "application/pdf", fileName);
+        return new DownloadWaybillsExportFileResult(fileBytes, contentType, fileName);
     }
+
+    private static (string ContentType, string Extension) GetFileInfo(WaybillExportFormat format) =>
+        format switch
+        {
+            WaybillExportFormat.Csv => ("text/csv", ".csv"),
+            WaybillExportFormat.Xlsx =>
+                ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsx"),
+            WaybillExportFormat.Pdf => ("application/pdf", ".pdf"),
+            _ => throw new ArgumentOutOfRangeException(nameof(format), format, null)
+        };
 
     private async Task<Result<IReadOnlyList<string>>> ResolveTenantIdsAsync(
         DownloadWaybillsExportFileQuery request,

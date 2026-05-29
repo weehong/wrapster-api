@@ -57,6 +57,12 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 
 WORKDIR /app
 
+# CJK font for PDF report rendering. QuestPDF/SkiaSharp resolves "Noto Sans CJK SC" through
+# fontconfig at render time; without it, Chinese characters in waybill PDFs become tofu.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends fonts-noto-cjk \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy published API
 COPY --from=build \
     --chown=app:app \

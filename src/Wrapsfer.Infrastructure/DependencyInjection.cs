@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Wrapsfer.Application.Abstractions;
 using Wrapsfer.Application.Abstractions.FileProcessing;
 using Wrapsfer.Application.Abstractions.IdentityProvisioning;
+using Wrapsfer.Application.Waybills.Options;
 using Wrapsfer.Domain.Abstractions;
 using Wrapsfer.Domain.Repositories;
 using Wrapsfer.Infrastructure.Authentication;
@@ -64,6 +65,9 @@ public static class DependencyInjection
         services.AddKeycloakAuthentication(configuration);
         services.AddQueueService(configuration);
         services.AddReportStorage(configuration);
+
+        services.AddOptions<WaybillEmailReportOptions>()
+            .Bind(configuration.GetSection(WaybillEmailReportOptions.SectionName));
 
         services.AddSingleton<CsvProductFileParser>();
         services.AddSingleton<ExcelProductFileParser>();

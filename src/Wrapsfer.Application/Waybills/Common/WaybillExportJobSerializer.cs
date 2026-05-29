@@ -21,15 +21,4 @@ internal static class WaybillExportJobSerializer
 
         return JsonSerializer.Deserialize<List<string>>(json, Options) ?? [];
     }
-
-    public static IReadOnlyList<string>? DeserializeEmails(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return null;
-        }
-
-        List<string>? emails = JsonSerializer.Deserialize<List<string>>(json, Options);
-        return emails is { Count: > 0 } ? emails : null;
-    }
 }

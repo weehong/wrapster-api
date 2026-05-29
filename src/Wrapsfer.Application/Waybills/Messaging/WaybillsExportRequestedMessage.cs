@@ -12,8 +12,7 @@ public sealed record WaybillsExportRequestedMessage(
     DateOnly? From,
     DateOnly? To,
     WaybillStatus? Status,
-    string? Search,
-    IReadOnlyList<string>? RecipientEmails = null)
+    string? Search)
 {
     public const string QueueName = "wrapsfer.report";
 }

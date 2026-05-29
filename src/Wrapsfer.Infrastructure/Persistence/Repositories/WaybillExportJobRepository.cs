@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Wrapsfer.Domain.Entities;
 using Wrapsfer.Domain.Repositories;
@@ -6,6 +7,11 @@ namespace Wrapsfer.Infrastructure.Persistence.Repositories;
 
 internal sealed class WaybillExportJobRepository(ApplicationDbContext context) : IWaybillExportJobRepository
 {
+    private static readonly JsonSerializerOptions s_jsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
     public async Task<WaybillExportJob?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         await context.WaybillExportJobs.FirstOrDefaultAsync(j => j.Id == id, cancellationToken);
 
@@ -30,6 +36,8 @@ internal sealed class WaybillExportJobRepository(ApplicationDbContext context) :
     }
 
     public void Add(WaybillExportJob job) => context.WaybillExportJobs.Add(job);
+
+    public void Remove(WaybillExportJob job) => context.WaybillExportJobs.Remove(job);
 
     public async Task MarkProcessingAsync(Guid id, CancellationToken cancellationToken = default)
     {
@@ -62,5 +70,17 @@ internal sealed class WaybillExportJobRepository(ApplicationDbContext context) :
         }
 
         job.MarkFailed(reason);
+    }
+
+    public async Task RecordObjectKeysAsync(
+        Guid id, IReadOnlyList<string> objectKeys, CancellationToken cancellationToken = default)
+    {
+        WaybillExportJob? job = await GetByIdAsync(id, cancellationToken);
+        if (job is null || objectKeys.Count == 0)
+        {
+            return;
+        }
+
+        job.RecordObjectKeys(JsonSerializer.Serialize(objectKeys, s_jsonOptions));
     }
 }

@@ -1,5 +1,6 @@
 using Wrapsfer.Domain.Common;
 using Wrapsfer.Domain.Enums;
+using Wrapsfer.Domain.Errors;
 
 namespace Wrapsfer.Domain.Entities;
 
@@ -16,7 +17,7 @@ public sealed class WaybillExportJob : AuditableEntity
     public DateOnly? FromDate { get; private set; }
     public DateOnly? ToDate { get; private set; }
     public string PartnerTenantIdsJson { get; private set; } = "[]";
-    public string? RecipientEmailsJson { get; private set; }
+    public string ReportObjectKeysJson { get; private set; } = "[]";
     public DateTime? CompletedAt { get; private set; }
     public string? FailureReason { get; private set; }
 
@@ -26,8 +27,7 @@ public sealed class WaybillExportJob : AuditableEntity
         string format,
         DateOnly? from,
         DateOnly? to,
-        string partnerTenantIdsJson,
-        string? recipientEmailsJson) =>
+        string partnerTenantIdsJson) =>
         new()
         {
             RequestedByUserId = requestedByUserId,
@@ -36,8 +36,7 @@ public sealed class WaybillExportJob : AuditableEntity
             Status = WaybillExportJobStatus.Queued,
             FromDate = from,
             ToDate = to,
-            PartnerTenantIdsJson = partnerTenantIdsJson,
-            RecipientEmailsJson = recipientEmailsJson
+            PartnerTenantIdsJson = partnerTenantIdsJson
         };
 
     public void MarkProcessing() => Status = WaybillExportJobStatus.Processing;
@@ -55,4 +54,21 @@ public sealed class WaybillExportJob : AuditableEntity
         CompletedAt = DateTime.UtcNow;
         FailureReason = reason.Length > 512 ? reason[..512] : reason;
     }
+
+    public Result MarkRetrying()
+    {
+        if (Status != WaybillExportJobStatus.Failed)
+        {
+            return Result.Failure(WaybillExportJobErrors.CannotRetryNonFailed);
+        }
+
+        Status = WaybillExportJobStatus.Retrying;
+        FailureReason = null;
+        CompletedAt = null;
+        ReportObjectKeysJson = "[]";
+        return Result.Success();
+    }
+
+    public void RecordObjectKeys(string objectKeysJson) =>
+        ReportObjectKeysJson = objectKeysJson;
 }

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Wrapsfer.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Wrapsfer.Infrastructure.Persistence;
 namespace Wrapsfer.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260528170154_AddWaybillExportJobObjectKeys")]
+    partial class AddWaybillExportJobObjectKeys
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -524,6 +527,10 @@ namespace Wrapsfer.Infrastructure.Migrations
 
                     b.Property<string>("PartnerTenantIdsJson")
                         .IsRequired()
+                        .HasMaxLength(8000)
+                        .HasColumnType("character varying(8000)");
+
+                    b.Property<string>("RecipientEmailsJson")
                         .HasMaxLength(8000)
                         .HasColumnType("character varying(8000)");
 
