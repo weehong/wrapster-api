@@ -8,13 +8,13 @@ internal sealed class CompositeWaybillReportFileWriter(
     ExcelWaybillReportFileWriter excelWriter,
     PdfWaybillReportFileWriter pdfWriter) : IWaybillReportFileWriter
 {
-    public Task<byte[]> WriteAsync(IReadOnlyList<WaybillReportRow> rows, WaybillExportFormat format,
-        CancellationToken cancellationToken = default) =>
+    public Task<byte[]> WriteAsync(IReadOnlyList<WaybillReportRow> rows, WaybillReportMetadata metadata,
+        WaybillExportFormat format, CancellationToken cancellationToken = default) =>
         format switch
         {
-            WaybillExportFormat.Csv => csvWriter.WriteAsync(rows, format, cancellationToken),
-            WaybillExportFormat.Xlsx => excelWriter.WriteAsync(rows, format, cancellationToken),
-            WaybillExportFormat.Pdf => pdfWriter.WriteAsync(rows, format, cancellationToken),
+            WaybillExportFormat.Csv => csvWriter.WriteAsync(rows, metadata, format, cancellationToken),
+            WaybillExportFormat.Xlsx => excelWriter.WriteAsync(rows, metadata, format, cancellationToken),
+            WaybillExportFormat.Pdf => pdfWriter.WriteAsync(rows, metadata, format, cancellationToken),
             _ => throw new ArgumentOutOfRangeException(nameof(format), format, null)
         };
 }

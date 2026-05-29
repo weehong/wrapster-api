@@ -41,7 +41,7 @@
       "implicitFlowEnabled": false,
       "serviceAccountsEnabled": false,
       "protocol": "openid-connect",
-      "webOrigins": [],
+      "webOrigins": ["https://app.wrapsfer.dev"],
       "defaultClientScopes": [
         "basic",
         "profile",

@@ -15,14 +15,25 @@ public class WaybillReportFileWriterTests
             new DateTime(2026, 5, 24, 9, 0, 0, DateTimeKind.Utc), "user-1", "BC1", "Widget", 3)
     ];
 
+    private static WaybillReportMetadata SampleMetadata() =>
+        new(new DateOnly(2026, 5, 24), new DateOnly(2026, 5, 24), "Vernon Wee Hong KOH",
+            new DateTime(2026, 5, 25, 0, 52, 47, DateTimeKind.Utc));
+
     [Fact]
-    public async Task Csv_Writes_Waybill_Report_Fields()
+    public async Task Csv_Writes_Summary_Sections_And_Detail_Fields()
     {
         CsvWaybillReportFileWriter writer = new();
 
-        byte[] bytes = await writer.WriteAsync(SampleRows(), WaybillExportFormat.Csv);
+        byte[] bytes = await writer.WriteAsync(SampleRows(), SampleMetadata(), WaybillExportFormat.Csv);
         string csv = System.Text.Encoding.UTF8.GetString(bytes);
 
+        // Aggregate sections.
+        csv.Should().Contain("Summary");
+        csv.Should().Contain("Total Items Scanned");
+        csv.Should().Contain("Vernon Wee Hong KOH");
+        csv.Should().Contain("Daily Summary");
+        csv.Should().Contain("Total Packed Product Quantities");
+        // Full detail dump retained.
         csv.Should().Contain("tenantId");
         csv.Should().Contain("partner-a");
         csv.Should().Contain("WB-100");
@@ -30,14 +41,24 @@ public class WaybillReportFileWriterTests
     }
 
     [Fact]
-    public async Task Xlsx_Writes_Waybill_Report_Fields()
+    public async Task Xlsx_Writes_Summary_Sheets_And_Detail_Sheet()
     {
         ExcelWaybillReportFileWriter writer = new();
 
-        byte[] bytes = await writer.WriteAsync(SampleRows(), WaybillExportFormat.Xlsx);
+        byte[] bytes = await writer.WriteAsync(SampleRows(), SampleMetadata(), WaybillExportFormat.Xlsx);
         using MemoryStream stream = new(bytes);
         using XLWorkbook workbook = new(stream);
 
+        // Aggregate worksheets.
+        workbook.TryGetWorksheet("Summary", out _).Should().BeTrue();
+        workbook.TryGetWorksheet("Daily Summary", out _).Should().BeTrue();
+        workbook.TryGetWorksheet("Product Quantities", out _).Should().BeTrue();
+
+        IXLWorksheet summary = workbook.Worksheet("Summary");
+        summary.Cell(1, 1).GetString().Should().Be("Metric");
+        summary.Cell(2, 1).GetString().Should().Be("Report Period");
+
+        // Full detail dump retained.
         IXLWorksheet sheet = workbook.Worksheet("Waybill Report");
         sheet.Cell(1, 1).GetString().Should().Be("tenantId");
         sheet.Cell(2, 1).GetString().Should().Be("partner-a");
@@ -50,7 +71,7 @@ public class WaybillReportFileWriterTests
     {
         PdfWaybillReportFileWriter writer = new();
 
-        byte[] bytes = await writer.WriteAsync(SampleRows(), WaybillExportFormat.Pdf);
+        byte[] bytes = await writer.WriteAsync(SampleRows(), SampleMetadata(), WaybillExportFormat.Pdf);
 
         // QuestPDF compresses content streams by default, so we can't assert on the body text via
         // a substring search. Verify the magic header + EOF marker to confirm a syntactically

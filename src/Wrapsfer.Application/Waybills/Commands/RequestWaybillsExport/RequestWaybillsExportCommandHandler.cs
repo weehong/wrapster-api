@@ -72,6 +72,7 @@ internal sealed class RequestWaybillsExportCommandHandler(
             job.Id,
             tenantIds,
             tenantContext.UserId,
+            tenantContext.DisplayName,
             request.Format,
             DateTime.UtcNow,
             request.From,

@@ -49,6 +49,7 @@ internal sealed class RetryWaybillsExportCommandHandler(
             job.Id,
             tenantIds,
             tenantContext.UserId,
+            tenantContext.DisplayName,
             format,
             DateTime.UtcNow,
             job.FromDate,

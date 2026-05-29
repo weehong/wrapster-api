@@ -24,8 +24,8 @@ public class WaybillExportProcessorTests
     public WaybillExportProcessorTests()
     {
         _writer.Setup(w => w.WriteAsync(
-                It.IsAny<IReadOnlyList<WaybillReportRow>>(), It.IsAny<WaybillExportFormat>(),
-                It.IsAny<CancellationToken>()))
+                It.IsAny<IReadOnlyList<WaybillReportRow>>(), It.IsAny<WaybillReportMetadata>(),
+                It.IsAny<WaybillExportFormat>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new byte[] { 1, 2, 3 });
 
         _reportStorage.Setup(s => s.UploadAsync(
@@ -56,7 +56,7 @@ public class WaybillExportProcessorTests
     }
 
     private static WaybillsExportRequestedMessage Message(params string[] tenantIds) =>
-        new(Guid.Empty, tenantIds, "owner-user", WaybillExportFormat.Csv,
+        new(Guid.Empty, tenantIds, "owner-user", "Owner User", WaybillExportFormat.Csv,
             new DateTime(2026, 5, 26, 8, 30, 0, DateTimeKind.Utc),
             null, null, null, null);
 
@@ -98,7 +98,7 @@ public class WaybillExportProcessorTests
         SetupTenant("partner-a");
 
         WaybillsExportRequestedMessage pdfMessage = new(
-            Guid.Empty, ["partner-a"], "owner-user", WaybillExportFormat.Pdf,
+            Guid.Empty, ["partner-a"], "owner-user", "Owner User", WaybillExportFormat.Pdf,
             new DateTime(2026, 5, 26, 8, 30, 0, DateTimeKind.Utc),
             null, null, null, null);
 

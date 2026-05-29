@@ -37,8 +37,8 @@ public class EmailWaybillsReportCommandHandlerTests
         _tenantContext.Setup(x => x.UserId).Returns(OwnerUserId);
 
         _writer.Setup(w => w.WriteAsync(
-                It.IsAny<IReadOnlyList<WaybillReportRow>>(), It.IsAny<WaybillExportFormat>(),
-                It.IsAny<CancellationToken>()))
+                It.IsAny<IReadOnlyList<WaybillReportRow>>(), It.IsAny<WaybillReportMetadata>(),
+                It.IsAny<WaybillExportFormat>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new byte[] { 1, 2, 3, 4 });
 
         _reportStorage.Setup(s => s.UploadAsync(

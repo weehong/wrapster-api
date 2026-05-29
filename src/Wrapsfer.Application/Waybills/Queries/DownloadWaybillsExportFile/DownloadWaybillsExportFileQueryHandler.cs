@@ -1,3 +1,4 @@
+using Wrapsfer.Application.Abstractions;
 using Wrapsfer.Application.Abstractions.FileProcessing;
 using Wrapsfer.Application.Abstractions.Messaging;
 using Wrapsfer.Application.Waybills.Commands.RequestWaybillsExport;
@@ -12,7 +13,8 @@ internal sealed class DownloadWaybillsExportFileQueryHandler(
     IWaybillRepository waybillRepository,
     IProductRepository productRepository,
     IPartnerTenantRepository partnerTenantRepository,
-    IWaybillReportFileWriter writer) : IQueryHandler<DownloadWaybillsExportFileQuery, DownloadWaybillsExportFileResult>
+    IWaybillReportFileWriter writer,
+    ITenantContext tenantContext) : IQueryHandler<DownloadWaybillsExportFileQuery, DownloadWaybillsExportFileResult>
 {
     private const int ExportPageSize = 500;
 
@@ -41,7 +43,14 @@ internal sealed class DownloadWaybillsExportFileQueryHandler(
             .ToDictionary(p => p.Id);
 
         List<WaybillReportRow> rows = waybills.SelectMany(w => ToRows(w, productsById)).ToList();
-        byte[] fileBytes = await writer.WriteAsync(rows, request.Format, cancellationToken);
+
+        WaybillReportMetadata metadata = new(
+            request.From,
+            request.To,
+            tenantContext.DisplayName ?? tenantContext.Username,
+            DateTime.UtcNow);
+
+        byte[] fileBytes = await writer.WriteAsync(rows, metadata, request.Format, cancellationToken);
         (string contentType, string extension) = GetFileInfo(request.Format);
         string fileName = $"waybills-report-{DateTime.UtcNow:yyyyMMdd-HHmmss}{extension}";
 

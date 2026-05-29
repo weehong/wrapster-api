@@ -74,7 +74,13 @@ public sealed class WaybillExportProcessor(
 
         List<WaybillReportRow> rows = waybills.SelectMany(w => ToRows(w, productsById)).ToList();
 
-        byte[] fileBytes = await writer.WriteAsync(rows, message.Format, cancellationToken);
+        WaybillReportMetadata metadata = new(
+            message.From,
+            message.To,
+            message.RequestedByName ?? message.RequestedBy,
+            message.RequestedAt);
+
+        byte[] fileBytes = await writer.WriteAsync(rows, metadata, message.Format, cancellationToken);
         (string contentType, string extension) = GetFileInfo(message.Format);
         string fileName = $"waybills-report-{message.RequestedAt:yyyyMMdd-HHmmss}{extension}";
 

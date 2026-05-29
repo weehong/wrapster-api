@@ -53,9 +53,16 @@ internal sealed class EmailWaybillsReportCommandHandler(
             .ToDictionary(p => p.Id);
 
         List<WaybillReportRow> rows = waybills.SelectMany(w => ToRows(w, productsById)).ToList();
-        byte[] fileBytes = await writer.WriteAsync(rows, request.Format, cancellationToken);
-        (string contentType, string extension) = GetFileInfo(request.Format);
         DateTime requestedAt = DateTime.UtcNow;
+
+        WaybillReportMetadata metadata = new(
+            request.From,
+            request.To,
+            tenantContext.DisplayName ?? tenantContext.Username,
+            requestedAt);
+
+        byte[] fileBytes = await writer.WriteAsync(rows, metadata, request.Format, cancellationToken);
+        (string contentType, string extension) = GetFileInfo(request.Format);
         string fileName = $"waybills-report-{requestedAt:yyyyMMdd-HHmmss}{extension}";
 
         bool useAttachment = rows.Count <= _options.AttachmentRowThreshold

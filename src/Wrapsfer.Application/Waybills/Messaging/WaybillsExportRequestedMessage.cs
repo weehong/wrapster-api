@@ -7,6 +7,7 @@ public sealed record WaybillsExportRequestedMessage(
     Guid JobId,
     IReadOnlyList<string> TenantIds,
     string? RequestedBy,
+    string? RequestedByName,
     WaybillExportFormat Format,
     DateTime RequestedAt,
     DateOnly? From,

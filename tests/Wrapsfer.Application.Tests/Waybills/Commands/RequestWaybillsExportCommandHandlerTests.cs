@@ -26,6 +26,7 @@ public class RequestWaybillsExportCommandHandlerTests
     {
         _tenantContext.Setup(x => x.UserId).Returns(OwnerUserId);
         _tenantContext.Setup(x => x.TenantId).Returns("owner-tenant");
+        _tenantContext.Setup(x => x.DisplayName).Returns("Vernon Wee Hong KOH");
 
         _unitOfWork
             .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
@@ -64,6 +65,7 @@ public class RequestWaybillsExportCommandHandlerTests
         result.IsSuccess.Should().BeTrue();
         _published.Should().NotBeNull();
         _published!.TenantIds.Should().BeEquivalentTo("partner-a", "partner-b");
+        _published.RequestedByName.Should().Be("Vernon Wee Hong KOH");
         _published.JobId.Should().NotBe(Guid.Empty);
         _jobRepository.Verify(r => r.Add(It.IsAny<WaybillExportJob>()), Times.Once);
         _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);

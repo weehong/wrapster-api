@@ -23,9 +23,11 @@ internal sealed class PdfWaybillReportFileWriter : IWaybillReportFileWriter
         QuestPDF.Settings.License = LicenseType.Community;
     }
 
-    public Task<byte[]> WriteAsync(IReadOnlyList<WaybillReportRow> rows, WaybillExportFormat format,
-        CancellationToken cancellationToken = default)
+    public Task<byte[]> WriteAsync(IReadOnlyList<WaybillReportRow> rows, WaybillReportMetadata metadata,
+        WaybillExportFormat format, CancellationToken cancellationToken = default)
     {
+        WaybillReport report = WaybillReportModelBuilder.Build(rows, metadata);
+
         byte[] pdf = Document.Create(container =>
         {
             container.Page(page =>
@@ -33,8 +35,8 @@ internal sealed class PdfWaybillReportFileWriter : IWaybillReportFileWriter
                 page.Size(PageSizes.A4);
                 page.Margin(36);
                 page.DefaultTextStyle(text => text.FontFamily(FontFamily).FontSize(9));
-                page.Header().Element(BuildHeader);
-                page.Content().Element(content => BuildTable(content, rows));
+                page.Header().Element(header => BuildHeader(header, report.Summary));
+                page.Content().Element(content => BuildContent(content, report));
                 page.Footer().AlignRight().Text(footer =>
                 {
                     footer.Span("Page ");
@@ -48,72 +50,195 @@ internal sealed class PdfWaybillReportFileWriter : IWaybillReportFileWriter
         return Task.FromResult(pdf);
     }
 
-    private static void BuildHeader(IContainer container)
+    private static void BuildHeader(IContainer container, WaybillReportSummary summary)
     {
         container.PaddingBottom(12).Column(column =>
         {
-            column.Item().Text("Waybill Report").FontSize(16).SemiBold();
-            column.Item().Text($"Generated {DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC")
-                .FontSize(9).FontColor(Colors.Grey.Darken1);
-        });
-    }
-
-    private static void BuildTable(IContainer container, IReadOnlyList<WaybillReportRow> rows)
-    {
-        if (rows.Count == 0)
-        {
-            container.AlignCenter().PaddingTop(40)
-                .Text("No waybills matched the selected filters.")
-                .FontColor(Colors.Grey.Darken2);
-            return;
-        }
-
-        container.Table(table =>
-        {
-            table.ColumnsDefinition(columns =>
+            column.Item().AlignCenter().Text("Waybill Report").FontSize(18).SemiBold();
+            if (!string.IsNullOrWhiteSpace(summary.ReportPeriod))
             {
-                columns.RelativeColumn(1.4f); // Tenant
-                columns.RelativeColumn(1.1f); // Date
-                columns.RelativeColumn(1.4f); // Waybill
-                columns.RelativeColumn(1.0f); // Status
-                columns.RelativeColumn(3.0f); // Product
-                columns.RelativeColumn(0.7f); // Qty
-            });
-
-            table.Header(header =>
-            {
-                foreach (string heading in new[] { "Tenant", "Date", "Waybill", "Status", "Product", "Qty" })
-                {
-                    header.Cell().Background(Colors.Grey.Lighten3).Padding(4)
-                        .Text(heading).SemiBold();
-                }
-            });
-
-            foreach (WaybillReportRow row in rows)
-            {
-                BodyCell(table, row.TenantId);
-                BodyCell(table, row.PackagingDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
-                BodyCell(table, row.WaybillNumber);
-                BodyCell(table, row.Status.ToString());
-                BodyCell(table, BuildProductLabel(row));
-                BodyCell(table, row.Quantity?.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
+                column.Item().AlignCenter().Text(summary.ReportPeriod)
+                    .FontSize(11).FontColor(Colors.Grey.Darken1);
             }
         });
     }
 
-    private static string BuildProductLabel(WaybillReportRow row)
+    private static void BuildContent(IContainer container, WaybillReport report)
     {
-        if (string.IsNullOrWhiteSpace(row.ProductName))
+        container.Column(column =>
         {
-            return row.ProductBarcode ?? string.Empty;
-        }
+            column.Spacing(18);
 
-        return string.IsNullOrWhiteSpace(row.ProductBarcode)
-            ? row.ProductName!
-            : $"{row.ProductName} ({row.ProductBarcode})";
+            column.Item().Element(section => BuildSummarySection(section, report.Summary));
+            column.Item().Element(section => BuildDailySummarySection(section, report.DailySummaries));
+            column.Item().Element(section => BuildProductQuantitiesSection(section, report.ProductQuantities));
+            column.Item().Element(section => BuildDetailsSection(section, report.Details));
+        });
     }
+
+    private static void BuildSummarySection(IContainer container, WaybillReportSummary summary)
+    {
+        container.Column(column =>
+        {
+            SectionHeading(column, "Summary");
+            column.Item().Table(table =>
+            {
+                table.ColumnsDefinition(columns =>
+                {
+                    columns.RelativeColumn(1f);
+                    columns.RelativeColumn(1f);
+                });
+
+                HeaderRow(table, "Metric", "Value");
+
+                SummaryRow(table, "Report Period", summary.ReportPeriod);
+                SummaryRow(table, "Total Waybill Records",
+                    summary.TotalWaybillRecords.ToString(CultureInfo.InvariantCulture));
+                SummaryRow(table, "Total Items Scanned",
+                    summary.TotalItemsScanned.ToString(CultureInfo.InvariantCulture));
+                SummaryRow(table, "Unique Products",
+                    summary.UniqueProducts.ToString(CultureInfo.InvariantCulture));
+                SummaryRow(table, "Exported By", summary.ExportedBy);
+                SummaryRow(table, "Generated At",
+                    summary.GeneratedAtUtc.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture));
+            });
+        });
+    }
+
+    private static void BuildDailySummarySection(
+        IContainer container, IReadOnlyList<WaybillDailySummary> dailySummaries)
+    {
+        container.Column(column =>
+        {
+            SectionHeading(column, "Daily Summary");
+            column.Item().Table(table =>
+            {
+                table.ColumnsDefinition(columns =>
+                {
+                    columns.RelativeColumn(2f);
+                    columns.RelativeColumn(1.5f);
+                    columns.RelativeColumn(1.5f);
+                });
+
+                HeaderRow(table, "Date", "Waybill Records", "Items Scanned");
+
+                foreach (WaybillDailySummary daily in dailySummaries)
+                {
+                    BodyCell(table, daily.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+                    BodyCellRight(table, daily.WaybillRecords.ToString(CultureInfo.InvariantCulture));
+                    BodyCellRight(table, daily.ItemsScanned.ToString(CultureInfo.InvariantCulture));
+                }
+            });
+        });
+    }
+
+    private static void BuildProductQuantitiesSection(
+        IContainer container, IReadOnlyList<WaybillProductQuantity> productQuantities)
+    {
+        container.Column(column =>
+        {
+            SectionHeading(column, "Total Packed Product Quantities");
+            column.Item().Table(table =>
+            {
+                table.ColumnsDefinition(columns =>
+                {
+                    columns.ConstantColumn(28f);
+                    columns.RelativeColumn(3f);
+                    columns.RelativeColumn(1.5f);
+                    columns.RelativeColumn(1f);
+                });
+
+                HeaderRow(table, "#", "Product Name", "Barcode", "Total Qty");
+
+                foreach (WaybillProductQuantity product in productQuantities)
+                {
+                    BodyCell(table, product.Rank.ToString(CultureInfo.InvariantCulture));
+                    BodyCell(table, product.ProductName);
+                    BodyCell(table, product.Barcode ?? string.Empty);
+                    BodyCellRight(table, product.TotalQuantity.ToString(CultureInfo.InvariantCulture));
+                }
+            });
+        });
+    }
+
+    private static void BuildDetailsSection(IContainer container, IReadOnlyList<WaybillDetailRow> details)
+    {
+        container.Column(column =>
+        {
+            SectionHeading(column, "Details");
+
+            if (details.Count == 0)
+            {
+                column.Item().PaddingTop(8)
+                    .Text("No scanned items matched the selected filters.")
+                    .FontColor(Colors.Grey.Darken2);
+                return;
+            }
+
+            column.Item().Table(table =>
+            {
+                table.ColumnsDefinition(columns =>
+                {
+                    columns.ConstantColumn(32f);
+                    columns.RelativeColumn(1.3f);
+                    columns.RelativeColumn(1f);
+                    columns.RelativeColumn(2f);
+                    columns.RelativeColumn(1.4f);
+                    columns.RelativeColumn(3f);
+                });
+
+                table.Header(header =>
+                {
+                    HeaderCell(header.Cell(), "#");
+                    HeaderCell(header.Cell(), "Date");
+                    HeaderCell(header.Cell(), "Time");
+                    HeaderCell(header.Cell(), "Waybill");
+                    HeaderCell(header.Cell(), "Barcode");
+                    HeaderCell(header.Cell(), "Product Name");
+                });
+
+                foreach (WaybillDetailRow detail in details)
+                {
+                    BodyCell(table, detail.Index.ToString(CultureInfo.InvariantCulture));
+                    BodyCell(table, detail.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+                    BodyCell(table, detail.Time?.ToString("HH:mm:ss", CultureInfo.InvariantCulture) ?? string.Empty);
+                    BodyCell(table, detail.WaybillNumber);
+                    BodyCell(table, detail.Barcode ?? string.Empty);
+                    BodyCell(table, detail.ProductName);
+                }
+            });
+        });
+    }
+
+    private static void SectionHeading(ColumnDescriptor column, string title) =>
+        column.Item().PaddingBottom(6).Text(title).FontSize(13).SemiBold();
+
+    private static void SummaryRow(TableDescriptor table, string metric, string value)
+    {
+        BodyCell(table, metric);
+        BodyCell(table, value);
+    }
+
+    private static void HeaderRow(TableDescriptor table, params string[] headings)
+    {
+        table.Header(header =>
+        {
+            foreach (string heading in headings)
+            {
+                HeaderCell(header.Cell(), heading);
+            }
+        });
+    }
+
+    private static void HeaderCell(IContainer cell, string text) =>
+        cell.Background(Colors.Grey.Darken3).Padding(5)
+            .Text(text).FontColor(Colors.White).SemiBold();
 
     private static void BodyCell(TableDescriptor table, string text) =>
         table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2)
-            .Padding(4).Text(text);
+            .Padding(5).Text(text);
+
+    private static void BodyCellRight(TableDescriptor table, string text) =>
+        table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2)
+            .Padding(5).AlignRight().Text(text);
 }

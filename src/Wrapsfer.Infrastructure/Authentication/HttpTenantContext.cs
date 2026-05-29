@@ -22,6 +22,10 @@ public sealed class HttpTenantContext : ITenantContext
         _httpContextAccessor.HttpContext?.User.FindFirstValue("preferred_username")
         ?? throw new InvalidOperationException("User is not authenticated.");
 
+    public string? DisplayName =>
+        _httpContextAccessor.HttpContext?.User.FindFirstValue("name")
+        ?? _httpContextAccessor.HttpContext?.User.FindFirstValue("preferred_username");
+
     public string? Email =>
         _httpContextAccessor.HttpContext?.User.FindFirstValue("email");
 
