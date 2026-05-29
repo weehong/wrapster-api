@@ -31,7 +31,6 @@ internal sealed class ListWaybillExportJobsQueryHandler(
                 WaybillExportJobSerializer.DeserializeIds(job.PartnerTenantIdsJson),
                 job.FromDate,
                 job.ToDate,
-                WaybillExportJobSerializer.DeserializeEmails(job.RecipientEmailsJson),
                 job.CreatedAt,
                 job.CompletedAt,
                 job.FailureReason))

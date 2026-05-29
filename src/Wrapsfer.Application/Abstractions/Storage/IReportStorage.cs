@@ -21,4 +21,12 @@ public interface IReportStorage
         byte[] content,
         string contentType,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes the object identified by <paramref name="objectKey"/>. Missing objects are treated
+    /// as success — callers can replay this operation without checking existence first.
+    /// </summary>
+    /// <param name="objectKey">The same report-relative key passed to <see cref="UploadAsync"/>.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    Task DeleteAsync(string objectKey, CancellationToken cancellationToken = default);
 }

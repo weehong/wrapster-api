@@ -1,5 +1,7 @@
 using System.Globalization;
-using System.Text;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 using Wrapsfer.Application.Abstractions.FileProcessing;
 using Wrapsfer.Application.Waybills.Commands.RequestWaybillsExport;
 
@@ -7,125 +9,111 @@ namespace Wrapsfer.Infrastructure.FileProcessing;
 
 internal sealed class PdfWaybillReportFileWriter : IWaybillReportFileWriter
 {
-    private const int RowsPerPage = 34;
+    // Noto Sans CJK SC covers Latin + Simplified Chinese + Japanese + Korean from a single
+    // family, which removes the need for a fallback chain. The Docker runtime image installs
+    // it via the fonts-noto-cjk package; on dev machines fontconfig usually resolves it from
+    // /usr/share/fonts/opentype/noto. If the font is missing at runtime, QuestPDF falls back
+    // to the SkiaSharp default, which still renders Latin but loses CJK glyphs.
+    private const string FontFamily = "Noto Sans CJK SC";
+
+    static PdfWaybillReportFileWriter()
+    {
+        // Static ctor runs once before the first use of this type — earlier than any
+        // QuestPDF.Document.Create call from either the production host or unit tests.
+        QuestPDF.Settings.License = LicenseType.Community;
+    }
 
     public Task<byte[]> WriteAsync(IReadOnlyList<WaybillReportRow> rows, WaybillExportFormat format,
         CancellationToken cancellationToken = default)
     {
-        List<string> pages = BuildPages(rows);
-        byte[] bytes = BuildPdf(pages);
-        return Task.FromResult(bytes);
-    }
-
-    private static List<string> BuildPages(IReadOnlyList<WaybillReportRow> rows)
-    {
-        List<string> rowLines = rows.Count == 0
-            ? ["No waybills matched the selected filters."]
-            : rows.Select(ToLine).ToList();
-
-        List<string> pages = [];
-        for (int index = 0; index < rowLines.Count; index += RowsPerPage)
+        byte[] pdf = Document.Create(container =>
         {
-            IEnumerable<string> pageRows = rowLines.Skip(index).Take(RowsPerPage);
-            StringBuilder content = new();
-            content.AppendLine("BT");
-            content.AppendLine("/F1 14 Tf");
-            content.AppendLine("40 790 Td");
-            content.AppendLine($"({Escape("Waybill Report")}) Tj");
-            content.AppendLine("/F1 8 Tf");
-            content.AppendLine("12 TL");
-            content.AppendLine("0 -20 Td");
-            content.AppendLine($"({Escape("Tenant | Date | Waybill | Status | Product | Qty")}) Tj");
-            content.AppendLine("T*");
-
-            foreach (string line in pageRows)
+            container.Page(page =>
             {
-                content.AppendLine($"({Escape(line)}) Tj");
-                content.AppendLine("T*");
+                page.Size(PageSizes.A4);
+                page.Margin(36);
+                page.DefaultTextStyle(text => text.FontFamily(FontFamily).FontSize(9));
+                page.Header().Element(BuildHeader);
+                page.Content().Element(content => BuildTable(content, rows));
+                page.Footer().AlignRight().Text(footer =>
+                {
+                    footer.Span("Page ");
+                    footer.CurrentPageNumber();
+                    footer.Span(" / ");
+                    footer.TotalPages();
+                });
+            });
+        }).GeneratePdf();
+
+        return Task.FromResult(pdf);
+    }
+
+    private static void BuildHeader(IContainer container)
+    {
+        container.PaddingBottom(12).Column(column =>
+        {
+            column.Item().Text("Waybill Report").FontSize(16).SemiBold();
+            column.Item().Text($"Generated {DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC")
+                .FontSize(9).FontColor(Colors.Grey.Darken1);
+        });
+    }
+
+    private static void BuildTable(IContainer container, IReadOnlyList<WaybillReportRow> rows)
+    {
+        if (rows.Count == 0)
+        {
+            container.AlignCenter().PaddingTop(40)
+                .Text("No waybills matched the selected filters.")
+                .FontColor(Colors.Grey.Darken2);
+            return;
+        }
+
+        container.Table(table =>
+        {
+            table.ColumnsDefinition(columns =>
+            {
+                columns.RelativeColumn(1.4f); // Tenant
+                columns.RelativeColumn(1.1f); // Date
+                columns.RelativeColumn(1.4f); // Waybill
+                columns.RelativeColumn(1.0f); // Status
+                columns.RelativeColumn(3.0f); // Product
+                columns.RelativeColumn(0.7f); // Qty
+            });
+
+            table.Header(header =>
+            {
+                foreach (string heading in new[] { "Tenant", "Date", "Waybill", "Status", "Product", "Qty" })
+                {
+                    header.Cell().Background(Colors.Grey.Lighten3).Padding(4)
+                        .Text(heading).SemiBold();
+                }
+            });
+
+            foreach (WaybillReportRow row in rows)
+            {
+                BodyCell(table, row.TenantId);
+                BodyCell(table, row.PackagingDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+                BodyCell(table, row.WaybillNumber);
+                BodyCell(table, row.Status.ToString());
+                BodyCell(table, BuildProductLabel(row));
+                BodyCell(table, row.Quantity?.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
             }
-
-            content.AppendLine("ET");
-            pages.Add(content.ToString());
-        }
-
-        return pages;
+        });
     }
 
-    private static string ToLine(WaybillReportRow row)
+    private static string BuildProductLabel(WaybillReportRow row)
     {
-        string product = string.IsNullOrWhiteSpace(row.ProductName)
-            ? row.ProductBarcode ?? string.Empty
+        if (string.IsNullOrWhiteSpace(row.ProductName))
+        {
+            return row.ProductBarcode ?? string.Empty;
+        }
+
+        return string.IsNullOrWhiteSpace(row.ProductBarcode)
+            ? row.ProductName!
             : $"{row.ProductName} ({row.ProductBarcode})";
-
-        return string.Join(" | ",
-            row.TenantId,
-            row.PackagingDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            row.WaybillNumber,
-            row.Status.ToString(),
-            Truncate(product, 42),
-            row.Quantity?.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
     }
 
-    private static byte[] BuildPdf(IReadOnlyList<string> pageContents)
-    {
-        List<string> objects = [];
-        List<int> pageObjectIds = [];
-        const int catalogObjectId = 1;
-        const int pagesObjectId = 2;
-        const int fontObjectId = 3;
-
-        objects.Add($"{catalogObjectId} 0 obj\n<< /Type /Catalog /Pages {pagesObjectId} 0 R >>\nendobj\n");
-        objects.Add(string.Empty);
-        objects.Add($"{fontObjectId} 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n");
-
-        int nextObjectId = 4;
-        foreach (string content in pageContents)
-        {
-            int pageObjectId = nextObjectId++;
-            int contentObjectId = nextObjectId++;
-            pageObjectIds.Add(pageObjectId);
-
-            objects.Add(
-                $"{pageObjectId} 0 obj\n<< /Type /Page /Parent {pagesObjectId} 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 {fontObjectId} 0 R >> >> /Contents {contentObjectId} 0 R >>\nendobj\n");
-            objects.Add(
-                $"{contentObjectId} 0 obj\n<< /Length {Encoding.ASCII.GetByteCount(content)} >>\nstream\n{content}endstream\nendobj\n");
-        }
-
-        string kids = string.Join(" ", pageObjectIds.Select(id => $"{id} 0 R"));
-        objects[pagesObjectId - 1] =
-            $"{pagesObjectId} 0 obj\n<< /Type /Pages /Kids [{kids}] /Count {pageObjectIds.Count} >>\nendobj\n";
-
-        StringBuilder pdf = new("%PDF-1.4\n");
-        List<int> offsets = [0];
-        foreach (string obj in objects)
-        {
-            offsets.Add(Encoding.ASCII.GetByteCount(pdf.ToString()));
-            pdf.Append(obj);
-        }
-
-        int xrefOffset = Encoding.ASCII.GetByteCount(pdf.ToString());
-        pdf.AppendLine("xref");
-        pdf.AppendLine($"0 {objects.Count + 1}");
-        pdf.AppendLine("0000000000 65535 f ");
-        foreach (int offset in offsets.Skip(1))
-        {
-            pdf.AppendLine($"{offset.ToString("0000000000", CultureInfo.InvariantCulture)} 00000 n ");
-        }
-
-        pdf.AppendLine("trailer");
-        pdf.AppendLine($"<< /Size {objects.Count + 1} /Root {catalogObjectId} 0 R >>");
-        pdf.AppendLine("startxref");
-        pdf.AppendLine(xrefOffset.ToString(CultureInfo.InvariantCulture));
-        pdf.AppendLine("%%EOF");
-
-        return Encoding.ASCII.GetBytes(pdf.ToString());
-    }
-
-    private static string Escape(string value) => value
-        .Replace("\\", "\\\\", StringComparison.Ordinal)
-        .Replace("(", "\\(", StringComparison.Ordinal)
-        .Replace(")", "\\)", StringComparison.Ordinal);
-
-    private static string Truncate(string value, int maxLength) =>
-        value.Length <= maxLength ? value : value[..maxLength];
+    private static void BodyCell(TableDescriptor table, string text) =>
+        table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2)
+            .Padding(4).Text(text);
 }

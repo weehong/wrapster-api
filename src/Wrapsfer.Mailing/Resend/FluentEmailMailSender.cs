@@ -1,6 +1,7 @@
 using System.Net;
 using FluentEmail.Core;
 using FluentEmail.Core.Models;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Wrapsfer.Mailing.Abstractions;
@@ -10,7 +11,7 @@ using Wrapsfer.Mailing.Templates;
 namespace Wrapsfer.Mailing.Resend;
 
 internal sealed class FluentEmailMailSender(
-    IFluentEmailFactory fluentEmailFactory,
+    IServiceProvider serviceProvider,
     IOptions<ResendOptions> options,
     ILogger<FluentEmailMailSender> logger) : IFluentEmailMailSender
 {
@@ -21,8 +22,11 @@ internal sealed class FluentEmailMailSender(
         RenderedTemplate rendered,
         CancellationToken cancellationToken = default)
     {
-        IFluentEmail email = fluentEmailFactory
-            .Create()
+        // Resolve IFluentEmail directly via the injected (scoped) provider rather than
+        // IFluentEmailFactory. The factory is registered as a singleton and captures the root
+        // IServiceProvider, which can't resolve IOptionsSnapshot<ResendClientOptions> that
+        // ResendClient depends on.
+        IFluentEmail email = serviceProvider.GetRequiredService<IFluentEmail>()
             .SetFrom(_options.FromAddress, _options.FromName);
 
         foreach (string recipient in message.To)

@@ -9,7 +9,6 @@ public sealed record WaybillExportJobResponse(
     IReadOnlyList<string> PartnerTenantIds,
     DateOnly? From,
     DateOnly? To,
-    IReadOnlyList<string>? RecipientEmails,
     DateTime RequestedAt,
     DateTime? CompletedAt,
     string? FailureReason);

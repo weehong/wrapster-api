@@ -57,18 +57,13 @@ internal sealed class RequestWaybillsExportCommandHandler(
             tenantIds = [tenantContext.TenantId];
         }
 
-        string? recipientEmailsJson = request.RecipientEmails is { Count: > 0 } emails
-            ? WaybillExportJobSerializer.SerializeIds(emails)
-            : null;
-
         WaybillExportJob job = WaybillExportJob.Create(
             tenantContext.UserId,
             tenantContext.TenantId,
             request.Format.ToString(),
             request.From,
             request.To,
-            WaybillExportJobSerializer.SerializeIds(tenantIds),
-            recipientEmailsJson);
+            WaybillExportJobSerializer.SerializeIds(tenantIds));
 
         jobRepository.Add(job);
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -82,8 +77,7 @@ internal sealed class RequestWaybillsExportCommandHandler(
             request.From,
             request.To,
             request.Status,
-            request.Search,
-            request.RecipientEmails);
+            request.Search);
 
         await messagePublisher.PublishAsync(WaybillsExportRequestedMessage.QueueName, message, cancellationToken);
 

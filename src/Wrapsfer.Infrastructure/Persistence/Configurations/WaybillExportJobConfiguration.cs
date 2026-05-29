@@ -33,8 +33,9 @@ public sealed class WaybillExportJobConfiguration : IEntityTypeConfiguration<Way
             .HasMaxLength(8000)
             .IsRequired();
 
-        builder.Property(j => j.RecipientEmailsJson)
-            .HasMaxLength(8000);
+        builder.Property(j => j.ReportObjectKeysJson)
+            .HasMaxLength(8000)
+            .IsRequired();
 
         builder.Property(j => j.FailureReason)
             .HasMaxLength(512);

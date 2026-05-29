@@ -54,6 +54,28 @@ internal sealed class S3ReportStorage(
         return new StoredReport(_options.BucketName, fullKey, downloadUrl, expiresAtUtc);
     }
 
+    public async Task DeleteAsync(string objectKey, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(_options.BucketName))
+        {
+            throw new InvalidOperationException(
+                $"{ReportStorageOptions.SectionName}:BucketName is not configured; cannot delete reports.");
+        }
+
+        // UploadAsync returns StoredReport.ObjectKey already prefixed, and that's the value the
+        // caller persists and passes back here — do NOT re-apply BuildKey or we'd end up trying
+        // to delete "reports/reports/...".
+        DeleteObjectRequest request = new()
+        {
+            BucketName = _options.BucketName,
+            Key = objectKey
+        };
+
+        // S3's DeleteObject is idempotent — a missing key responds 204 No Content rather than 404,
+        // so we don't need a HEAD probe or a try/catch for NotFound.
+        await s3Client.DeleteObjectAsync(request, cancellationToken);
+    }
+
     private string BuildKey(string objectKey)
     {
         string relativeKey = objectKey.TrimStart('/');

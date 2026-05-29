@@ -8,19 +8,22 @@ using Wrapsfer.Application.Waybills.Commands.BulkUpdateWaybillStatus;
 using Wrapsfer.Application.Waybills.Commands.CancelWaybill;
 using Wrapsfer.Application.Waybills.Commands.CreateWaybill;
 using Wrapsfer.Application.Waybills.Commands.DeleteWaybill;
+using Wrapsfer.Application.Waybills.Commands.DeleteWaybillsExportJob;
+using Wrapsfer.Application.Waybills.Commands.EmailWaybillsReport;
 using Wrapsfer.Application.Waybills.Commands.MarkWaybillHandedOff;
 using Wrapsfer.Application.Waybills.Commands.MarkWaybillPacked;
 using Wrapsfer.Application.Waybills.Commands.RemoveWaybillItem;
 using Wrapsfer.Application.Waybills.Commands.RequestWaybillsExport;
+using Wrapsfer.Application.Waybills.Commands.RetryWaybillsExport;
 using Wrapsfer.Application.Waybills.Commands.UpdateWaybill;
 using Wrapsfer.Application.Waybills.Commands.UpdateWaybillItemQuantity;
 using Wrapsfer.Application.Waybills.Commands.UpdateWaybillNumber;
 using Wrapsfer.Application.Waybills.Queries.CheckWaybillNumberAvailable;
 using Wrapsfer.Application.Waybills.Queries.DownloadWaybillsExportFile;
-using Wrapsfer.Application.Waybills.Queries.ListWaybillExportJobs;
 using Wrapsfer.Application.Waybills.Queries.GetStaleDraftsReport;
 using Wrapsfer.Application.Waybills.Queries.GetWaybillById;
 using Wrapsfer.Application.Waybills.Queries.GetWaybillsByDate;
+using Wrapsfer.Application.Waybills.Queries.ListWaybillExportJobs;
 using Wrapsfer.Application.Waybills.Queries.ListWaybills;
 using Wrapsfer.Application.Waybills.Responses;
 using Wrapsfer.Domain.Common;
@@ -210,7 +213,6 @@ public sealed class WaybillsController(ISender sender) : ApiControllerBase
         [FromQuery] WaybillStatus? status,
         [FromQuery] string? search,
         [FromQuery] string[]? partnerTenantIds,
-        [FromBody] WaybillsExportRequest? request,
         CancellationToken cancellationToken)
     {
         bool includeAllPartnerTenants =
@@ -224,8 +226,7 @@ public sealed class WaybillsController(ISender sender) : ApiControllerBase
                 status,
                 search,
                 includeAllPartnerTenants,
-                partnerTenantIds,
-                request?.RecipientEmails),
+                partnerTenantIds),
             cancellationToken);
 
         return result.IsSuccess
@@ -233,9 +234,70 @@ public sealed class WaybillsController(ISender sender) : ApiControllerBase
             : ToActionResult(result);
     }
 
+    [HttpPost("export/jobs/{id:guid}/retry")]
+    [AllowOwnerTenantScope]
+    public async Task<IActionResult> RetryExportJob(Guid id, CancellationToken cancellationToken)
+    {
+        Result result = await sender.Send(new RetryWaybillsExportCommand(id), cancellationToken);
+
+        return result.IsSuccess
+            ? Accepted(new { message = "Export retry requested.", jobId = id })
+            : ToActionResult(result);
+    }
+
+    [HttpPost("export/email")]
+    [AllowOwnerTenantScope]
+    public async Task<IActionResult> ExportEmail(
+        [FromQuery] string? tenantId,
+        [FromQuery] WaybillExportFormat format,
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        [FromQuery] WaybillStatus? status,
+        [FromQuery] string? search,
+        [FromQuery] string[]? partnerTenantIds,
+        [FromBody] EmailWaybillsReportRequest request,
+        CancellationToken cancellationToken)
+    {
+        bool includeAllPartnerTenants =
+            HttpContext.Items[TenantResolutionFilter.OwnerCrossTenantScopeKey] is true;
+
+        IReadOnlyList<string> recipients = request?.RecipientEmails ?? Array.Empty<string>();
+
+        Result<EmailWaybillsReportResult> result = await sender.Send(
+            new EmailWaybillsReportCommand(
+                format,
+                recipients,
+                from,
+                to,
+                status,
+                search,
+                includeAllPartnerTenants,
+                partnerTenantIds),
+            cancellationToken);
+
+        return result.IsSuccess
+            ? Accepted(new
+            {
+                message = "Report email queued.",
+                deliveryMode = result.Value.DeliveryMode.ToString(),
+                rowCount = result.Value.RowCount,
+                format
+            })
+            : ToActionResult(result);
+    }
+
+    [HttpDelete("export/jobs/{id:guid}")]
+    [AllowOwnerTenantScope]
+    public async Task<IActionResult> DeleteExportJob(Guid id, CancellationToken cancellationToken)
+    {
+        Result result = await sender.Send(new DeleteWaybillsExportJobCommand(id), cancellationToken);
+        return ToActionResult(result);
+    }
+
     [HttpGet("export/file")]
     [AllowOwnerTenantScope]
     public async Task<IActionResult> DownloadExportFile(
+        [FromQuery] WaybillExportFormat format,
         [FromQuery] DateOnly? from,
         [FromQuery] DateOnly? to,
         [FromQuery] WaybillStatus? status,
@@ -248,7 +310,7 @@ public sealed class WaybillsController(ISender sender) : ApiControllerBase
 
         Result<DownloadWaybillsExportFileResult> result = await sender.Send(
             new DownloadWaybillsExportFileQuery(
-                from, to, status, search, includeAllPartnerTenants, partnerTenantIds),
+                format, from, to, status, search, includeAllPartnerTenants, partnerTenantIds),
             cancellationToken);
 
         return result.IsSuccess

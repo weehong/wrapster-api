@@ -101,23 +101,34 @@ public sealed class WaybillsExportConsumer(
     {
         using IServiceScope scope = scopeFactory.CreateScope();
 
-        WaybillExportProcessor processor = scope.ServiceProvider.GetRequiredService<WaybillExportProcessor>();
+        // Repository + unit of work are resolved up-front so the catch path can mark the row Failed
+        // even if other dependencies (e.g. IAmazonS3 inside WaybillExportProcessor) blow up at DI time.
         IWaybillExportJobRepository jobRepository =
             scope.ServiceProvider.GetRequiredService<IWaybillExportJobRepository>();
         IUnitOfWork unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-        if (message.JobId != Guid.Empty)
-        {
-            await jobRepository.MarkProcessingAsync(message.JobId, cancellationToken);
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-        }
-
         try
         {
-            await processor.ProcessAsync(message, cancellationToken);
+            if (message.JobId != Guid.Empty)
+            {
+                await jobRepository.MarkProcessingAsync(message.JobId, cancellationToken);
+                await unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+
+            WaybillExportProcessor processor =
+                scope.ServiceProvider.GetRequiredService<WaybillExportProcessor>();
+
+            IReadOnlyList<string> uploadedObjectKeys =
+                await processor.ProcessAsync(message, cancellationToken);
 
             if (message.JobId != Guid.Empty)
             {
+                if (uploadedObjectKeys.Count > 0)
+                {
+                    await jobRepository.RecordObjectKeysAsync(
+                        message.JobId, uploadedObjectKeys, cancellationToken);
+                }
+
                 await jobRepository.MarkCompletedAsync(message.JobId, cancellationToken);
                 await unitOfWork.SaveChangesAsync(cancellationToken);
             }
@@ -126,11 +137,20 @@ public sealed class WaybillsExportConsumer(
         {
             if (message.JobId != Guid.Empty)
             {
-                await jobRepository.MarkFailedAsync(
-                    message.JobId,
-                    "Export processing failed.",
-                    cancellationToken);
-                await unitOfWork.SaveChangesAsync(cancellationToken);
+                try
+                {
+                    await jobRepository.MarkFailedAsync(
+                        message.JobId,
+                        "Export processing failed.",
+                        cancellationToken);
+                    await unitOfWork.SaveChangesAsync(cancellationToken);
+                }
+                catch (Exception markFailedException)
+                {
+                    logger.LogError(markFailedException,
+                        "Failed to mark export job {JobId} as Failed after processing error",
+                        message.JobId);
+                }
             }
 
             throw;

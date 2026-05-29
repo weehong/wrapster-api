@@ -7,7 +7,6 @@ using Wrapsfer.Application.Waybills.Services;
 using Wrapsfer.Domain.Entities;
 using Wrapsfer.Domain.Enums;
 using Wrapsfer.Domain.Repositories;
-using Wrapsfer.Mailing.Abstractions;
 
 namespace Wrapsfer.Application.Tests.Waybills.Services;
 
@@ -17,9 +16,7 @@ public class WaybillExportProcessorTests
     private readonly Mock<IProductRepository> _productRepository = new();
     private readonly Mock<IWaybillReportFileWriter> _writer = new();
     private readonly Mock<IReportStorage> _reportStorage = new();
-    private readonly Mock<IMailer> _mailer = new();
 
-    private readonly List<MailMessage> _sentMails = [];
     private readonly List<string> _uploadedKeys = [];
 
     private readonly WaybillExportProcessor _processor;
@@ -40,16 +37,11 @@ public class WaybillExportProcessorTests
                     DateTime.UtcNow.AddMinutes(4320));
             });
 
-        _mailer.Setup(m => m.SendAsync(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(MailRequestId.New())
-            .Callback<MailMessage, CancellationToken>((m, _) => _sentMails.Add(m));
-
         _processor = new WaybillExportProcessor(
             _waybillRepository.Object,
             _productRepository.Object,
             _writer.Object,
             _reportStorage.Object,
-            _mailer.Object,
             NullLogger<WaybillExportProcessor>.Instance);
     }
 
@@ -74,49 +66,49 @@ public class WaybillExportProcessorTests
         SetupTenant("partner-a");
         SetupTenant("partner-b");
 
-        await _processor.ProcessAsync(Message("partner-a", "partner-b"), CancellationToken.None);
+        IReadOnlyList<string> keys = await _processor.ProcessAsync(
+            Message("partner-a", "partner-b"), CancellationToken.None);
 
         _reportStorage.Verify(s => s.UploadAsync(
             It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Exactly(2));
-        _mailer.Verify(m => m.SendAsync(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
 
-        _uploadedKeys.Should().Contain(k => k.Contains("waybills/partner-a/2026/05/26/"));
-        _uploadedKeys.Should().Contain(k => k.Contains("waybills/partner-b/2026/05/26/"));
+        keys.Should().HaveCount(2);
+        _uploadedKeys.Should().Contain(k => k.StartsWith("waybills/partner-a/2026-05-26/"));
+        _uploadedKeys.Should().Contain(k => k.StartsWith("waybills/partner-b/2026-05-26/"));
     }
 
     [Fact]
-    public async Task ProcessAsync_SendsEachPartnersReportToItsTaggedMailbox()
+    public async Task ProcessAsync_ReturnsObjectKeyForEachUploadedTenant()
     {
         SetupTenant("partner-a");
         SetupTenant("partner-b");
 
-        await _processor.ProcessAsync(Message("partner-a", "partner-b"), CancellationToken.None);
+        IReadOnlyList<string> keys = await _processor.ProcessAsync(
+            Message("partner-a", "partner-b"), CancellationToken.None);
 
-        _sentMails.Should().HaveCount(2);
-
-        // TEMPORARY: every export is routed to weehongkane+{tenantId}@gmail.com,
-        // tagged per partner, regardless of configured recipients.
-        MailMessage mailA = _sentMails.Single(m => m.To.Contains("weehongkane+partner-a@gmail.com"));
-        MailMessage mailB = _sentMails.Single(m => m.To.Contains("weehongkane+partner-b@gmail.com"));
-
-        mailA.To.Should().ContainSingle().Which.Should().Be("weehongkane+partner-a@gmail.com");
-        mailB.To.Should().ContainSingle().Which.Should().Be("weehongkane+partner-b@gmail.com");
+        keys.Should().HaveCount(2);
+        keys.Should().Contain(k => k.StartsWith("waybills/partner-a/2026-05-26/"));
+        keys.Should().Contain(k => k.StartsWith("waybills/partner-b/2026-05-26/"));
     }
 
     [Fact]
-    public async Task ProcessAsync_EmailContainsDownloadLinkAndNoAttachment()
+    public async Task ProcessAsync_UploadHasExpectedContentTypeAndExtension()
     {
         SetupTenant("partner-a");
 
-        await _processor.ProcessAsync(Message("partner-a"), CancellationToken.None);
+        WaybillsExportRequestedMessage pdfMessage = new(
+            Guid.Empty, ["partner-a"], "owner-user", WaybillExportFormat.Pdf,
+            new DateTime(2026, 5, 26, 8, 30, 0, DateTimeKind.Utc),
+            null, null, null, null);
 
-        MailMessage mail = _sentMails.Should().ContainSingle().Which;
-        mail.Attachments.Should().BeEmpty();
-        mail.Body.Should().NotBeNull();
-        mail.Body!.Html.Should().BeNull();
-        mail.Body.Text.Should().Contain("Download:");
-        mail.Body.Text.Should().Contain("https://signed.example/");
-        mail.Body.Text.Should().Contain("Link expires (UTC):");
+        await _processor.ProcessAsync(pdfMessage, CancellationToken.None);
+
+        _reportStorage.Verify(s => s.UploadAsync(
+            It.Is<string>(k => k.EndsWith(".pdf")),
+            It.IsAny<byte[]>(),
+            "application/pdf",
+            It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 }

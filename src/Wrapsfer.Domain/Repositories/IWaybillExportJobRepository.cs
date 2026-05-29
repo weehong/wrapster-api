@@ -14,9 +14,14 @@ public interface IWaybillExportJobRepository
 
     void Add(WaybillExportJob job);
 
+    void Remove(WaybillExportJob job);
+
     Task MarkProcessingAsync(Guid id, CancellationToken cancellationToken = default);
 
     Task MarkCompletedAsync(Guid id, CancellationToken cancellationToken = default);
 
     Task MarkFailedAsync(Guid id, string reason, CancellationToken cancellationToken = default);
+
+    Task RecordObjectKeysAsync(
+        Guid id, IReadOnlyList<string> objectKeys, CancellationToken cancellationToken = default);
 }

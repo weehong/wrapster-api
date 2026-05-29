@@ -10,5 +10,4 @@ public sealed record RequestWaybillsExportCommand(
     WaybillStatus? Status,
     string? Search,
     bool IncludeAllPartnerTenants,
-    IReadOnlyList<string>? PartnerTenantIds = null,
-    IReadOnlyList<string>? RecipientEmails = null) : ICommand;
+    IReadOnlyList<string>? PartnerTenantIds = null) : ICommand;
