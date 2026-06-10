@@ -13,7 +13,7 @@ using Wrapsfer.Infrastructure.Authentication;
 
 namespace Wrapsfer.Api.Controllers.V1;
 
-[Authorize(Policy = AuthorizationPolicies.OwnerAdminOnly)]
+[Authorize(Policy = AuthorizationPolicies.PartnerIntegrationAdmin)]
 [Route("api/v{version:apiVersion}/partner-integrations")]
 public sealed class PartnerIntegrationsController(ISender sender) : ApiControllerBase
 {

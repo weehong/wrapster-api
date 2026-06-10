@@ -142,6 +142,7 @@ public static class DependencyInjection
             });
 
         services.AddSingleton<IAuthorizationHandler, OwnerAdminAuthorizationHandler>();
+        services.AddSingleton<IAuthorizationHandler, PartnerIntegrationAdminAuthorizationHandler>();
         services.AddSingleton<IAuthorizationHandler, IntegrationApiAuthorizationHandler>();
         services.AddSingleton<IAuthorizationHandler, NotIntegrationClientHandler>();
         services.AddSingleton<IAuthorizationHandler, NotPasswordChangeRequiredHandler>();
@@ -152,6 +153,14 @@ public static class DependencyInjection
             {
                 policy.RequireAuthenticatedUser();
                 policy.AddRequirements(new OwnerAdminRequirement());
+                policy.AddRequirements(new NotPasswordChangeRequiredRequirement());
+                policy.AddRequirements(new NotIntegrationClientRequirement());
+            });
+
+            options.AddPolicy(AuthorizationPolicies.PartnerIntegrationAdmin, policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.AddRequirements(new PartnerIntegrationAdminRequirement());
                 policy.AddRequirements(new NotPasswordChangeRequiredRequirement());
                 policy.AddRequirements(new NotIntegrationClientRequirement());
             });
