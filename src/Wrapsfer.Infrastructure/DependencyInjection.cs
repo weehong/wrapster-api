@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Wrapsfer.Application.Abstractions;
 using Wrapsfer.Application.Abstractions.FileProcessing;
 using Wrapsfer.Application.Abstractions.IdentityProvisioning;
+using Wrapsfer.Application.PartnerIntegrations.Options;
 using Wrapsfer.Application.Waybills.Options;
 using Wrapsfer.Domain.Abstractions;
 using Wrapsfer.Domain.Repositories;
@@ -55,6 +56,7 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
 
         services.AddScoped<IPartnerTenantRepository, PartnerTenantRepository>();
+        services.AddScoped<IPartnerIntegrationCredentialRepository, PartnerIntegrationCredentialRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IProductComponentRepository, ProductComponentRepository>();
         services.AddScoped<ITenantSettingsRepository, TenantSettingsRepository>();
@@ -68,6 +70,9 @@ public static class DependencyInjection
 
         services.AddOptions<WaybillEmailReportOptions>()
             .Bind(configuration.GetSection(WaybillEmailReportOptions.SectionName));
+
+        services.AddOptions<PartnerIntegrationOptions>()
+            .Bind(configuration.GetSection(PartnerIntegrationOptions.SectionName));
 
         services.AddSingleton<CsvProductFileParser>();
         services.AddSingleton<ExcelProductFileParser>();
@@ -117,6 +122,7 @@ public static class DependencyInjection
         services.AddScoped<MultiTenantJwtBearerEvents>();
         services.AddSingleton<KeycloakAdminHttpClient>();
         services.AddScoped<IIdentityTenantProvisioningService, KeycloakTenantProvisioningService>();
+        services.AddScoped<IIntegrationClientProvisioningService, KeycloakIntegrationClientProvisioningService>();
         services.AddScoped<IIdentityAuthService, KeycloakIdentityAuthService>();
         services.AddHostedService<KeycloakIssuerPreflight>();
 
@@ -136,6 +142,8 @@ public static class DependencyInjection
             });
 
         services.AddSingleton<IAuthorizationHandler, OwnerAdminAuthorizationHandler>();
+        services.AddSingleton<IAuthorizationHandler, IntegrationApiAuthorizationHandler>();
+        services.AddSingleton<IAuthorizationHandler, NotIntegrationClientHandler>();
         services.AddSingleton<IAuthorizationHandler, NotPasswordChangeRequiredHandler>();
 
         services.AddAuthorization(options =>
@@ -145,11 +153,22 @@ public static class DependencyInjection
                 policy.RequireAuthenticatedUser();
                 policy.AddRequirements(new OwnerAdminRequirement());
                 policy.AddRequirements(new NotPasswordChangeRequiredRequirement());
+                policy.AddRequirements(new NotIntegrationClientRequirement());
             });
 
+            options.AddPolicy(AuthorizationPolicies.IntegrationApiOnly, policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.AddRequirements(new IntegrationApiRequirement());
+                policy.AddRequirements(new NotPasswordChangeRequiredRequirement());
+            });
+
+            // Integration (M2M) tokens are denied on every endpoint by default; the only
+            // surface open to them is endpoints guarded by the IntegrationApiOnly policy.
             options.DefaultPolicy = new AuthorizationPolicyBuilder()
                 .RequireAuthenticatedUser()
                 .AddRequirements(new NotPasswordChangeRequiredRequirement())
+                .AddRequirements(new NotIntegrationClientRequirement())
                 .Build();
         });
 

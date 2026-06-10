@@ -10,4 +10,7 @@ internal sealed class KeycloakIdentityProviderSettings : IIdentityProviderSettin
     public KeycloakIdentityProviderSettings(IOptions<KeycloakOptions> options) => _options = options.Value;
 
     public string OwnerRealm => _options.OwnerRealm;
+
+    public string GetTokenUrl(string tenantId) =>
+        $"{_options.BaseUrl.TrimEnd('/')}/realms/{Uri.EscapeDataString(tenantId)}/protocol/openid-connect/token";
 }
