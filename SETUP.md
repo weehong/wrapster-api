@@ -44,13 +44,17 @@ The tracked `appsettings.Development.json` is aligned with `compose.dev.yaml`:
 - `Keycloak:AdminClientId` is `wrapsfer-admin`
 - `Keycloak:AdminClientSecret` is `wrapsfer-admin-secret`
 - `Keycloak:PartnerApiClientSecret` is `wrapsfer-secret`
+- `PartnerIntegrations:ApiBaseUrl` is `http://localhost:5222`
 
 `Keycloak:PartnerApiClientSecret` is the shared API OIDC client secret for the `wrapsfer` client in both the owner realm and every provisioned partner realm.
+
+`compose.dev.yaml` starts local infrastructure only; the API is run with `dotnet run`, so API settings such as `PartnerIntegrations:ApiBaseUrl` come from `appsettings.Development.json` or user secrets rather than Compose environment variables.
 
 Use .NET user secrets only when you need local overrides:
 
 ```bash
 dotnet user-secrets set "Keycloak:AdminClientSecret" "your-local-secret" --project src/Wrapsfer.Api/Wrapsfer.Api.csproj
+dotnet user-secrets set "PartnerIntegrations:ApiBaseUrl" "https://api.wrapsfer.dev" --project src/Wrapsfer.Api/Wrapsfer.Api.csproj
 ```
 
 ## 4. Restore And Build
