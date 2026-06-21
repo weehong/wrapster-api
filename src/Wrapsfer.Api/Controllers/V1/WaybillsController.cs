@@ -14,6 +14,7 @@ using Wrapsfer.Application.Waybills.Commands.MarkWaybillHandedOff;
 using Wrapsfer.Application.Waybills.Commands.MarkWaybillPacked;
 using Wrapsfer.Application.Waybills.Commands.RemoveWaybillItem;
 using Wrapsfer.Application.Waybills.Commands.RequestWaybillsExport;
+using Wrapsfer.Application.Waybills.Commands.RestoreAutoCancelledDraft;
 using Wrapsfer.Application.Waybills.Commands.RetryWaybillsExport;
 using Wrapsfer.Application.Waybills.Commands.UpdateWaybill;
 using Wrapsfer.Application.Waybills.Commands.UpdateWaybillItemQuantity;
@@ -176,6 +177,13 @@ public sealed class WaybillsController(ISender sender) : ApiControllerBase
         CancellationToken cancellationToken)
     {
         Result result = await sender.Send(new CancelWaybillCommand(id, request.Reason), cancellationToken);
+        return ToActionResult(result);
+    }
+
+    [HttpPost("{id:guid}/restore-draft")]
+    public async Task<IActionResult> RestoreDraft(Guid id, CancellationToken cancellationToken)
+    {
+        Result result = await sender.Send(new RestoreAutoCancelledDraftCommand(id), cancellationToken);
         return ToActionResult(result);
     }
 

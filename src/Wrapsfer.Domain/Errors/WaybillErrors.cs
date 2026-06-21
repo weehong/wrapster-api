@@ -83,4 +83,9 @@ public static class WaybillErrors
         "Waybill.CannotCancelAfterHandedOff",
         "A waybill that has been handed off cannot be cancelled",
         ErrorType.Conflict);
+
+    public static readonly Error CannotRestoreNonAutoCancelledDraft = new(
+        "Waybill.CannotRestoreNonAutoCancelledDraft",
+        "Only auto-cancelled stale draft waybills can be restored",
+        ErrorType.Conflict);
 }

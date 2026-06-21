@@ -252,6 +252,32 @@ public class WaybillTests
     }
 
     [Fact]
+    public void RestoreAutoCancelledDraft_WhenAutoCancelledStaleDraft_Succeeds()
+    {
+        Waybill waybill = CreateWaybillWithItem(out _);
+        waybill.Cancel(Waybill.AutoCancelledStaleDraftReason);
+
+        Result result = waybill.RestoreAutoCancelledDraft();
+
+        result.IsSuccess.Should().BeTrue();
+        waybill.Status.Should().Be(WaybillStatus.Draft);
+        waybill.CancellationReason.Should().BeNull();
+        waybill.CancelledAt.Should().BeNull();
+    }
+
+    [Fact]
+    public void RestoreAutoCancelledDraft_WhenManuallyCancelled_ReturnsCannotRestore()
+    {
+        Waybill waybill = CreateWaybillWithItem(out _);
+        waybill.Cancel("customer change of mind");
+
+        Result result = waybill.RestoreAutoCancelledDraft();
+
+        result.Error.Code.Should().Be(WaybillErrors.CannotRestoreNonAutoCancelledDraft.Code);
+        waybill.Status.Should().Be(WaybillStatus.Cancelled);
+    }
+
+    [Fact]
     public void UpdateWaybillNumber_AfterPacked_ReturnsCannotEditNonDraft()
     {
         Waybill waybill = CreateWaybillWithItem(out _);

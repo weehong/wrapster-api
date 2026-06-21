@@ -13,7 +13,6 @@ public sealed class AutoCancelStaleDraftsJob(
     IServiceScopeFactory scopeFactory,
     ILogger<AutoCancelStaleDraftsJob> logger) : BackgroundService
 {
-    private const string AutoCancelReason = "Auto-cancelled: stale draft";
     private static readonly TimeSpan s_interval = TimeSpan.FromHours(1);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -106,7 +105,7 @@ public sealed class AutoCancelStaleDraftsJob(
                 }
             }
 
-            Result cancelResult = waybill.Cancel(AutoCancelReason);
+            Result cancelResult = waybill.Cancel(Waybill.AutoCancelledStaleDraftReason);
             if (cancelResult.IsFailure)
             {
                 logger.LogWarning(

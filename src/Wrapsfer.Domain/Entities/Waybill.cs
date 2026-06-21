@@ -7,6 +7,8 @@ namespace Wrapsfer.Domain.Entities;
 
 public sealed class Waybill : AuditableEntity
 {
+    public const string AutoCancelledStaleDraftReason = "Auto-cancelled: stale draft";
+
     private readonly List<WaybillItem> _items = [];
 
     private Waybill()
@@ -345,6 +347,21 @@ public sealed class Waybill : AuditableEntity
         CancelledAt = DateTime.UtcNow;
 
         AddDomainEvent(new WaybillCancelledEvent(Id, TenantId, previousStatus, reason, DateTime.UtcNow));
+
+        return Result.Success();
+    }
+
+    public Result RestoreAutoCancelledDraft()
+    {
+        if (Status != WaybillStatus.Cancelled ||
+            !string.Equals(CancellationReason, AutoCancelledStaleDraftReason, StringComparison.Ordinal))
+        {
+            return Result.Failure(WaybillErrors.CannotRestoreNonAutoCancelledDraft);
+        }
+
+        Status = WaybillStatus.Draft;
+        CancellationReason = null;
+        CancelledAt = null;
 
         return Result.Success();
     }
