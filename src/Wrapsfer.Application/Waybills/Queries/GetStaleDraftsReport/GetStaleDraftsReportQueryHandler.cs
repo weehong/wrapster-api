@@ -17,10 +17,16 @@ internal sealed class GetStaleDraftsReportQueryHandler(
         CancellationToken cancellationToken)
     {
         string tenantId = tenantContext.TenantId;
-        DateTime since = DateTime.UtcNow.AddHours(-request.HoursBack);
+
+        DateTime? fromUtc = request.From.HasValue
+            ? DateTime.SpecifyKind(request.From.Value.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc)
+            : null;
+        DateTime? toExclusiveUtc = request.To.HasValue
+            ? DateTime.SpecifyKind(request.To.Value.AddDays(1).ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc)
+            : null;
 
         IReadOnlyList<Waybill> waybills =
-            await waybillRepository.GetRecentlyAutoCancelledAsync(tenantId, since, cancellationToken);
+            await waybillRepository.GetAutoCancelledBetweenAsync(tenantId, fromUtc, toExclusiveUtc, cancellationToken);
 
         HashSet<Guid> productIds = waybills
             .SelectMany(w => w.Items)

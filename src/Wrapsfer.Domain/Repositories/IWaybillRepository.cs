@@ -44,8 +44,8 @@ public interface IWaybillRepository
     Task<IReadOnlyList<Waybill>> GetStaleDraftsAsync(DateOnly olderThan,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<Waybill>> GetRecentlyAutoCancelledAsync(string tenantId, DateTime since,
-        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Waybill>> GetAutoCancelledBetweenAsync(string tenantId, DateTime? fromUtc,
+        DateTime? toExclusiveUtc, CancellationToken cancellationToken = default);
 
     void Add(Waybill waybill);
     void Remove(Waybill waybill);

@@ -94,11 +94,13 @@ public sealed class WaybillsController(ISender sender) : ApiControllerBase
     }
 
     [HttpGet("stale-drafts-report")]
-    public async Task<IActionResult> GetStaleDraftsReport([FromQuery] int hoursBack = 48,
+    public async Task<IActionResult> GetStaleDraftsReport(
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
         CancellationToken cancellationToken = default)
     {
         Result<IReadOnlyList<WaybillResponse>> result =
-            await sender.Send(new GetStaleDraftsReportQuery(hoursBack), cancellationToken);
+            await sender.Send(new GetStaleDraftsReportQuery(from, to), cancellationToken);
         return ToActionResult(result);
     }
 

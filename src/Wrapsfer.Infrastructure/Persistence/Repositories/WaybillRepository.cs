@@ -151,17 +151,30 @@ internal sealed class WaybillRepository(ApplicationDbContext context) : IWaybill
             .Where(w => w.Status == WaybillStatus.Draft && w.PackagingDate < olderThan)
             .ToListAsync(cancellationToken);
 
-    public async Task<IReadOnlyList<Waybill>> GetRecentlyAutoCancelledAsync(string tenantId, DateTime since,
-        CancellationToken cancellationToken = default) =>
-        await context.Waybills
+    public async Task<IReadOnlyList<Waybill>> GetAutoCancelledBetweenAsync(string tenantId, DateTime? fromUtc,
+        DateTime? toExclusiveUtc, CancellationToken cancellationToken = default)
+    {
+        IQueryable<Waybill> query = context.Waybills
             .Include(w => w.Items)
             .Where(w => w.TenantId == tenantId
                         && w.Status == WaybillStatus.Cancelled
-                        && w.CancelledAt >= since
                         && w.CancellationReason != null
-                        && w.CancellationReason.StartsWith("Auto-cancelled"))
+                        && w.CancellationReason.StartsWith("Auto-cancelled"));
+
+        if (fromUtc.HasValue)
+        {
+            query = query.Where(w => w.CancelledAt >= fromUtc.Value);
+        }
+
+        if (toExclusiveUtc.HasValue)
+        {
+            query = query.Where(w => w.CancelledAt < toExclusiveUtc.Value);
+        }
+
+        return await query
             .OrderByDescending(w => w.CancelledAt)
             .ToListAsync(cancellationToken);
+    }
 
     public void Add(Waybill waybill) => context.Waybills.Add(waybill);
 
