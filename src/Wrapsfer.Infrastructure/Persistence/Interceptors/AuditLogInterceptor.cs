@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Wrapsfer.Application.Abstractions;
 using Wrapsfer.Domain.Common;
+using Wrapsfer.Domain.Entities;
 
 namespace Wrapsfer.Infrastructure.Persistence.Interceptors;
 
@@ -40,6 +41,7 @@ public sealed class AuditLogInterceptor(ITenantContext? tenantContext = null) : 
 
         List<EntityEntry> entries = context.ChangeTracker.Entries()
             .Where(e => e.Entity is not AuditLog
+                        && e.Entity is not StockMovement
                         && e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
             .ToList();
 

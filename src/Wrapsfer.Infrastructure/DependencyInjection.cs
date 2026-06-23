@@ -35,6 +35,7 @@ public static class DependencyInjection
 
         services.AddScoped<AuditableEntityInterceptor>();
         services.AddScoped<AuditLogInterceptor>();
+        services.AddScoped<StockMovementInterceptor>();
         services.AddSingleton<DomainEventInterceptor>();
 
         services.AddDbContext<ApplicationDbContext>((sp, options) =>
@@ -43,6 +44,8 @@ public static class DependencyInjection
                 .GetRequiredService<AuditableEntityInterceptor>();
             AuditLogInterceptor auditLogInterceptor = sp
                 .GetRequiredService<AuditLogInterceptor>();
+            StockMovementInterceptor stockMovementInterceptor = sp
+                .GetRequiredService<StockMovementInterceptor>();
             DomainEventInterceptor domainEventInterceptor = sp
                 .GetRequiredService<DomainEventInterceptor>();
             string connectionString = configuration.GetConnectionString("DefaultConnection")
@@ -50,7 +53,8 @@ public static class DependencyInjection
                                           "Connection string 'DefaultConnection' is not configured.");
 
             options.UseNpgsql(connectionString)
-                .AddInterceptors(auditableInterceptor, auditLogInterceptor, domainEventInterceptor);
+                .AddInterceptors(auditableInterceptor, auditLogInterceptor, stockMovementInterceptor,
+                    domainEventInterceptor);
         });
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
@@ -59,6 +63,7 @@ public static class DependencyInjection
         services.AddScoped<IPartnerIntegrationCredentialRepository, PartnerIntegrationCredentialRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IProductComponentRepository, ProductComponentRepository>();
+        services.AddScoped<IStockMovementRepository, StockMovementRepository>();
         services.AddScoped<ITenantSettingsRepository, TenantSettingsRepository>();
         services.AddScoped<IStockAlertLogRepository, StockAlertLogRepository>();
         services.AddScoped<IWaybillRepository, WaybillRepository>();
@@ -84,11 +89,15 @@ public static class DependencyInjection
         services.AddSingleton<ExcelWaybillReportFileWriter>();
         services.AddSingleton<PdfWaybillReportFileWriter>();
         services.AddSingleton<IWaybillReportFileWriter, CompositeWaybillReportFileWriter>();
+        services.AddSingleton<ExcelProductStockReportFileWriter>();
+        services.AddSingleton<PdfProductStockReportFileWriter>();
+        services.AddSingleton<IProductStockReportFileWriter, CompositeProductStockReportFileWriter>();
 
         services.AddHostedService<ProductsExportConsumer>();
         services.AddHostedService<WaybillsExportConsumer>();
         services.AddHostedService<AutoCancelStaleDraftsJob>();
         services.AddHostedService<LowStockReminderJob>();
+        services.AddHostedService<StockMovementBackfillJob>();
 
         return services;
     }

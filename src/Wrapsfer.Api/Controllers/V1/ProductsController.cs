@@ -12,6 +12,7 @@ using Wrapsfer.Application.Products.Commands.SetProductActive;
 using Wrapsfer.Application.Products.Commands.UnpackPackage;
 using Wrapsfer.Application.Products.Commands.UpdateProduct;
 using Wrapsfer.Application.Products.Commands.UpdateProductStock;
+using Wrapsfer.Application.Products.Queries.DownloadProductStockReport;
 using Wrapsfer.Application.Products.Queries.GetProductByBarcode;
 using Wrapsfer.Application.Products.Queries.GetProductById;
 using Wrapsfer.Application.Products.Queries.GetProductBySku;
@@ -191,6 +192,20 @@ public sealed class ProductsController(ISender sender, IProductFileWriter fileWr
                 "wrapsfer-products-template.xlsx");
 
         return File(bytes, contentType, fileName);
+    }
+
+    [HttpGet("stock-report")]
+    public async Task<IActionResult> DownloadStockReport(
+        [FromQuery] ProductStockReportFormat format,
+        [FromQuery] DateOnly asOfDate,
+        CancellationToken cancellationToken)
+    {
+        Result<DownloadProductStockReportResult> result = await sender.Send(
+            new DownloadProductStockReportQuery(format, asOfDate), cancellationToken);
+
+        return result.IsSuccess
+            ? File(result.Value.Content, result.Value.ContentType, result.Value.FileName)
+            : ToActionResult(result);
     }
 
     [HttpPost("{id:guid}/unpack")]
