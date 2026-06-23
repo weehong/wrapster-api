@@ -21,6 +21,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<Waybill> Waybills => Set<Waybill>();
     public DbSet<WaybillItem> WaybillItems => Set<WaybillItem>();
     public DbSet<WaybillExportJob> WaybillExportJobs => Set<WaybillExportJob>();
+    public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

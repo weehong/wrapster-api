@@ -1,0 +1,29 @@
+<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+  <h2 style="color: #d32f2f;">Purchase Order Rejected</h2>
+  <p>Your purchase order has been rejected by the warehouse. Your stock has <strong>not</strong> been changed.</p>
+  <table style="border-collapse: collapse; width: 100%; margin: 16px 0;">
+    <tr style="background: #f5f5f5;">
+      <td style="padding: 8px; border: 1px solid #e0e0e0;"><strong>PO Number</strong></td>
+      <td style="padding: 8px; border: 1px solid #e0e0e0;">{{ PoNumber }}</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px; border: 1px solid #e0e0e0;"><strong>Product</strong></td>
+      <td style="padding: 8px; border: 1px solid #e0e0e0;">{{ ProductName }}</td>
+    </tr>
+    <tr style="background: #f5f5f5;">
+      <td style="padding: 8px; border: 1px solid #e0e0e0;"><strong>Barcode</strong></td>
+      <td style="padding: 8px; border: 1px solid #e0e0e0;">{{ Barcode }}</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px; border: 1px solid #e0e0e0;"><strong>Quantity</strong></td>
+      <td style="padding: 8px; border: 1px solid #e0e0e0;">{{ Quantity }}</td>
+    </tr>
+    <tr style="background: #f5f5f5;">
+      <td style="padding: 8px; border: 1px solid #e0e0e0;"><strong>Reason</strong></td>
+      <td style="padding: 8px; border: 1px solid #e0e0e0; color: #d32f2f;">{{ Reason }}</td>
+    </tr>
+  </table>
+  <p>Please review the reason above and submit a new purchase order if required.</p>
+  <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 24px 0;" />
+  <p style="color: #888; font-size: 12px;">This is an automated email from Wrapsfer.</p>
+</div>

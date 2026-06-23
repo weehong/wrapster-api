@@ -68,6 +68,7 @@ public static class DependencyInjection
         services.AddScoped<IStockAlertLogRepository, StockAlertLogRepository>();
         services.AddScoped<IWaybillRepository, WaybillRepository>();
         services.AddScoped<IWaybillExportJobRepository, WaybillExportJobRepository>();
+        services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
 
         services.AddKeycloakAuthentication(configuration);
         services.AddQueueService(configuration);
