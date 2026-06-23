@@ -117,4 +117,21 @@ public class LowStockDetectedEventHandlerTests
         _stockAlertLogRepository.Verify(r => r.Add(It.Is<StockAlertLog>(l =>
             l.DeliveryStatus == StockAlertDeliveryStatus.Suppressed)), Times.Once);
     }
+
+    [Fact]
+    public async Task Handle_WhenMaxAlertsReachedForEpisode_SuppressesAndSkipsMailer()
+    {
+        Guid productId = Guid.NewGuid();
+        _stockAlertLogRepository.Setup(r => r.CountSentLowStockAlertsInCurrentEpisodeAsync(
+                "tenant-1", productId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(3);
+
+        await CreateHandler().Handle(CreateNotification("tenant-1", productId), CancellationToken.None);
+
+        _mailer.Verify(
+            m => m.SendAsync(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _stockAlertLogRepository.Verify(r => r.Add(It.Is<StockAlertLog>(l =>
+            l.DeliveryStatus == StockAlertDeliveryStatus.Suppressed && l.FailureReason == "MaxAlertsReached")), Times.Once);
+    }
 }

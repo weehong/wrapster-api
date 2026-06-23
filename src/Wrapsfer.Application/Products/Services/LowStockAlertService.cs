@@ -18,6 +18,7 @@ public sealed class LowStockAlertService(
     public async Task<LowStockAlertOutcome> SendAsync(
         LowStockAlertContext context,
         TimeSpan dedupeWindow,
+        int maxAlerts,
         CancellationToken cancellationToken = default)
     {
         StockAlertLog? lastSent = await stockAlertLogRepository.GetLastAlertAsync(
@@ -47,6 +48,33 @@ public sealed class LowStockAlertService(
                 DateTime.UtcNow));
             await unitOfWork.SaveChangesAsync(cancellationToken);
             return LowStockAlertOutcome.Suppressed;
+        }
+
+        int sentThisEpisode = await stockAlertLogRepository.CountSentLowStockAlertsInCurrentEpisodeAsync(
+            context.TenantId,
+            context.ProductId,
+            cancellationToken);
+
+        if (sentThisEpisode >= maxAlerts)
+        {
+            logger.LogInformation(
+                "Suppressing low-stock alert for tenant {TenantId} product {ProductId} — max alerts reached ({SentThisEpisode}/{MaxAlerts}) for current episode",
+                context.TenantId, context.ProductId, sentThisEpisode, maxAlerts);
+
+            stockAlertLogRepository.Add(StockAlertLog.Create(
+                context.TenantId,
+                context.ProductId,
+                context.ProductName,
+                context.Barcode,
+                StockAlertType.LowStock,
+                context.CurrentStock,
+                context.Threshold,
+                StockAlertDeliveryStatus.Suppressed,
+                null,
+                "MaxAlertsReached",
+                DateTime.UtcNow));
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return LowStockAlertOutcome.MaxReached;
         }
 
         TenantSettingsEntity? settings =

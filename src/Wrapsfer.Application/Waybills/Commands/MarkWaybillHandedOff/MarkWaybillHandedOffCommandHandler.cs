@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using Wrapsfer.Application.Abstractions;
 using Wrapsfer.Application.Abstractions.Messaging;
+using Wrapsfer.Application.Common;
 using Wrapsfer.Application.Products;
 using Wrapsfer.Application.Waybills.Services;
 using Wrapsfer.Domain.Abstractions;
@@ -31,7 +32,9 @@ internal sealed class MarkWaybillHandedOffCommandHandler(
             return Result.Failure(WaybillErrors.NotFound);
         }
 
-        Result markResult = waybill.MarkHandedOff(tenantContext.UserId);
+        bool isAdmin = tenantContext.Roles.Contains(TenantRoles.Admin, StringComparer.Ordinal);
+
+        Result markResult = waybill.MarkHandedOff(tenantContext.UserId, isAdmin);
         if (markResult.IsFailure)
         {
             return markResult;

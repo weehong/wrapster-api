@@ -303,15 +303,20 @@ public sealed class Waybill : AuditableEntity
         return Result.Success();
     }
 
-    public Result MarkHandedOff(string actingUserId)
+    public Result MarkHandedOff(string actingUserId, bool actingUserIsAdmin)
     {
         if (Status != WaybillStatus.Packed)
         {
             return Result.Failure(WaybillErrors.InvalidStatusTransition);
         }
 
-        if (string.IsNullOrWhiteSpace(actingUserId) ||
-            !string.Equals(actingUserId, CreatedBy, StringComparison.Ordinal))
+        if (string.IsNullOrWhiteSpace(actingUserId))
+        {
+            return Result.Failure(WaybillErrors.NotWaybillCreator);
+        }
+
+        bool isCreator = string.Equals(actingUserId, CreatedBy, StringComparison.Ordinal);
+        if (!isCreator && !actingUserIsAdmin)
         {
             return Result.Failure(WaybillErrors.NotWaybillCreator);
         }

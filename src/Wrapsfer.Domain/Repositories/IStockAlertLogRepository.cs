@@ -28,5 +28,10 @@ public interface IStockAlertLogRepository
         StockAlertType alertType,
         CancellationToken cancellationToken = default);
 
+    Task<int> CountSentLowStockAlertsInCurrentEpisodeAsync(
+        string tenantId,
+        Guid productId,
+        CancellationToken cancellationToken = default);
+
     void Add(StockAlertLog log);
 }

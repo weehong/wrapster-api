@@ -174,7 +174,7 @@ public class WaybillTests
         waybill.SetCreatedBy("user-1");
         waybill.MarkPacked();
 
-        Result result = waybill.MarkHandedOff("user-1");
+        Result result = waybill.MarkHandedOff("user-1", actingUserIsAdmin: false);
 
         result.IsSuccess.Should().BeTrue();
         waybill.Status.Should().Be(WaybillStatus.HandedOff);
@@ -182,15 +182,29 @@ public class WaybillTests
     }
 
     [Fact]
-    public void MarkHandedOff_ByNonCreator_ReturnsNotWaybillCreator()
+    public void MarkHandedOff_ByNonCreatorNonAdmin_ReturnsNotWaybillCreator()
     {
         Waybill waybill = CreateWaybillWithItem(out _);
         waybill.SetCreatedBy("user-1");
         waybill.MarkPacked();
 
-        Result result = waybill.MarkHandedOff("user-2");
+        Result result = waybill.MarkHandedOff("user-2", actingUserIsAdmin: false);
 
         result.Error.Code.Should().Be(WaybillErrors.NotWaybillCreator.Code);
+    }
+
+    [Fact]
+    public void MarkHandedOff_ByNonCreatorAdmin_Succeeds()
+    {
+        Waybill waybill = CreateWaybillWithItem(out _);
+        waybill.SetCreatedBy("user-1");
+        waybill.MarkPacked();
+
+        Result result = waybill.MarkHandedOff("admin-user", actingUserIsAdmin: true);
+
+        result.IsSuccess.Should().BeTrue();
+        waybill.Status.Should().Be(WaybillStatus.HandedOff);
+        waybill.HandedOffAt.Should().NotBeNull();
     }
 
     [Fact]
@@ -199,7 +213,7 @@ public class WaybillTests
         Waybill waybill = CreateWaybillWithItem(out _);
         waybill.SetCreatedBy("user-1");
 
-        Result result = waybill.MarkHandedOff("user-1");
+        Result result = waybill.MarkHandedOff("user-1", actingUserIsAdmin: false);
 
         result.Error.Code.Should().Be(WaybillErrors.InvalidStatusTransition.Code);
     }
@@ -234,7 +248,7 @@ public class WaybillTests
         Waybill waybill = CreateWaybillWithItem(out _);
         waybill.SetCreatedBy("user-1");
         waybill.MarkPacked();
-        waybill.MarkHandedOff("user-1");
+        waybill.MarkHandedOff("user-1", actingUserIsAdmin: false);
 
         Result result = waybill.Cancel("too late");
 

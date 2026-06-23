@@ -32,6 +32,7 @@ public class BulkUpdateWaybillStatusCommandHandlerTests
     {
         _tenantContext.Setup(x => x.TenantId).Returns(TenantId);
         _tenantContext.Setup(x => x.UserId).Returns(UserId);
+        _tenantContext.Setup(x => x.Roles).Returns(new List<string>());
         StockReservationService stockService =
             new(_productRepository.Object, _componentRepository.Object);
         IOptions<ProductSettings> productSettings = Options.Create(new ProductSettings());
@@ -85,6 +86,27 @@ public class BulkUpdateWaybillStatusCommandHandlerTests
         waybill.Status.Should().Be(WaybillStatus.HandedOff);
         product.ReservedQuantity.Should().Be(0);
         _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_BulkMarkHandedOff_SucceedsForAdminOnWaybillCreatedByAnotherUser()
+    {
+        Product product = ProductTestFactory.CreateSingle(barcode: "BC-1", stockQuantity: 10);
+        product.Reserve(3);
+        Waybill waybill = CreateDraftWaybill("WB-1", product.Id, product.Barcode, 3);
+        waybill.SetCreatedBy("another-user");
+        waybill.MarkPacked();
+        SetupBatchFetch(waybill);
+        SetupProducts(product);
+        _tenantContext.Setup(x => x.Roles).Returns(new List<string> { "admin" });
+
+        Result<BulkWaybillStatusUpdateResult> result = await _handler.Handle(
+            new BulkUpdateWaybillStatusCommand([waybill.Id], WaybillStatus.HandedOff, null),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.SuccessCount.Should().Be(1);
+        waybill.Status.Should().Be(WaybillStatus.HandedOff);
     }
 
     [Fact]

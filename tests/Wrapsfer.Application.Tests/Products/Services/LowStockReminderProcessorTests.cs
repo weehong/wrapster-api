@@ -198,6 +198,30 @@ public class LowStockReminderProcessorTests
     }
 
     [Fact]
+    public async Task Run_ProductAtMaxAlertsForEpisode_DoesNotSendReminder()
+    {
+        Product product = ProductTestFactory.CreateSingle(tenantId: TenantId, stockQuantity: 2, lowStockThreshold: 10);
+        StockAlertLog old = CreateLogAt(TenantId, product.Id, StockAlertType.LowStock,
+            DateTime.UtcNow.AddHours(-25));
+        SetupTenantsAndDefaults(TenantId);
+        SetupCandidates(TenantId, product);
+        SetupLastSentAlerts(TenantId, StockAlertType.LowStock,
+            new Dictionary<Guid, StockAlertLog> { [product.Id] = old });
+        SetupLastSentAlerts(TenantId, StockAlertType.Recovered, new Dictionary<Guid, StockAlertLog>());
+        SetupRecipients(TenantId, "ops@example.com");
+        _stockAlertLogRepository.Setup(r => r.CountSentLowStockAlertsInCurrentEpisodeAsync(
+                TenantId, product.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(3);
+
+        LowStockReminderRunSummary summary = await CreateProcessor().RunAsync(CancellationToken.None);
+
+        summary.SentCount.Should().Be(0);
+        _mailer.Verify(m => m.SendAsync(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()), Times.Never);
+        _stockAlertLogRepository.Verify(r => r.Add(It.Is<StockAlertLog>(l =>
+            l.DeliveryStatus == StockAlertDeliveryStatus.Suppressed && l.FailureReason == "MaxAlertsReached")), Times.Once);
+    }
+
+    [Fact]
     public async Task Run_UsesTenantDefaultThresholdWhenProductHasNoOwn()
     {
         Product product = ProductTestFactory.CreateSingle(tenantId: TenantId, stockQuantity: 3, lowStockThreshold: null);

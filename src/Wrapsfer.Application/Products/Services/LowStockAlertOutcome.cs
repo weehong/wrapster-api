@@ -4,5 +4,6 @@ public enum LowStockAlertOutcome
 {
     Sent = 1,
     NoRecipients = 2,
-    Suppressed = 3
+    Suppressed = 3,
+    MaxReached = 4
 }

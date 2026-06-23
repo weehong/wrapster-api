@@ -19,6 +19,7 @@ public sealed class LowStockReminderProcessor(
         int globalDefault = productSettings.Value.GlobalLowStockThreshold;
         int reminderIntervalHours = productSettings.Value.LowStockReminderIntervalHours;
         TimeSpan reminderInterval = TimeSpan.FromHours(reminderIntervalHours);
+        int maxAlerts = productSettings.Value.MaxLowStockAlerts;
 
         IReadOnlyList<string> tenantIds = await productRepository.GetDistinctTenantIdsAsync(cancellationToken);
         if (tenantIds.Count == 0)
@@ -94,7 +95,7 @@ public sealed class LowStockReminderProcessor(
                 try
                 {
                     LowStockAlertOutcome outcome =
-                        await alertService.SendAsync(context, reminderInterval, cancellationToken);
+                        await alertService.SendAsync(context, reminderInterval, maxAlerts, cancellationToken);
                     if (outcome == LowStockAlertOutcome.Sent)
                     {
                         totalSent++;

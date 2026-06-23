@@ -43,7 +43,7 @@ public class LowStockAlertServiceTests
             .ReturnsAsync((Domain.Entities.TenantSettings?)null);
 
         LowStockAlertOutcome outcome = await CreateService()
-            .SendAsync(CreateContext(), TimeSpan.FromHours(24), CancellationToken.None);
+            .SendAsync(CreateContext(), TimeSpan.FromHours(24), 3, CancellationToken.None);
 
         outcome.Should().Be(LowStockAlertOutcome.NoRecipients);
         _mailer.Verify(m => m.SendAsync(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -60,7 +60,7 @@ public class LowStockAlertServiceTests
             .ReturnsAsync(MailRequestId.New());
 
         LowStockAlertOutcome outcome = await CreateService()
-            .SendAsync(CreateContext(), TimeSpan.FromHours(24), CancellationToken.None);
+            .SendAsync(CreateContext(), TimeSpan.FromHours(24), 3, CancellationToken.None);
 
         outcome.Should().Be(LowStockAlertOutcome.Sent);
         _mailer.Verify(m => m.SendAsync(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -82,7 +82,7 @@ public class LowStockAlertServiceTests
             .ReturnsAsync(lastSent);
 
         LowStockAlertOutcome outcome = await CreateService()
-            .SendAsync(CreateContext(productId: productId), TimeSpan.FromHours(24), CancellationToken.None);
+            .SendAsync(CreateContext(productId: productId), TimeSpan.FromHours(24), 3, CancellationToken.None);
 
         outcome.Should().Be(LowStockAlertOutcome.Suppressed);
         _mailer.Verify(m => m.SendAsync(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -108,9 +108,26 @@ public class LowStockAlertServiceTests
             .ReturnsAsync(MailRequestId.New());
 
         LowStockAlertOutcome outcome = await CreateService()
-            .SendAsync(CreateContext(productId: productId), TimeSpan.FromHours(24), CancellationToken.None);
+            .SendAsync(CreateContext(productId: productId), TimeSpan.FromHours(24), 3, CancellationToken.None);
 
         outcome.Should().Be(LowStockAlertOutcome.Sent);
         _mailer.Verify(m => m.SendAsync(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SendAsync_WhenMaxAlertsReachedForEpisode_SuppressesAndSkipsMail()
+    {
+        Guid productId = Guid.NewGuid();
+        _stockAlertLogRepository.Setup(r => r.CountSentLowStockAlertsInCurrentEpisodeAsync(
+                "tenant-1", productId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(3);
+
+        LowStockAlertOutcome outcome = await CreateService()
+            .SendAsync(CreateContext(productId: productId), TimeSpan.FromHours(168), 3, CancellationToken.None);
+
+        outcome.Should().Be(LowStockAlertOutcome.MaxReached);
+        _mailer.Verify(m => m.SendAsync(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()), Times.Never);
+        _stockAlertLogRepository.Verify(r => r.Add(It.Is<StockAlertLog>(l =>
+            l.DeliveryStatus == StockAlertDeliveryStatus.Suppressed && l.FailureReason == "MaxAlertsReached")), Times.Once);
     }
 }

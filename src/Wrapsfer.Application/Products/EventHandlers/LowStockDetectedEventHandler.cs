@@ -24,7 +24,8 @@ internal sealed class LowStockDetectedEventHandler(
             domainEvent.Threshold);
 
         TimeSpan dedupeWindow = TimeSpan.FromHours(productSettings.Value.LowStockReminderIntervalHours);
+        int maxAlerts = productSettings.Value.MaxLowStockAlerts;
 
-        return lowStockAlertService.SendAsync(context, dedupeWindow, cancellationToken);
+        return lowStockAlertService.SendAsync(context, dedupeWindow, maxAlerts, cancellationToken);
     }
 }

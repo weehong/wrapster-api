@@ -89,5 +89,33 @@ internal sealed class StockAlertLogRepository(ApplicationDbContext context) : IS
             .ToDictionary(g => g.Key, g => g.OrderByDescending(l => l.OccurredOn).First());
     }
 
+    public async Task<int> CountSentLowStockAlertsInCurrentEpisodeAsync(
+        string tenantId,
+        Guid productId,
+        CancellationToken cancellationToken = default)
+    {
+        DateTime? lastRecoveredOn = await context.StockAlertLogs
+            .Where(l => l.TenantId == tenantId
+                        && l.ProductId == productId
+                        && l.AlertType == StockAlertType.Recovered
+                        && l.DeliveryStatus == StockAlertDeliveryStatus.Sent)
+            .OrderByDescending(l => l.OccurredOn)
+            .Select(l => (DateTime?)l.OccurredOn)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        IQueryable<StockAlertLog> query = context.StockAlertLogs
+            .Where(l => l.TenantId == tenantId
+                        && l.ProductId == productId
+                        && l.AlertType == StockAlertType.LowStock
+                        && l.DeliveryStatus == StockAlertDeliveryStatus.Sent);
+
+        if (lastRecoveredOn.HasValue)
+        {
+            query = query.Where(l => l.OccurredOn > lastRecoveredOn.Value);
+        }
+
+        return await query.CountAsync(cancellationToken);
+    }
+
     public void Add(StockAlertLog log) => context.StockAlertLogs.Add(log);
 }
