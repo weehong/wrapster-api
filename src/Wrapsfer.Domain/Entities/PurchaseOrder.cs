@@ -24,6 +24,8 @@ public sealed class PurchaseOrder : AuditableEntity
     public string? RejectionReason { get; private set; }
     public DateTime? ReceivedAt { get; private set; }
     public DateTime? RejectedAt { get; private set; }
+    public bool IsDeleted { get; private set; }
+    public DateTime? DeletedAt { get; private set; }
 
     public static Result<PurchaseOrder> Create(
         string tenantId,
@@ -145,6 +147,47 @@ public sealed class PurchaseOrder : AuditableEntity
             Quantity,
             trimmedReason,
             DateTime.UtcNow));
+
+        return Result.Success();
+    }
+
+    public Result Update(string poNumber, int quantity)
+    {
+        if (Status != PurchaseOrderStatus.Pending)
+        {
+            return Result.Failure(PurchaseOrderErrors.NotPendingForEdit);
+        }
+
+        if (string.IsNullOrWhiteSpace(poNumber))
+        {
+            return Result.Failure(PurchaseOrderErrors.InvalidPoNumber);
+        }
+
+        if (poNumber.Length > PoNumberMaxLength)
+        {
+            return Result.Failure(PurchaseOrderErrors.PoNumberTooLong);
+        }
+
+        if (quantity <= 0)
+        {
+            return Result.Failure(PurchaseOrderErrors.InvalidQuantity);
+        }
+
+        PoNumber = poNumber;
+        Quantity = quantity;
+
+        return Result.Success();
+    }
+
+    public Result Delete()
+    {
+        if (Status != PurchaseOrderStatus.Pending)
+        {
+            return Result.Failure(PurchaseOrderErrors.NotPendingForDelete);
+        }
+
+        IsDeleted = true;
+        DeletedAt = DateTime.UtcNow;
 
         return Result.Success();
     }

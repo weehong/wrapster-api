@@ -73,4 +73,14 @@ public static class PurchaseOrderErrors
         "PurchaseOrder.RejectionReasonRequired",
         "A reason is required when rejecting a purchase order",
         ErrorType.Validation);
+
+    public static readonly Error NotPendingForEdit = new(
+        "PurchaseOrder.NotPendingForEdit",
+        "Only pending purchase orders can be edited",
+        ErrorType.Conflict);
+
+    public static readonly Error NotPendingForDelete = new(
+        "PurchaseOrder.NotPendingForDelete",
+        "Only pending purchase orders can be deleted",
+        ErrorType.Conflict);
 }

@@ -49,12 +49,21 @@ public sealed class PurchaseOrderConfiguration : IEntityTypeConfiguration<Purcha
         builder.Property(p => p.ReceivedAt);
         builder.Property(p => p.RejectedAt);
 
+        builder.Property(p => p.IsDeleted)
+            .HasDefaultValue(false)
+            .IsRequired();
+        builder.Property(p => p.DeletedAt);
+
         builder.Property(p => p.CreatedAt).IsRequired();
         builder.Property(p => p.UpdatedAt);
         builder.Property(p => p.CreatedBy).HasMaxLength(256);
         builder.Property(p => p.UpdatedBy).HasMaxLength(256);
 
-        builder.HasIndex(p => new { p.TenantId, p.PoNumber }).IsUnique();
+        builder.HasQueryFilter(p => !p.IsDeleted);
+
+        builder.HasIndex(p => new { p.TenantId, p.PoNumber })
+            .IsUnique()
+            .HasFilter("\"IsDeleted\" = false");
         builder.HasIndex(p => new { p.TenantId, p.Status, p.CreatedAt });
     }
 }

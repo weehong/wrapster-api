@@ -5,8 +5,10 @@ using Wrapsfer.Api.Contracts;
 using Wrapsfer.Api.Filters;
 using Wrapsfer.Application.Common;
 using Wrapsfer.Application.PurchaseOrders.Commands.CreatePurchaseOrder;
+using Wrapsfer.Application.PurchaseOrders.Commands.DeletePurchaseOrder;
 using Wrapsfer.Application.PurchaseOrders.Commands.ReceivePurchaseOrder;
 using Wrapsfer.Application.PurchaseOrders.Commands.RejectPurchaseOrder;
+using Wrapsfer.Application.PurchaseOrders.Commands.UpdatePurchaseOrder;
 using Wrapsfer.Application.PurchaseOrders.Queries.GetPurchaseOrderById;
 using Wrapsfer.Application.PurchaseOrders.Queries.ListPurchaseOrders;
 using Wrapsfer.Application.PurchaseOrders.Responses;
@@ -54,6 +56,22 @@ public sealed class PurchaseOrdersController(ISender sender) : ApiControllerBase
     {
         Result<PurchaseOrderResponse> result =
             await sender.Send(new GetPurchaseOrderByIdQuery(id), cancellationToken);
+        return ToActionResult(result);
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdatePurchaseOrderRequest request,
+        CancellationToken cancellationToken)
+    {
+        Result result = await sender.Send(
+            new UpdatePurchaseOrderCommand(id, request.PoNumber, request.Quantity), cancellationToken);
+        return ToActionResult(result);
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        Result result = await sender.Send(new DeletePurchaseOrderCommand(id), cancellationToken);
         return ToActionResult(result);
     }
 

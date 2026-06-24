@@ -10,6 +10,9 @@ public interface IPurchaseOrderRepository
     Task<bool> ExistsByNumberAsync(string poNumber, string tenantId,
         CancellationToken cancellationToken = default);
 
+    Task<bool> ExistsByNumberAsync(string poNumber, Guid excludeId, string tenantId,
+        CancellationToken cancellationToken = default);
+
     Task<(IReadOnlyList<PurchaseOrder> Items, int TotalCount)> ListAsync(
         string tenantId,
         PurchaseOrderStatus? status = null,

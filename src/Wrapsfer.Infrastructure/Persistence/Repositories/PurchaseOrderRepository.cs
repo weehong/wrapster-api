@@ -17,6 +17,12 @@ internal sealed class PurchaseOrderRepository(ApplicationDbContext context) : IP
         await context.PurchaseOrders
             .AnyAsync(p => p.TenantId == tenantId && p.PoNumber == poNumber, cancellationToken);
 
+    public async Task<bool> ExistsByNumberAsync(string poNumber, Guid excludeId, string tenantId,
+        CancellationToken cancellationToken = default) =>
+        await context.PurchaseOrders
+            .AnyAsync(p => p.TenantId == tenantId && p.PoNumber == poNumber && p.Id != excludeId,
+                cancellationToken);
+
     public async Task<(IReadOnlyList<PurchaseOrder> Items, int TotalCount)> ListAsync(
         string tenantId,
         PurchaseOrderStatus? status = null,

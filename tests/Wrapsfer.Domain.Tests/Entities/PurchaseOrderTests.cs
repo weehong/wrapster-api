@@ -132,4 +132,72 @@ public class PurchaseOrderTests
 
         result.Error.Code.Should().Be(PurchaseOrderErrors.InvalidStatusTransition.Code);
     }
+
+    [Fact]
+    public void Update_WhenPending_ChangesPoNumberAndQuantity()
+    {
+        PurchaseOrder purchaseOrder = CreateValid().Value;
+
+        Result result = purchaseOrder.Update("PO-EDITED", 42);
+
+        result.IsSuccess.Should().BeTrue();
+        purchaseOrder.PoNumber.Should().Be("PO-EDITED");
+        purchaseOrder.Quantity.Should().Be(42);
+    }
+
+    [Fact]
+    public void Update_WithBlankPoNumber_Fails()
+    {
+        PurchaseOrder purchaseOrder = CreateValid().Value;
+
+        Result result = purchaseOrder.Update("  ", 5);
+
+        result.Error.Code.Should().Be(PurchaseOrderErrors.InvalidPoNumber.Code);
+    }
+
+    [Fact]
+    public void Update_WithNonPositiveQuantity_Fails()
+    {
+        PurchaseOrder purchaseOrder = CreateValid().Value;
+
+        Result result = purchaseOrder.Update("PO-1", 0);
+
+        result.Error.Code.Should().Be(PurchaseOrderErrors.InvalidQuantity.Code);
+    }
+
+    [Fact]
+    public void Update_WhenReceived_Fails()
+    {
+        PurchaseOrder purchaseOrder = CreateValid().Value;
+        purchaseOrder.Receive();
+
+        Result result = purchaseOrder.Update("PO-EDITED", 9);
+
+        result.Error.Code.Should().Be(PurchaseOrderErrors.NotPendingForEdit.Code);
+        purchaseOrder.PoNumber.Should().Be("PO-001");
+    }
+
+    [Fact]
+    public void Delete_WhenPending_MarksDeleted()
+    {
+        PurchaseOrder purchaseOrder = CreateValid().Value;
+
+        Result result = purchaseOrder.Delete();
+
+        result.IsSuccess.Should().BeTrue();
+        purchaseOrder.IsDeleted.Should().BeTrue();
+        purchaseOrder.DeletedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void Delete_WhenRejected_Fails()
+    {
+        PurchaseOrder purchaseOrder = CreateValid().Value;
+        purchaseOrder.Reject("supplier closed");
+
+        Result result = purchaseOrder.Delete();
+
+        result.Error.Code.Should().Be(PurchaseOrderErrors.NotPendingForDelete.Code);
+        purchaseOrder.IsDeleted.Should().BeFalse();
+    }
 }
