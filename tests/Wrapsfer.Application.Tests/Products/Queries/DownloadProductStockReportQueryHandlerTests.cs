@@ -2,6 +2,9 @@ using Wrapsfer.Application.Abstractions;
 using Wrapsfer.Application.Abstractions.FileProcessing;
 using Wrapsfer.Application.Products.Queries.DownloadProductStockReport;
 using Wrapsfer.Domain.Common;
+using Wrapsfer.Domain.Entities;
+using Wrapsfer.Domain.Enums;
+using Wrapsfer.Domain.Errors;
 using Wrapsfer.Domain.Repositories;
 
 namespace Wrapsfer.Application.Tests.Products.Queries;
@@ -10,6 +13,7 @@ public class DownloadProductStockReportQueryHandlerTests
 {
     private readonly Mock<IStockMovementRepository> _stockMovementRepository = new();
     private readonly Mock<IProductStockReportFileWriter> _writer = new();
+    private readonly Mock<IFeatureEntitlementRepository> _entitlementRepository = new();
     private readonly Mock<ITenantContext> _tenantContext = new();
     private readonly DownloadProductStockReportQueryHandler _handler;
 
@@ -22,6 +26,9 @@ public class DownloadProductStockReportQueryHandlerTests
         _tenantContext.Setup(x => x.TenantId).Returns("partner-a");
         _tenantContext.Setup(x => x.Username).Returns("acct");
         _tenantContext.Setup(x => x.DisplayName).Returns("Accountant");
+
+        // By default the tenant has an active stock report entitlement.
+        SetUpActiveEntitlement("partner-a");
 
         _stockMovementRepository
             .Setup(r => r.GetPointInTimeSnapshotAsync(
@@ -48,7 +55,26 @@ public class DownloadProductStockReportQueryHandlerTests
             });
 
         _handler = new DownloadProductStockReportQueryHandler(
-            _stockMovementRepository.Object, _writer.Object, _tenantContext.Object);
+            _stockMovementRepository.Object, _writer.Object, _entitlementRepository.Object, _tenantContext.Object);
+    }
+
+    private void SetUpActiveEntitlement(string tenantId)
+    {
+        DateTime now = DateTime.UtcNow;
+        FeatureEntitlement entitlement = FeatureEntitlement.CreatePending(
+            tenantId,
+            BillingFeature.StockReport,
+            now.AddDays(-1),
+            now.AddDays(10),
+            267,
+            "myr",
+            "cs_test_active").Value;
+        entitlement.Activate("pi_test", "in_test");
+
+        _entitlementRepository
+            .Setup(r => r.GetActiveAsync(
+                tenantId, BillingFeature.StockReport, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(entitlement);
     }
 
     [Fact]
@@ -91,5 +117,33 @@ public class DownloadProductStockReportQueryHandlerTests
         _stockMovementRepository.Verify(
             r => r.GetPointInTimeSnapshotAsync("partner-a", It.IsAny<DateTime>(), It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_WhenNoActiveEntitlement_ReturnsPaymentRequiredAndDoesNotGenerate()
+    {
+        _entitlementRepository
+            .Setup(r => r.GetActiveAsync(
+                "partner-a", BillingFeature.StockReport, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((FeatureEntitlement?)null);
+
+        DownloadProductStockReportQuery query = new(ProductStockReportFormat.Xlsx, new DateOnly(2026, 6, 20));
+
+        Result<DownloadProductStockReportResult> result = await _handler.Handle(query, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Be(BillingErrors.StockReportPaymentRequired);
+        result.Error.Type.Should().Be(ErrorType.PaymentRequired);
+        _stockMovementRepository.Verify(
+            r => r.GetPointInTimeSnapshotAsync(
+                It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _writer.Verify(
+            w => w.WriteAsync(
+                It.IsAny<IReadOnlyList<ProductStockReportRow>>(),
+                It.IsAny<ProductStockReportMetadata>(),
+                It.IsAny<ProductStockReportFormat>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 }

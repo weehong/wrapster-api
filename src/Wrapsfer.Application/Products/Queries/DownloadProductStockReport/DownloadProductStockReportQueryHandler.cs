@@ -2,6 +2,9 @@ using Wrapsfer.Application.Abstractions;
 using Wrapsfer.Application.Abstractions.FileProcessing;
 using Wrapsfer.Application.Abstractions.Messaging;
 using Wrapsfer.Domain.Common;
+using Wrapsfer.Domain.Entities;
+using Wrapsfer.Domain.Enums;
+using Wrapsfer.Domain.Errors;
 using Wrapsfer.Domain.Repositories;
 
 namespace Wrapsfer.Application.Products.Queries.DownloadProductStockReport;
@@ -9,6 +12,7 @@ namespace Wrapsfer.Application.Products.Queries.DownloadProductStockReport;
 internal sealed class DownloadProductStockReportQueryHandler(
     IStockMovementRepository stockMovementRepository,
     IProductStockReportFileWriter writer,
+    IFeatureEntitlementRepository entitlementRepository,
     ITenantContext tenantContext)
     : IQueryHandler<DownloadProductStockReportQuery, DownloadProductStockReportResult>
 {
@@ -16,6 +20,14 @@ internal sealed class DownloadProductStockReportQueryHandler(
         DownloadProductStockReportQuery request,
         CancellationToken cancellationToken)
     {
+        // Stock report export is gated behind a paid, time-bound access pass.
+        FeatureEntitlement? entitlement = await entitlementRepository.GetActiveAsync(
+            tenantContext.TenantId, BillingFeature.StockReport, DateTime.UtcNow, cancellationToken);
+        if (entitlement is null)
+        {
+            return Result<DownloadProductStockReportResult>.Failure(BillingErrors.StockReportPaymentRequired);
+        }
+
         // Include the whole of the chosen day: take movements strictly before the next midnight (UTC).
         DateTime asOfUtcExclusive = request.AsOfDate.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
 

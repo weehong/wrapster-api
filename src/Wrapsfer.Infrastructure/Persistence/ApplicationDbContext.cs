@@ -23,6 +23,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<WaybillItem> WaybillItems => Set<WaybillItem>();
     public DbSet<WaybillExportJob> WaybillExportJobs => Set<WaybillExportJob>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+    public DbSet<PartnerBillingCustomer> PartnerBillingCustomers => Set<PartnerBillingCustomer>();
+    public DbSet<FeatureEntitlement> FeatureEntitlements => Set<FeatureEntitlement>();
+    public DbSet<StripeWebhookEvent> StripeWebhookEvents => Set<StripeWebhookEvent>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

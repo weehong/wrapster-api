@@ -67,6 +67,12 @@ public abstract class ApiControllerBase : ControllerBase
                 Title = error.Code,
                 Detail = error.Description
             }),
+            ErrorType.PaymentRequired => StatusCode(StatusCodes.Status402PaymentRequired, new ProblemDetails
+            {
+                Status = StatusCodes.Status402PaymentRequired,
+                Title = error.Code,
+                Detail = error.Description
+            }),
             _ => BadRequest(new ProblemDetails
             {
                 Status = StatusCodes.Status400BadRequest,
