@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Wrapsfer.Domain.Abstractions;
 using Wrapsfer.Domain.Common;
 using Wrapsfer.Domain.Entities;
+using Wrapsfer.Infrastructure.Persistence.Outbox;
 
 namespace Wrapsfer.Infrastructure.Persistence;
 
@@ -22,6 +23,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<WaybillItem> WaybillItems => Set<WaybillItem>();
     public DbSet<WaybillExportJob> WaybillExportJobs => Set<WaybillExportJob>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

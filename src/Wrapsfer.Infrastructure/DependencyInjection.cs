@@ -94,6 +94,8 @@ public static class DependencyInjection
         services.AddSingleton<PdfProductStockReportFileWriter>();
         services.AddSingleton<IProductStockReportFileWriter, CompositeProductStockReportFileWriter>();
 
+        services.AddHostedService<OutboxProcessor>();
+        services.AddHostedService<DomainEventConsumer>();
         services.AddHostedService<ProductsExportConsumer>();
         services.AddHostedService<WaybillsExportConsumer>();
         services.AddHostedService<AutoCancelStaleDraftsJob>();

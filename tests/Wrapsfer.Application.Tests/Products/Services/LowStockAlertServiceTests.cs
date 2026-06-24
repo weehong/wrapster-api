@@ -37,7 +37,7 @@ public class LowStockAlertServiceTests
     }
 
     [Fact]
-    public async Task SendAsync_WithNoRecipients_LogsFailedAndReturnsNoRecipients()
+    public async Task SendAsync_WithNoRecipients_SuppressesAndReturnsNoRecipients()
     {
         _tenantSettingsRepository.Setup(r => r.GetByTenantIdAsync("tenant-1", It.IsAny<CancellationToken>()))
             .ReturnsAsync((Domain.Entities.TenantSettings?)null);
@@ -48,7 +48,7 @@ public class LowStockAlertServiceTests
         outcome.Should().Be(LowStockAlertOutcome.NoRecipients);
         _mailer.Verify(m => m.SendAsync(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()), Times.Never);
         _stockAlertLogRepository.Verify(r => r.Add(It.Is<StockAlertLog>(l =>
-            l.DeliveryStatus == StockAlertDeliveryStatus.Failed && l.FailureReason == "NoRecipients")), Times.Once);
+            l.DeliveryStatus == StockAlertDeliveryStatus.Suppressed && l.FailureReason == "NoRecipients")), Times.Once);
     }
 
     [Fact]

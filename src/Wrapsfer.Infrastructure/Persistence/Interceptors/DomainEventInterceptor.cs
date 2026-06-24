@@ -1,52 +1,76 @@
-using MediatR;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Wrapsfer.Application.Abstractions;
 using Wrapsfer.Domain.Common;
+using Wrapsfer.Infrastructure.Persistence.Outbox;
 
 namespace Wrapsfer.Infrastructure.Persistence.Interceptors;
 
-public sealed class DomainEventInterceptor(IPublisher publisher) : SaveChangesInterceptor
+/// <summary>
+/// Captures domain events raised during a unit of work into the outbox <em>before</em>
+/// the transaction commits, so the events persist atomically with the business data.
+/// A background relay (<see cref="BackgroundServices.OutboxProcessor"/>) publishes them
+/// afterwards. Dispatching here — rather than post-commit — guarantees a notification
+/// failure can never roll back, lose, or fail the originating request.
+/// </summary>
+public sealed class DomainEventInterceptor : SaveChangesInterceptor
 {
-    public override async ValueTask<int> SavedChangesAsync(
-        SaveChangesCompletedEventData eventData,
-        int result,
+    public override InterceptionResult<int> SavingChanges(
+        DbContextEventData eventData,
+        InterceptionResult<int> result)
+    {
+        if (eventData.Context is not null)
+        {
+            WriteOutboxMessages(eventData.Context);
+        }
+
+        return base.SavingChanges(eventData, result);
+    }
+
+    public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+        DbContextEventData eventData,
+        InterceptionResult<int> result,
         CancellationToken cancellationToken = default)
     {
         if (eventData.Context is not null)
         {
-            await PublishDomainEventsAsync(eventData.Context, cancellationToken);
+            WriteOutboxMessages(eventData.Context);
         }
 
-        return await base.SavedChangesAsync(eventData, result, cancellationToken);
+        return base.SavingChangesAsync(eventData, result, cancellationToken);
     }
 
-    private async Task PublishDomainEventsAsync(DbContext context, CancellationToken cancellationToken)
+    private static void WriteOutboxMessages(DbContext context)
     {
         List<BaseEntity> entities = context.ChangeTracker.Entries<BaseEntity>()
             .Where(e => e.Entity.DomainEvents.Count != 0)
             .Select(e => e.Entity)
             .ToList();
 
-        List<IDomainEvent> domainEvents = entities
-            .SelectMany(e => e.DomainEvents)
-            .ToList();
-
-        foreach (IDomainEvent domainEvent in domainEvents)
+        if (entities.Count == 0)
         {
-            Type notificationType = typeof(DomainEventNotification<>).MakeGenericType(domainEvent.GetType());
-            object? notification = Activator.CreateInstance(notificationType, domainEvent);
-
-            if (notification is null)
-            {
-                throw new InvalidOperationException(
-                    $"Failed to create notification for domain event type '{domainEvent.GetType().FullName}'. " +
-                    $"Ensure '{notificationType.FullName}' has a constructor accepting the domain event instance.");
-            }
-
-            await publisher.Publish(notification, cancellationToken);
+            return;
         }
 
-        entities.ForEach(e => e.ClearDomainEvents());
+        List<OutboxMessage> messages = [];
+        foreach (BaseEntity entity in entities)
+        {
+            foreach (IDomainEvent domainEvent in entity.DomainEvents)
+            {
+                Type eventType = domainEvent.GetType();
+                messages.Add(new OutboxMessage
+                {
+                    Id = Guid.NewGuid(),
+                    OccurredOnUtc = DateTime.UtcNow,
+                    Type = eventType.FullName!,
+                    Content = JsonSerializer.Serialize(domainEvent, eventType),
+                    TenantId = eventType.GetProperty("TenantId")?.GetValue(domainEvent) as string
+                });
+            }
+
+            entity.ClearDomainEvents();
+        }
+
+        context.Set<OutboxMessage>().AddRange(messages);
     }
 }

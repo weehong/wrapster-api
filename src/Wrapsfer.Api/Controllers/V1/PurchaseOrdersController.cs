@@ -16,6 +16,7 @@ using Wrapsfer.Infrastructure.Authentication;
 
 namespace Wrapsfer.Api.Controllers.V1;
 
+[Route("api/v{version:apiVersion}/purchase-orders")]
 [ServiceFilter(typeof(TenantResolutionFilter))]
 public sealed class PurchaseOrdersController(ISender sender) : ApiControllerBase
 {

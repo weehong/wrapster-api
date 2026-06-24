@@ -45,7 +45,7 @@ internal sealed class StockRecoveredEventHandler(
                 StockAlertType.Recovered,
                 domainEvent.CurrentStock,
                 domainEvent.Threshold,
-                StockAlertDeliveryStatus.Failed,
+                StockAlertDeliveryStatus.Suppressed,
                 null,
                 "NoRecipients",
                 DateTime.UtcNow));

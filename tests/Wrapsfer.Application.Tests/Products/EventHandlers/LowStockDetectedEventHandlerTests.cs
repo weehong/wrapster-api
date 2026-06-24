@@ -66,7 +66,7 @@ public class LowStockDetectedEventHandlerTests
             m => m.SendAsync(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()),
             Times.Never);
         _stockAlertLogRepository.Verify(r => r.Add(It.Is<StockAlertLog>(l =>
-            l.DeliveryStatus == StockAlertDeliveryStatus.Failed && l.FailureReason == "NoRecipients")), Times.Once);
+            l.DeliveryStatus == StockAlertDeliveryStatus.Suppressed && l.FailureReason == "NoRecipients")), Times.Once);
         _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 

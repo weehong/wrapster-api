@@ -99,7 +99,7 @@ public sealed class LowStockAlertService(
                 StockAlertType.LowStock,
                 context.CurrentStock,
                 context.Threshold,
-                StockAlertDeliveryStatus.Failed,
+                StockAlertDeliveryStatus.Suppressed,
                 null,
                 "NoRecipients",
                 DateTime.UtcNow));
