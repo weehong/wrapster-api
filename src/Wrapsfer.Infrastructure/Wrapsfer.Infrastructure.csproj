@@ -22,6 +22,7 @@
     <PackageReference Include="CsvHelper"/>
     <PackageReference Include="AWSSDK.S3"/>
     <PackageReference Include="QuestPDF"/>
+    <PackageReference Include="Stripe.net"/>
   </ItemGroup>
 
   <PropertyGroup>

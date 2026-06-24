@@ -1,6 +1,10 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Wrapsfer.Application.Billing.Commands.RefundStockReportAccess;
+using Wrapsfer.Application.Billing.Queries.GetPartnerStockReportBillingStatus;
+using Wrapsfer.Application.Billing.Queries.GetPartnersBillingOverview;
+using Wrapsfer.Application.Billing.Queries.GetStockReportBillingStatus;
 using Wrapsfer.Api.Contracts;
 using Wrapsfer.Application.Partners.Commands.CreatePartner;
 using Wrapsfer.Application.Partners.Commands.RetryPartnerProvisioning;
@@ -76,6 +80,34 @@ public sealed class PartnersController(ISender sender) : ApiControllerBase
             request.IsTemporaryPassword);
 
         Result<PartnerResponse> result = await sender.Send(command, cancellationToken);
+        return ToActionResult(result);
+    }
+
+    [HttpGet("billing/overview")]
+    public async Task<IActionResult> GetBillingOverview(CancellationToken cancellationToken)
+    {
+        Result<IReadOnlyList<PartnerBillingOverviewItem>> result =
+            await sender.Send(new GetPartnersBillingOverviewQuery(), cancellationToken);
+        return ToActionResult(result);
+    }
+
+    [HttpGet("{tenantId}/billing/stock-report/status")]
+    public async Task<IActionResult> GetStockReportBillingStatus(
+        string tenantId,
+        CancellationToken cancellationToken)
+    {
+        Result<StockReportBillingStatusResult> result =
+            await sender.Send(new GetPartnerStockReportBillingStatusQuery(tenantId), cancellationToken);
+        return ToActionResult(result);
+    }
+
+    [HttpPost("{tenantId}/billing/stock-report/refund")]
+    public async Task<IActionResult> RefundStockReportAccess(
+        string tenantId,
+        CancellationToken cancellationToken)
+    {
+        Result result = await sender.Send(
+            new RefundStockReportAccessCommand(tenantId), cancellationToken);
         return ToActionResult(result);
     }
 }

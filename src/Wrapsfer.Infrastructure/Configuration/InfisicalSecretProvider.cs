@@ -14,7 +14,10 @@ public static class InfisicalSecretProvider
         ["REPORT_STORAGE_S3_BUCKET"] = "ReportStorage:S3:BucketName",
         ["REPORT_STORAGE_S3_REGION"] = "ReportStorage:S3:Region",
         ["REPORT_STORAGE_S3_PREFIX"] = "ReportStorage:S3:Prefix",
-        ["REPORT_STORAGE_S3_TTL_MINUTES"] = "ReportStorage:S3:DownloadUrlTtlMinutes"
+        ["REPORT_STORAGE_S3_TTL_MINUTES"] = "ReportStorage:S3:DownloadUrlTtlMinutes",
+        ["STRIPE_SECRET_KEY"] = "Stripe:SecretKey",
+        ["STRIPE_WEBHOOK_SECRET"] = "Stripe:WebhookSecret",
+        ["STRIPE_FRONTEND_BASE_URL"] = "Stripe:FrontendBaseUrl"
     };
 
     // The AWS SDK reads credentials only from process env vars / shared profiles / IMDS — never from

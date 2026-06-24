@@ -14,6 +14,7 @@ using Wrapsfer.Domain.Abstractions;
 using Wrapsfer.Domain.Repositories;
 using Wrapsfer.Infrastructure.Authentication;
 using Wrapsfer.Infrastructure.BackgroundServices;
+using Wrapsfer.Infrastructure.Billing;
 using Wrapsfer.Infrastructure.FileProcessing;
 using Wrapsfer.Infrastructure.IdentityProvisioning;
 using Wrapsfer.Infrastructure.Persistence;
@@ -69,10 +70,14 @@ public static class DependencyInjection
         services.AddScoped<IWaybillRepository, WaybillRepository>();
         services.AddScoped<IWaybillExportJobRepository, WaybillExportJobRepository>();
         services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
+        services.AddScoped<IPartnerBillingCustomerRepository, PartnerBillingCustomerRepository>();
+        services.AddScoped<IFeatureEntitlementRepository, FeatureEntitlementRepository>();
+        services.AddScoped<IStripeWebhookEventRepository, StripeWebhookEventRepository>();
 
         services.AddKeycloakAuthentication(configuration);
         services.AddQueueService(configuration);
         services.AddReportStorage(configuration);
+        services.AddStripeBilling(configuration);
 
         services.AddOptions<WaybillEmailReportOptions>()
             .Bind(configuration.GetSection(WaybillEmailReportOptions.SectionName));
