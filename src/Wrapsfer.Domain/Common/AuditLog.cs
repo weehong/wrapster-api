@@ -8,6 +8,7 @@ public sealed class AuditLog
     public AuditAction Action { get; init; }
     public string? Changes { get; init; }
     public string? UserId { get; init; }
+    public string? Username { get; init; }
     public string? TenantId { get; init; }
     public DateTime Timestamp { get; init; }
 }

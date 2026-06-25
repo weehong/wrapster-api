@@ -1,4 +1,5 @@
 using Wrapsfer.Application.Abstractions;
+using Wrapsfer.Application.Abstractions.Auditing;
 using Wrapsfer.Application.Abstractions.FileProcessing;
 using Wrapsfer.Application.Products.Queries.DownloadProductStockReport;
 using Wrapsfer.Domain.Common;
@@ -15,6 +16,8 @@ public class DownloadProductStockReportQueryHandlerTests
     private readonly Mock<IProductStockReportFileWriter> _writer = new();
     private readonly Mock<IFeatureEntitlementRepository> _entitlementRepository = new();
     private readonly Mock<ITenantContext> _tenantContext = new();
+    private readonly Mock<IAuditMetadata> _auditMetadata = new();
+    private readonly Dictionary<string, object?> _capturedAudit = new();
     private readonly DownloadProductStockReportQueryHandler _handler;
 
     private IReadOnlyList<ProductStockReportRow>? _capturedRows;
@@ -54,8 +57,13 @@ public class DownloadProductStockReportQueryHandlerTests
                 _capturedMetadata = metadata;
             });
 
+        _auditMetadata
+            .Setup(m => m.Set(It.IsAny<string>(), It.IsAny<object?>()))
+            .Callback<string, object?>((key, value) => _capturedAudit[key] = value);
+
         _handler = new DownloadProductStockReportQueryHandler(
-            _stockMovementRepository.Object, _writer.Object, _entitlementRepository.Object, _tenantContext.Object);
+            _stockMovementRepository.Object, _writer.Object, _entitlementRepository.Object,
+            _tenantContext.Object, _auditMetadata.Object);
     }
 
     private void SetUpActiveEntitlement(string tenantId)
@@ -100,6 +108,14 @@ public class DownloadProductStockReportQueryHandlerTests
         _capturedMetadata.GrandTotalValue.Should().Be(20.00m);
         _capturedMetadata.ExportedBy.Should().Be("Accountant");
         _capturedMetadata.AsOfDate.Should().Be(new DateOnly(2026, 6, 20));
+
+        // Audit metadata records a countable successful download.
+        _capturedAudit["feature"].Should().Be("StockReport");
+        _capturedAudit["format"].Should().Be("Xlsx");
+        _capturedAudit["asOfDate"].Should().Be(new DateOnly(2026, 6, 20));
+        _capturedAudit["fileName"].Should().Be("product-stock-report-20260620.xlsx");
+        _capturedAudit["rowCount"].Should().Be(2);
+        _capturedAudit["successfulDownload"].Should().Be(true);
     }
 
     [Fact]
@@ -134,6 +150,13 @@ public class DownloadProductStockReportQueryHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(BillingErrors.StockReportPaymentRequired);
         result.Error.Type.Should().Be(ErrorType.PaymentRequired);
+
+        // A payment-required attempt is auditable but must not count as a successful download.
+        _capturedAudit["feature"].Should().Be("StockReport");
+        _capturedAudit["successfulDownload"].Should().Be(false);
+        _capturedAudit.Should().NotContainKey("fileName");
+        _capturedAudit.Should().NotContainKey("rowCount");
+
         _stockMovementRepository.Verify(
             r => r.GetPointInTimeSnapshotAsync(
                 It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()),

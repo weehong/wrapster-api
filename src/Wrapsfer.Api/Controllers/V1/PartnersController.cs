@@ -1,11 +1,13 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Wrapsfer.Application.Billing.Commands.RefundStockReportAccess;
-using Wrapsfer.Application.Billing.Queries.GetPartnerStockReportBillingStatus;
-using Wrapsfer.Application.Billing.Queries.GetPartnersBillingOverview;
-using Wrapsfer.Application.Billing.Queries.GetStockReportBillingStatus;
 using Wrapsfer.Api.Contracts;
+using Wrapsfer.Application.Billing.Commands.RefundStockReportAccess;
+using Wrapsfer.Application.Billing.Queries.GetPartnersBillingOverview;
+using Wrapsfer.Application.Billing.Queries.GetPartnerStockReportBillingStatus;
+using Wrapsfer.Application.Billing.Queries.GetPartnerStockReportDownloadCounts;
+using Wrapsfer.Application.Billing.Queries.GetStockReportBillingStatus;
+using Wrapsfer.Application.Billing.Responses;
 using Wrapsfer.Application.Partners.Commands.CreatePartner;
 using Wrapsfer.Application.Partners.Commands.RetryPartnerProvisioning;
 using Wrapsfer.Application.Partners.Commands.SetPartnerActive;
@@ -108,6 +110,20 @@ public sealed class PartnersController(ISender sender) : ApiControllerBase
     {
         Result result = await sender.Send(
             new RefundStockReportAccessCommand(tenantId), cancellationToken);
+        return ToActionResult(result);
+    }
+
+    [HttpGet("{tenantId}/billing/stock-report/downloads")]
+    public async Task<IActionResult> GetStockReportDownloads(
+        string tenantId,
+        [FromQuery] string? fromMonth,
+        [FromQuery] string? toMonth,
+        CancellationToken cancellationToken)
+    {
+        Result<IReadOnlyList<StockReportMonthlyDownloadCount>> result = await sender.Send(
+            new GetPartnerStockReportDownloadCountsQuery(
+                tenantId, fromMonth ?? string.Empty, toMonth ?? string.Empty),
+            cancellationToken);
         return ToActionResult(result);
     }
 }

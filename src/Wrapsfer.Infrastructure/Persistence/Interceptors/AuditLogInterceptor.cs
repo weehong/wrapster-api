@@ -36,6 +36,7 @@ public sealed class AuditLogInterceptor(ITenantContext? tenantContext = null) : 
         }
 
         string? userId = ResolveUserId();
+        string? username = ResolveUsername();
         string? tenantId = ResolveTenantId();
         DateTime utcNow = DateTime.UtcNow;
 
@@ -60,6 +61,7 @@ public sealed class AuditLogInterceptor(ITenantContext? tenantContext = null) : 
                 },
                 Changes = SerializeChanges(entry),
                 UserId = userId,
+                Username = username,
                 TenantId = tenantId,
                 Timestamp = utcNow
             };
@@ -138,6 +140,18 @@ public sealed class AuditLogInterceptor(ITenantContext? tenantContext = null) : 
         try
         {
             return tenantContext?.UserId;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private string? ResolveUsername()
+    {
+        try
+        {
+            return tenantContext?.Username;
         }
         catch
         {

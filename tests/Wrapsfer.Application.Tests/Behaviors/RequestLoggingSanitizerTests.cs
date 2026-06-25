@@ -1,4 +1,6 @@
 using Wrapsfer.Application.Abstractions;
+using Wrapsfer.Application.Auth.Commands.ChangePassword;
+using Wrapsfer.Application.Auth.Commands.Login;
 using Wrapsfer.Application.Behaviors;
 
 namespace Wrapsfer.Application.Tests.Behaviors;
@@ -58,10 +60,55 @@ public class RequestLoggingSanitizerTests
         result.Should().Contain(id.ToString());
     }
 
+    [Fact]
+    public void Sanitize_WithPositionalRecordSensitiveProperty_RedactsValue()
+    {
+        SensitivePositionalRecord request = new("admin", "secret123");
+
+        string result = RequestLoggingSanitizer.Sanitize(request);
+
+        result.Should().Contain("***REDACTED***");
+        result.Should().Contain("admin");
+        result.Should().NotContain("secret123");
+    }
+
+    [Fact]
+    public void Sanitize_LoginCommand_RedactsPasswordButKeepsRealmAndUsername()
+    {
+        LoginCommand command = new("partner-a", "operator", "hunter2");
+
+        string result = RequestLoggingSanitizer.Sanitize(command);
+
+        result.Should().NotContain("hunter2");
+        result.Should().Contain("***REDACTED***");
+        result.Should().Contain("partner-a");
+        result.Should().Contain("operator");
+    }
+
+    [Fact]
+    public void Sanitize_ChangePasswordCommand_RedactsBothPasswords()
+    {
+        ChangePasswordCommand command = new(
+            "partner-a", "user-123", "operator", "oldPass!1", "newPass!2");
+
+        string result = RequestLoggingSanitizer.Sanitize(command);
+
+        result.Should().NotContain("oldPass!1");
+        result.Should().NotContain("newPass!2");
+        result.Should().Contain("***REDACTED***");
+        result.Should().Contain("partner-a");
+        result.Should().Contain("user-123");
+        result.Should().Contain("operator");
+    }
+
     private class SensitiveRequest
     {
         public string Username { get; set; } = "";
 
         [SensitiveData] public string Password { get; set; } = "";
     }
+
+    private sealed record SensitivePositionalRecord(
+        string Username,
+        [property: SensitiveData] string Password);
 }

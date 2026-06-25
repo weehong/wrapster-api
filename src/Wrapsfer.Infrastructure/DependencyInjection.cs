@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Wrapsfer.Application.Abstractions;
+using Wrapsfer.Application.Abstractions.Auditing;
 using Wrapsfer.Application.Abstractions.FileProcessing;
 using Wrapsfer.Application.Abstractions.IdentityProvisioning;
 using Wrapsfer.Application.PartnerIntegrations.Options;
@@ -18,6 +19,7 @@ using Wrapsfer.Infrastructure.Billing;
 using Wrapsfer.Infrastructure.FileProcessing;
 using Wrapsfer.Infrastructure.IdentityProvisioning;
 using Wrapsfer.Infrastructure.Persistence;
+using Wrapsfer.Infrastructure.Persistence.Auditing;
 using Wrapsfer.Infrastructure.Persistence.Interceptors;
 using Wrapsfer.Infrastructure.Persistence.Repositories;
 using Wrapsfer.Infrastructure.Queue;
@@ -59,6 +61,9 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
+
+        services.AddSingleton<IAuditSink, AuditSink>();
+        services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 
         services.AddScoped<IPartnerTenantRepository, PartnerTenantRepository>();
         services.AddScoped<IPartnerIntegrationCredentialRepository, PartnerIntegrationCredentialRepository>();

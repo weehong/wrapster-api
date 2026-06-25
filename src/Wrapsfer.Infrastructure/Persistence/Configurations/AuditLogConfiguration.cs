@@ -31,6 +31,9 @@ public sealed class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
         builder.Property(a => a.UserId)
             .HasMaxLength(256);
 
+        builder.Property(a => a.Username)
+            .HasMaxLength(256);
+
         builder.Property(a => a.TenantId)
             .HasMaxLength(256);
 
@@ -42,5 +45,6 @@ public sealed class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
         builder.HasIndex(a => a.TenantId);
         builder.HasIndex(a => a.Timestamp);
         builder.HasIndex(a => new { a.EntityName, a.EntityId });
+        builder.HasIndex(a => new { a.EntityName, a.Action, a.TenantId, a.Timestamp });
     }
 }

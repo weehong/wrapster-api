@@ -4,5 +4,7 @@ public enum AuditAction
 {
     Created,
     Updated,
-    Deleted
+    Deleted,
+    Executed,
+    Failed
 }

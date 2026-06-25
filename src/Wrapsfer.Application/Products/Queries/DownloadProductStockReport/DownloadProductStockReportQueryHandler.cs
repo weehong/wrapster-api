@@ -1,4 +1,5 @@
 using Wrapsfer.Application.Abstractions;
+using Wrapsfer.Application.Abstractions.Auditing;
 using Wrapsfer.Application.Abstractions.FileProcessing;
 using Wrapsfer.Application.Abstractions.Messaging;
 using Wrapsfer.Domain.Common;
@@ -13,13 +14,21 @@ internal sealed class DownloadProductStockReportQueryHandler(
     IStockMovementRepository stockMovementRepository,
     IProductStockReportFileWriter writer,
     IFeatureEntitlementRepository entitlementRepository,
-    ITenantContext tenantContext)
+    ITenantContext tenantContext,
+    IAuditMetadata auditMetadata)
     : IQueryHandler<DownloadProductStockReportQuery, DownloadProductStockReportResult>
 {
     public async Task<Result<DownloadProductStockReportResult>> Handle(
         DownloadProductStockReportQuery request,
         CancellationToken cancellationToken)
     {
+        // Audit metadata is attached even on failure paths so attempts are traceable; only a
+        // successful generation sets successfulDownload = true, which is what monthly usage counts.
+        auditMetadata.Set("feature", "StockReport");
+        auditMetadata.Set("format", request.Format.ToString());
+        auditMetadata.Set("asOfDate", request.AsOfDate);
+        auditMetadata.Set("successfulDownload", false);
+
         // Stock report export is gated behind a paid, time-bound access pass.
         FeatureEntitlement? entitlement = await entitlementRepository.GetActiveAsync(
             tenantContext.TenantId, BillingFeature.StockReport, DateTime.UtcNow, cancellationToken);
@@ -56,6 +65,10 @@ internal sealed class DownloadProductStockReportQueryHandler(
         byte[] fileBytes = await writer.WriteAsync(rows, metadata, request.Format, cancellationToken);
         (string contentType, string extension) = GetFileInfo(request.Format);
         string fileName = $"product-stock-report-{request.AsOfDate:yyyyMMdd}{extension}";
+
+        auditMetadata.Set("fileName", fileName);
+        auditMetadata.Set("rowCount", rows.Count);
+        auditMetadata.Set("successfulDownload", true);
 
         return new DownloadProductStockReportResult(fileBytes, contentType, fileName);
     }
