@@ -21,6 +21,8 @@ public class AuditBehaviorTests
         _tenantContext.Setup(t => t.TenantId).Returns("partner-a");
         _tenantContext.Setup(t => t.UserId).Returns("user-1");
         _tenantContext.Setup(t => t.Username).Returns("operator");
+        _tenantContext.Setup(t => t.DisplayName).Returns("Ada Lovelace");
+        _tenantContext.Setup(t => t.ActorRealm).Returns("owner-realm");
 
         _sink
             .Setup(s => s.WriteAsync(It.IsAny<AuditLogRecord>(), It.IsAny<CancellationToken>()))
@@ -45,6 +47,8 @@ public class AuditBehaviorTests
         _written.TenantId.Should().Be("partner-a");
         _written.UserId.Should().Be("user-1");
         _written.Username.Should().Be("operator");
+        _written.ActorName.Should().Be("Ada Lovelace");
+        _written.ActorRealm.Should().Be("owner-realm");
         _written.EntityId.Should().NotBeNullOrWhiteSpace();
 
         JsonElement changes = JsonDocument.Parse(_written.Changes!).RootElement;

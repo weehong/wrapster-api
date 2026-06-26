@@ -111,6 +111,7 @@ public static class DependencyInjection
         services.AddHostedService<AutoCancelStaleDraftsJob>();
         services.AddHostedService<LowStockReminderJob>();
         services.AddHostedService<StockMovementBackfillJob>();
+        services.AddHostedService<AuditLogActorBackfillJob>();
 
         return services;
     }
@@ -146,6 +147,7 @@ public static class DependencyInjection
         services.AddScoped<IIdentityTenantProvisioningService, KeycloakTenantProvisioningService>();
         services.AddScoped<IIntegrationClientProvisioningService, KeycloakIntegrationClientProvisioningService>();
         services.AddScoped<IIdentityAuthService, KeycloakIdentityAuthService>();
+        services.AddScoped<IIdentityUserDirectory, KeycloakIdentityUserDirectory>();
         services.AddHostedService<KeycloakIssuerPreflight>();
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

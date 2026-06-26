@@ -25,6 +25,8 @@ internal sealed class AuditSink(IServiceScopeFactory scopeFactory) : IAuditSink
             Changes = record.Changes,
             UserId = record.UserId,
             Username = record.Username,
+            ActorName = record.ActorName,
+            ActorRealm = record.ActorRealm,
             TenantId = record.TenantId,
             Timestamp = record.Timestamp
         };

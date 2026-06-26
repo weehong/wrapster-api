@@ -95,6 +95,8 @@ internal sealed class AuditBehavior<TRequest, TResponse>(
                 ResolveTenantId(),
                 ResolveUserId(),
                 ResolveUsername(),
+                ResolveActorName(),
+                ResolveActorRealm(),
                 DateTime.UtcNow);
 
             // Use None: a cancelled request must still leave an audit trail.
@@ -150,6 +152,10 @@ internal sealed class AuditBehavior<TRequest, TResponse>(
     private string? ResolveUserId() => SafeResolve(() => tenantContext.UserId);
 
     private string? ResolveUsername() => SafeResolve(() => tenantContext.Username);
+
+    private string? ResolveActorName() => SafeResolve(() => tenantContext.DisplayName);
+
+    private string? ResolveActorRealm() => SafeResolve(() => tenantContext.ActorRealm);
 
     private static string? SafeResolve(Func<string?> accessor)
     {

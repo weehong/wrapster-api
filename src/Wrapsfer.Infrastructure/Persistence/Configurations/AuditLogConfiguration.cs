@@ -34,6 +34,12 @@ public sealed class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
         builder.Property(a => a.Username)
             .HasMaxLength(256);
 
+        builder.Property(a => a.ActorName)
+            .HasMaxLength(256);
+
+        builder.Property(a => a.ActorRealm)
+            .HasMaxLength(256);
+
         builder.Property(a => a.TenantId)
             .HasMaxLength(256);
 

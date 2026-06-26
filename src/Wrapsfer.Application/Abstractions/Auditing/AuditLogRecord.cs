@@ -14,4 +14,6 @@ public sealed record AuditLogRecord(
     string? TenantId,
     string? UserId,
     string? Username,
+    string? ActorName,
+    string? ActorRealm,
     DateTime Timestamp);

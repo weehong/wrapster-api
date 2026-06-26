@@ -16,6 +16,7 @@ using Wrapsfer.Application.Products.Queries.DownloadProductStockReport;
 using Wrapsfer.Application.Products.Queries.GetProductByBarcode;
 using Wrapsfer.Application.Products.Queries.GetProductById;
 using Wrapsfer.Application.Products.Queries.GetProductBySku;
+using Wrapsfer.Application.Products.Queries.ListProductAuditLogs;
 using Wrapsfer.Application.Products.Queries.ListProducts;
 using Wrapsfer.Application.Products.Responses;
 using Wrapsfer.Domain.Common;
@@ -75,6 +76,18 @@ public sealed class ProductsController(ISender sender, IProductFileWriter fileWr
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
         Result<ProductResponse> result = await sender.Send(new GetProductByIdQuery(id), cancellationToken);
+        return ToActionResult(result);
+    }
+
+    [HttpGet("{id:guid}/audit-logs")]
+    public async Task<IActionResult> ListAuditLogs(
+        Guid id,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken cancellationToken = default)
+    {
+        Result<PagedResult<ProductAuditLogResponse>> result = await sender.Send(
+            new ListProductAuditLogsQuery(id, page, pageSize), cancellationToken);
         return ToActionResult(result);
     }
 

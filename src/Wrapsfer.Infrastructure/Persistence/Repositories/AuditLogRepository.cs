@@ -12,6 +12,32 @@ internal sealed class AuditLogRepository(ApplicationDbContext context) : IAuditL
     private const string StockReportDownloadEntityName = "DownloadProductStockReportQuery";
     private const string SuccessfulDownloadKey = "successfulDownload";
 
+    public async Task<(IReadOnlyList<AuditLog> Items, int TotalCount)> ListForEntityAsync(
+        string entityName,
+        string entityId,
+        string tenantId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        IQueryable<AuditLog> query = context.AuditLogs
+            .AsNoTracking()
+            .Where(a => a.EntityName == entityName
+                        && a.EntityId == entityId
+                        && a.TenantId == tenantId);
+
+        int totalCount = await query.CountAsync(cancellationToken);
+
+        List<AuditLog> items = await query
+            .OrderByDescending(a => a.Timestamp)
+            .ThenByDescending(a => a.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
     public async Task<IReadOnlyList<StockReportDownloadAudit>> GetSuccessfulStockReportDownloadsAsync(
         string tenantId,
         DateTime fromUtcInclusive,
