@@ -38,8 +38,15 @@ internal static class StockReportDownloadMonthRange
     /// </summary>
     public static (DateTime FromUtcInclusive, DateTime ToUtcExclusive) ToUtcRange(string fromMonth, string toMonth)
     {
-        TryParseMonth(fromMonth, out DateOnly from);
-        TryParseMonth(toMonth, out DateOnly to);
+        if (!TryParseMonth(fromMonth, out DateOnly from))
+        {
+            throw new ArgumentException($"'{fromMonth}' is not a valid {MonthFormat} month.", nameof(fromMonth));
+        }
+
+        if (!TryParseMonth(toMonth, out DateOnly to))
+        {
+            throw new ArgumentException($"'{toMonth}' is not a valid {MonthFormat} month.", nameof(toMonth));
+        }
 
         DateTime fromUtcInclusive = from.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
         DateTime toUtcExclusive = to.AddMonths(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);

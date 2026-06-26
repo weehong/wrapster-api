@@ -134,10 +134,40 @@ internal sealed class AuditBehavior<TRequest, TResponse>(
 
         foreach (KeyValuePair<string, object?> entry in metadata)
         {
-            changes[entry.Key] = entry.Value;
+            // Serialize each metadata value in isolation so one non-serializable or cyclic value
+            // degrades to a string instead of throwing and erasing the entire audit row.
+            changes[entry.Key] = ToSerializableValue(entry.Value);
         }
 
         return JsonSerializer.Serialize(changes);
+    }
+
+    private static object? ToSerializableValue(object? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            // Round-trip through the serializer against the runtime type so a problematic value is
+            // caught here, per-field, rather than when the whole changes dictionary is serialized.
+            string json = JsonSerializer.Serialize(value, value.GetType());
+            using JsonDocument document = JsonDocument.Parse(json);
+            return document.RootElement.Clone();
+        }
+        catch (Exception)
+        {
+            try
+            {
+                return value.ToString();
+            }
+            catch (Exception)
+            {
+                return value.GetType().FullName;
+            }
+        }
     }
 
     private static JsonElement SanitizeRequest(TRequest request)

@@ -7,4 +7,5 @@ public sealed record StripeCheckoutSessionRequest(
     string ProductName,
     string SuccessUrl,
     string CancelUrl,
-    IReadOnlyDictionary<string, string> Metadata);
+    IReadOnlyDictionary<string, string> Metadata,
+    string IdempotencyKey);

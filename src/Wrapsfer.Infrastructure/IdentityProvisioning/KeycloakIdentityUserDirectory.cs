@@ -26,7 +26,7 @@ internal sealed class KeycloakIdentityUserDirectory : IIdentityUserDirectory
     {
         using HttpClient client = await _adminHttp.CreateAuthorizedClientAsync(cancellationToken);
 
-        HttpResponseMessage response = await client.GetAsync(
+        using HttpResponseMessage response = await client.GetAsync(
             $"admin/realms/{Uri.EscapeDataString(realm)}/users/{Uri.EscapeDataString(userId)}",
             cancellationToken);
 

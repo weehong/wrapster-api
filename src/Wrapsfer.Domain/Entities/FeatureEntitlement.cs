@@ -45,6 +45,14 @@ public sealed class FeatureEntitlement : AuditableEntity
             return Result<FeatureEntitlement>.Failure(BillingErrors.InvalidTenantId);
         }
 
+        // The window bounds are persisted as UTC instants and compared against UTC "now"; rejecting
+        // Local/Unspecified kinds keeps callers from passing ambiguous timestamps that would shift
+        // the access window by the server's offset.
+        if (validFromUtc.Kind != DateTimeKind.Utc || validToUtc.Kind != DateTimeKind.Utc)
+        {
+            return Result<FeatureEntitlement>.Failure(BillingErrors.NonUtcValidityTimestamp);
+        }
+
         if (validToUtc <= validFromUtc)
         {
             return Result<FeatureEntitlement>.Failure(BillingErrors.InvalidValidityRange);

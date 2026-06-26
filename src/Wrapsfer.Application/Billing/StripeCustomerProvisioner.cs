@@ -25,6 +25,11 @@ public sealed class StripeCustomerProvisioner(
             return Result<string>.Success(existing.StripeCustomerId);
         }
 
+        // CreateCustomerAsync is idempotent (keyed on tenantId), so concurrent first-use requests
+        // resolve to the same Stripe customer rather than creating duplicates. The PartnerBillingCustomers
+        // unique index on TenantId is the backstop for the row: if two requests race the insert, one
+        // wins and the loser surfaces a 409 (mapped from the unique-violation), after which a retry
+        // finds the existing mapping here and reuses it.
         string stripeCustomerId = await billingGateway.CreateCustomerAsync(
             tenantId, tenantContext.Email, tenantContext.DisplayName, cancellationToken);
 

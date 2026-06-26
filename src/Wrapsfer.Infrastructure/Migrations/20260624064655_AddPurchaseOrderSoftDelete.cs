@@ -39,6 +39,20 @@ namespace Wrapsfer.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            // The non-filtered unique index restored below cannot represent soft-deleted rows that
+            // reused a (TenantId, PoNumber) of a live order. Rather than silently purging business
+            // data on rollback, fail fast with an actionable message so an operator decides how to
+            // reconcile the soft-deleted orders before reverting.
+            migrationBuilder.Sql(
+                """
+                DO $$
+                BEGIN
+                    IF EXISTS (SELECT 1 FROM "PurchaseOrders" WHERE "IsDeleted" = true) THEN
+                        RAISE EXCEPTION 'Cannot roll back AddPurchaseOrderSoftDelete: soft-deleted PurchaseOrders exist. Hard-delete or restore them before reverting, since the original unique index cannot represent soft-deleted rows.';
+                    END IF;
+                END $$;
+                """);
+
             migrationBuilder.DropIndex(
                 name: "IX_PurchaseOrders_TenantId_PoNumber",
                 table: "PurchaseOrders");

@@ -6,6 +6,7 @@ public sealed class UpdatePurchaseOrderCommandValidator : AbstractValidator<Upda
 {
     public UpdatePurchaseOrderCommandValidator()
     {
+        RuleFor(x => x.Id).NotEmpty();
         RuleFor(x => x.PoNumber).NotEmpty().MaximumLength(100);
         RuleFor(x => x.Quantity).GreaterThan(0);
     }

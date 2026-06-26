@@ -27,7 +27,12 @@ internal sealed class HandleStripeWebhookCommandHandler(
 
         StripeWebhookNotification notification = parseResult.Value;
 
-        // Stripe retries deliveries; a duplicate event ID means we already applied this event.
+        // Stripe retries deliveries; a duplicate event ID means we already applied this event. This
+        // pre-check short-circuits sequential redeliveries. Two *concurrent* deliveries can both pass
+        // it, but the entitlement mutation and the StripeWebhookEvent insert below are persisted in a
+        // single SaveChanges (one transaction), and StripeEventId carries a unique index — so the
+        // second writer's insert fails the constraint and rolls back its entitlement change too,
+        // making the event apply at most once. (Activate/Cancel are also individually idempotent.)
         if (await webhookEventRepository.ExistsAsync(notification.EventId, cancellationToken))
         {
             logger.LogInformation("Ignoring duplicate Stripe webhook event {EventId} ({EventType})",

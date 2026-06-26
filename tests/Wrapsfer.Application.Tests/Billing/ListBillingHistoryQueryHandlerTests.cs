@@ -102,7 +102,9 @@ public class ListBillingHistoryQueryHandlerTests
                 item.AmountMinor,
                 item.Currency,
                 item.Description,
-                new DateOnly(2026, 6, 24),
+                // Access window start comes from the entitlement (ValidFromUtc 2026-05-31 16:00 UTC
+                // = 2026-06-01 Singapore), not the refund's occurrence time.
+                new DateOnly(2026, 6, 1),
                 new DateOnly(2026, 6, 30),
                 item.HostedInvoiceUrl,
                 item.InvoicePdfUrl,

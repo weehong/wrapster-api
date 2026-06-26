@@ -153,6 +153,11 @@ public sealed class PurchaseOrder : AuditableEntity
 
     public Result Update(string poNumber, int quantity)
     {
+        if (IsDeleted)
+        {
+            return Result.Failure(PurchaseOrderErrors.AlreadyDeleted);
+        }
+
         if (Status != PurchaseOrderStatus.Pending)
         {
             return Result.Failure(PurchaseOrderErrors.NotPendingForEdit);
@@ -181,6 +186,12 @@ public sealed class PurchaseOrder : AuditableEntity
 
     public Result Delete()
     {
+        // Idempotent: a redelivered delete must not overwrite the original DeletedAt timestamp.
+        if (IsDeleted)
+        {
+            return Result.Success();
+        }
+
         if (Status != PurchaseOrderStatus.Pending)
         {
             return Result.Failure(PurchaseOrderErrors.NotPendingForDelete);

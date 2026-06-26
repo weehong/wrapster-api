@@ -126,6 +126,8 @@ public sealed class AuditLogActorBackfillJob(
     {
         foreach (string realm in candidate.CandidateRealms)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             try
             {
                 ResolvedActor? actor = await directory.ResolveActorAsync(realm, candidate.UserId, cancellationToken);
@@ -133,6 +135,12 @@ public sealed class AuditLogActorBackfillJob(
                 {
                     return (realm, actor);
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                // Shutdown requested: let cancellation unwind instead of swallowing it and
+                // continuing to probe the remaining candidate realms.
+                throw;
             }
             catch (Exception ex)
             {

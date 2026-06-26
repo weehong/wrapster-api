@@ -21,12 +21,23 @@ internal static class StockReportDownloadCountsBuilder
                 monthGroup.Key.ToString(StockReportDownloadMonthRange.MonthFormat, CultureInfo.InvariantCulture),
                 monthGroup.Count(),
                 monthGroup
-                    .GroupBy(download => new { download.UserId, download.Username })
-                    .OrderBy(userGroup => userGroup.Key.Username)
-                    .Select(userGroup => new StockReportDownloadUserCount(
-                        userGroup.Key.UserId,
-                        userGroup.Key.Username,
-                        userGroup.Count()))
+                    // Group on the stable user identity (UserId) so a username change does not split
+                    // one person into multiple buckets; fall back to Username only when there is no
+                    // UserId. Username is carried through as display data from the latest download.
+                    .GroupBy(download => download.UserId is not null
+                        ? (UserId: download.UserId, UsernameKey: (string?)null)
+                        : (UserId: (string?)null, UsernameKey: download.Username))
+                    .Select(userGroup =>
+                    {
+                        StockReportDownloadAudit latest = userGroup
+                            .OrderByDescending(download => download.TimestampUtc)
+                            .First();
+                        return new StockReportDownloadUserCount(
+                            latest.UserId,
+                            latest.Username,
+                            userGroup.Count());
+                    })
+                    .OrderBy(user => user.Username)
                     .ToList()))
             .ToList();
 }

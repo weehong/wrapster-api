@@ -50,6 +50,21 @@ public class FeatureEntitlementTests
         result.Error.Should().Be(BillingErrors.InvalidValidityRange);
     }
 
+    [Theory]
+    [InlineData(DateTimeKind.Local)]
+    [InlineData(DateTimeKind.Unspecified)]
+    public void CreatePending_WhenValidityTimestampsNotUtc_Fails(DateTimeKind kind)
+    {
+        DateTime validFrom = DateTime.SpecifyKind(s_validFrom, kind);
+        DateTime validTo = DateTime.SpecifyKind(s_validTo, kind);
+
+        Result<FeatureEntitlement> result = FeatureEntitlement.CreatePending(
+            TenantId, BillingFeature.StockReport, validFrom, validTo, 267, "myr", "cs_test_1");
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Be(BillingErrors.NonUtcValidityTimestamp);
+    }
+
     [Fact]
     public void CreatePending_WhenAmountNotPositive_Fails()
     {

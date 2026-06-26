@@ -59,7 +59,11 @@ internal sealed class CreateStockReportCheckoutCommandHandler(
             $"Stock report access — {period.AccessEndDate:yyyy-MM}",
             BillingUrlBuilder.Combine(options.FrontendBaseUrl, options.CheckoutSuccessPath),
             BillingUrlBuilder.Combine(options.FrontendBaseUrl, options.CheckoutCancelPath),
-            metadata);
+            metadata,
+            // Per-attempt key: makes the SDK's transport-level retries reuse one session while still
+            // letting a fresh user attempt create a new one. Business-level "one active pass per
+            // month" is enforced by the entitlement exclusion constraint, not this key.
+            Guid.NewGuid().ToString("N"));
 
         StripeCheckoutSessionResult session =
             await billingGateway.CreateCheckoutSessionAsync(sessionRequest, cancellationToken);

@@ -47,7 +47,11 @@ internal sealed class StripeBillingGateway : IStripeBillingGateway
             Metadata = new Dictionary<string, string> { [BillingMetadataKeys.TenantId] = tenantId }
         };
 
-        Customer customer = await _customerService.CreateAsync(createOptions, null, cancellationToken);
+        // Stable key per tenant: concurrent first-use requests and SDK retries resolve to the same
+        // Stripe customer instead of creating duplicates.
+        RequestOptions requestOptions = new() { IdempotencyKey = $"customer-create:{tenantId}" };
+
+        Customer customer = await _customerService.CreateAsync(createOptions, requestOptions, cancellationToken);
         return customer.Id;
     }
 
@@ -81,8 +85,19 @@ internal sealed class StripeBillingGateway : IStripeBillingGateway
             Metadata = new Dictionary<string, string>(request.Metadata)
         };
 
-        Session session = await _checkoutSessionService.CreateAsync(createOptions, null, cancellationToken);
-        return new StripeCheckoutSessionResult(session.Id, session.Url ?? string.Empty);
+        RequestOptions requestOptions = new() { IdempotencyKey = request.IdempotencyKey };
+
+        Session session = await _checkoutSessionService.CreateAsync(createOptions, requestOptions, cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(session.Url))
+        {
+            // Without a redirect URL the session is unusable; surface it as a failure rather than
+            // returning an empty URL the caller would hand to the browser.
+            throw new InvalidOperationException(
+                $"Stripe returned checkout session {session.Id} without a redirect URL.");
+        }
+
+        return new StripeCheckoutSessionResult(session.Id, session.Url);
     }
 
     public async Task<string> CreatePortalSessionAsync(
@@ -105,6 +120,8 @@ internal sealed class StripeBillingGateway : IStripeBillingGateway
         string customerId,
         CancellationToken cancellationToken = default)
     {
+        // Limit is the page size; ListAutoPagingAsync transparently fetches every page so a customer
+        // with a long history is not silently truncated to the first page.
         InvoiceListOptions invoiceOptions = new()
         {
             Customer = customerId,
@@ -112,12 +129,10 @@ internal sealed class StripeBillingGateway : IStripeBillingGateway
         };
         invoiceOptions.AddExpand("data.payments");
 
-        StripeList<Invoice> invoices = await _invoiceService.ListAsync(
-            invoiceOptions, null, cancellationToken);
-
         List<StripeBillingHistoryItem> items = [];
 
-        foreach (Invoice invoice in invoices.Data)
+        await foreach (Invoice invoice in _invoiceService.ListAutoPagingAsync(
+            invoiceOptions, null, cancellationToken))
         {
             string? paymentIntentId = invoice.Payments?.Data
                 .Select(p => p.Payment?.PaymentIntentId)
@@ -148,10 +163,8 @@ internal sealed class StripeBillingGateway : IStripeBillingGateway
                 Limit = 20
             };
 
-            StripeList<Refund> refunds = await _refundService.ListAsync(
-                refundOptions, null, cancellationToken);
-
-            foreach (Refund refund in refunds.Data)
+            await foreach (Refund refund in _refundService.ListAutoPagingAsync(
+                refundOptions, null, cancellationToken))
             {
                 items.Add(new StripeBillingHistoryItem(
                     refund.Id,
@@ -183,7 +196,11 @@ internal sealed class StripeBillingGateway : IStripeBillingGateway
             PaymentIntent = paymentIntentId
         };
 
-        Refund refund = await _refundService.CreateAsync(createOptions, null, cancellationToken);
+        // Stable key per payment intent: a retried refund (e.g. after a failed local commit) resolves
+        // to the same Stripe refund instead of refunding the customer twice.
+        RequestOptions requestOptions = new() { IdempotencyKey = $"refund:{paymentIntentId}" };
+
+        Refund refund = await _refundService.CreateAsync(createOptions, requestOptions, cancellationToken);
         return refund.Id;
     }
 

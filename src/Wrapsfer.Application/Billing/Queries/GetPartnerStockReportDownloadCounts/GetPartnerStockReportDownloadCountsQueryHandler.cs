@@ -20,14 +20,16 @@ internal sealed class GetPartnerStockReportDownloadCountsQueryHandler(
             return Result<IReadOnlyList<StockReportMonthlyDownloadCount>>.Failure(BillingErrors.InvalidTenantId);
         }
 
+        string tenantId = request.TenantId.Trim();
+
         (DateTime fromUtcInclusive, DateTime toUtcExclusive) =
             StockReportDownloadMonthRange.ToUtcRange(request.FromMonth, request.ToMonth);
 
         IReadOnlyList<StockReportDownloadAudit> downloads =
             await auditLogRepository.GetSuccessfulStockReportDownloadsAsync(
-                request.TenantId, fromUtcInclusive, toUtcExclusive, cancellationToken);
+                tenantId, fromUtcInclusive, toUtcExclusive, cancellationToken);
 
         return Result<IReadOnlyList<StockReportMonthlyDownloadCount>>.Success(
-            StockReportDownloadCountsBuilder.Build(request.TenantId, downloads));
+            StockReportDownloadCountsBuilder.Build(tenantId, downloads));
     }
 }

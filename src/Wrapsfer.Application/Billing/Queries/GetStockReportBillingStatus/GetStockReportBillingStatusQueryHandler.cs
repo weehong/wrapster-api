@@ -51,11 +51,10 @@ internal sealed class GetStockReportBillingStatusQueryHandler(
         FeatureEntitlement entitlement,
         TimeZoneInfo billingTimeZone)
     {
-        DateTime accessStartUtc = entitlement.CreatedAt == default
-            ? entitlement.ValidFromUtc
-            : entitlement.CreatedAt;
+        // The access window start is the entitlement's effective start, not the row's creation time —
+        // CreatedAt would misreport backfilled or re-created entitlements.
         DateOnly accessStartDate = DateOnly.FromDateTime(
-            TimeZoneInfo.ConvertTimeFromUtc(accessStartUtc, billingTimeZone));
+            TimeZoneInfo.ConvertTimeFromUtc(entitlement.ValidFromUtc, billingTimeZone));
         DateOnly accessEndDate = DateOnly.FromDateTime(
             TimeZoneInfo.ConvertTimeFromUtc(entitlement.ValidToUtc, billingTimeZone).AddDays(-1));
 

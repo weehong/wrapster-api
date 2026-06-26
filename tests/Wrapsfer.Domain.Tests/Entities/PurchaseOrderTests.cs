@@ -200,4 +200,30 @@ public class PurchaseOrderTests
         result.Error.Code.Should().Be(PurchaseOrderErrors.NotPendingForDelete.Code);
         purchaseOrder.IsDeleted.Should().BeFalse();
     }
+
+    [Fact]
+    public void Update_WhenDeleted_Fails()
+    {
+        PurchaseOrder purchaseOrder = CreateValid().Value;
+        purchaseOrder.Delete();
+
+        Result result = purchaseOrder.Update("PO-EDITED", 9);
+
+        result.Error.Code.Should().Be(PurchaseOrderErrors.AlreadyDeleted.Code);
+        purchaseOrder.PoNumber.Should().Be("PO-001");
+    }
+
+    [Fact]
+    public void Delete_WhenAlreadyDeleted_IsIdempotentAndKeepsOriginalTimestamp()
+    {
+        PurchaseOrder purchaseOrder = CreateValid().Value;
+        purchaseOrder.Delete();
+        DateTime? firstDeletedAt = purchaseOrder.DeletedAt;
+
+        Result result = purchaseOrder.Delete();
+
+        result.IsSuccess.Should().BeTrue();
+        purchaseOrder.IsDeleted.Should().BeTrue();
+        purchaseOrder.DeletedAt.Should().Be(firstDeletedAt);
+    }
 }

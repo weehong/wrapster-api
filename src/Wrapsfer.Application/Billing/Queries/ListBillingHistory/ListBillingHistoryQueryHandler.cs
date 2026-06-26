@@ -42,9 +42,11 @@ internal sealed class ListBillingHistoryQueryHandler(
             items.Select(i =>
             {
                 FeatureEntitlement? entitlement = FindEntitlement(i, entitlements);
+                // Both access bounds come from the matched entitlement's window so the displayed
+                // period reflects the access granted, not when the transaction happened to occur.
                 DateOnly? accessStartDate = entitlement is null
                     ? null
-                    : DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(i.OccurredAtUtc, billingTimeZone));
+                    : DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(entitlement.ValidFromUtc, billingTimeZone));
                 DateOnly? accessEndDate = entitlement is null
                     ? null
                     : DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(entitlement.ValidToUtc, billingTimeZone)

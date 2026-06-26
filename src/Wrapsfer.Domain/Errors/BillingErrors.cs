@@ -34,6 +34,11 @@ public static class BillingErrors
         "The entitlement validity range is invalid",
         ErrorType.Validation);
 
+    public static readonly Error NonUtcValidityTimestamp = new(
+        "Billing.NonUtcValidityTimestamp",
+        "The entitlement validity timestamps must be in UTC",
+        ErrorType.Validation);
+
     public static readonly Error InvalidCheckoutSessionId = new(
         "Billing.InvalidCheckoutSessionId",
         "A Stripe checkout session ID is required",

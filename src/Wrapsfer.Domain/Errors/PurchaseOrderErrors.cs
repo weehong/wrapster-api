@@ -83,4 +83,9 @@ public static class PurchaseOrderErrors
         "PurchaseOrder.NotPendingForDelete",
         "Only pending purchase orders can be deleted",
         ErrorType.Conflict);
+
+    public static readonly Error AlreadyDeleted = new(
+        "PurchaseOrder.AlreadyDeleted",
+        "The purchase order has already been deleted",
+        ErrorType.Conflict);
 }

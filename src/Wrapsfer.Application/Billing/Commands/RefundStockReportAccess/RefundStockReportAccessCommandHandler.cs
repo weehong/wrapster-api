@@ -40,6 +40,11 @@ internal sealed class RefundStockReportAccessCommandHandler(
             return Result.Failure(BillingErrors.StockReportPaymentNotRefundable);
         }
 
+        // Refund first, then revoke access. The Stripe refund is idempotent (keyed on the payment
+        // intent), so if the local Cancel/save below fails the command can be retried safely: the
+        // re-issued refund resolves to the same Stripe refund and the entitlement is found again
+        // (still Active) and canceled. Persisting Cancel before the refund would instead hide the
+        // entitlement from the retry's GetActiveAsync lookup and strand the refund.
         await billingGateway.RefundPaymentAsync(entitlement.StripePaymentIntentId, cancellationToken);
         entitlement.Cancel();
         await unitOfWork.SaveChangesAsync(cancellationToken);
