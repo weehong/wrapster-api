@@ -40,6 +40,12 @@ internal sealed class RetryPartnerProvisioningCommandHandler(
             return Result<PartnerResponse>.Failure(beginRetry.Error);
         }
 
+        Result profileUpdate = partner.UpdateProfile(request.DisplayName, request.ContactEmail);
+        if (profileUpdate.IsFailure)
+        {
+            return Result<PartnerResponse>.Failure(profileUpdate.Error);
+        }
+
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         await provisioningService.DeletePartnerRealmAsync(request.TenantId, cancellationToken);

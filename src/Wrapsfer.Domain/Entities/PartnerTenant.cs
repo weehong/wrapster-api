@@ -101,6 +101,23 @@ public sealed partial class PartnerTenant : AuditableEntity
         return Result.Success();
     }
 
+    public Result UpdateProfile(string displayName, string? contactEmail)
+    {
+        if (string.IsNullOrWhiteSpace(displayName) || displayName.Trim().Length > DisplayNameMaxLength)
+        {
+            return Result.Failure(PartnerTenantErrors.InvalidDisplayName);
+        }
+
+        if (contactEmail is not null && !IsValidEmail(contactEmail))
+        {
+            return Result.Failure(PartnerTenantErrors.InvalidContactEmail);
+        }
+
+        DisplayName = displayName.Trim();
+        ContactEmail = string.IsNullOrWhiteSpace(contactEmail) ? null : contactEmail.Trim();
+        return Result.Success();
+    }
+
     public Result Deactivate(DateTime deactivatedAt)
     {
         if (!IsActive || ProvisioningStatus == PartnerTenantProvisioningStatus.Deactivated)

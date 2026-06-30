@@ -55,4 +55,34 @@ public class CreatePartnerCommandValidatorTests
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(e => e.PropertyName == "TemporaryPassword");
     }
+
+    [Theory]
+    [InlineData("acme admin")]
+    [InlineData(" acmeadmin")]
+    [InlineData("acme\tadmin")]
+    [InlineData("acme&admin")]
+    [InlineData("acme/admin")]
+    [InlineData("ab")]
+    public void Validate_RejectsInvalidAdminUsername(string adminUsername)
+    {
+        CreatePartnerCommand command = ValidCommand() with { AdminUsername = adminUsername };
+
+        ValidationResult result = _validator.Validate(command);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName == "AdminUsername");
+    }
+
+    [Theory]
+    [InlineData("acmeadmin")]
+    [InlineData("acme.admin_1")]
+    [InlineData("acme-admin")]
+    public void Validate_AcceptsKeycloakSafeAdminUsername(string adminUsername)
+    {
+        CreatePartnerCommand command = ValidCommand() with { AdminUsername = adminUsername };
+
+        ValidationResult result = _validator.Validate(command);
+
+        result.IsValid.Should().BeTrue();
+    }
 }

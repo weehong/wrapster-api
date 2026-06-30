@@ -26,7 +26,10 @@ public sealed partial class CreatePartnerCommandValidator : AbstractValidator<Cr
 
         RuleFor(x => x.AdminUsername)
             .NotEmpty()
-            .MaximumLength(255);
+            .MinimumLength(AdminUsernamePolicy.MinLength)
+            .MaximumLength(AdminUsernamePolicy.MaxLength)
+            .Must(AdminUsernamePolicy.HasAllowedCharacters)
+            .WithMessage(AdminUsernamePolicy.InvalidCharactersMessage);
 
         RuleFor(x => x.TemporaryPassword)
             .NotEmpty()

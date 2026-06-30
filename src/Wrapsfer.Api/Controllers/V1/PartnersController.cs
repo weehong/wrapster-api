@@ -76,10 +76,12 @@ public sealed class PartnersController(ISender sender) : ApiControllerBase
     {
         RetryPartnerProvisioningCommand command = new(
             tenantId,
+            request.DisplayName,
             request.AdminEmail,
             request.AdminUsername,
             request.TemporaryPassword,
-            request.IsTemporaryPassword);
+            request.IsTemporaryPassword,
+            request.ContactEmail);
 
         Result<PartnerResponse> result = await sender.Send(command, cancellationToken);
         return ToActionResult(result);

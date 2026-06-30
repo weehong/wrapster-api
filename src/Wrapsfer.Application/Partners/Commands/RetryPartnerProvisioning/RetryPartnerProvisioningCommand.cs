@@ -5,7 +5,9 @@ namespace Wrapsfer.Application.Partners.Commands.RetryPartnerProvisioning;
 
 public sealed record RetryPartnerProvisioningCommand(
     string TenantId,
+    string DisplayName,
     string AdminEmail,
     string AdminUsername,
     string TemporaryPassword,
-    bool IsTemporaryPassword) : ICommand<PartnerResponse>;
+    bool IsTemporaryPassword,
+    string? ContactEmail = null) : ICommand<PartnerResponse>;
