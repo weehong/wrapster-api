@@ -1,0 +1,27 @@
+meta {
+  name: Create Product
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/products?tenantId={{PARTNER_TENANT_ID}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:json {
+  {
+    "barcode": "4901234567890",
+    "name": "Sample Product",
+    "skuCode": "SKU-001",
+    "type": "Single",
+    "cost": 9.99,
+    "stockQuantity": 100,
+    "lowStockThreshold": 15
+  }
+}

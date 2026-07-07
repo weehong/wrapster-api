@@ -1,0 +1,16 @@
+**/bin
+**/obj
+**/.vs
+**/.vscode
+**/.idea
+**/.git
+**/.github
+**/*.user
+**/*.suo
+TestResults
+coverage.xml
+.sonarqube
+dependency-report.txt
+*.md
+!Directory.Build.props
+!Directory.Packages.props

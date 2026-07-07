@@ -1,0 +1,14 @@
+using Wrapsfer.Application.Products.Common;
+
+namespace Wrapsfer.Api.Contracts;
+
+public sealed record UpdateProductRequest(
+    string? Name,
+    string? SkuCode,
+    bool ClearSkuCode = false,
+    decimal? Cost = null,
+    int? LowStockThreshold = null,
+    bool ClearLowStockThreshold = false,
+    Guid? UnpackTargetProductId = null,
+    int? UnpackQuantityPerPackage = null,
+    IReadOnlyList<BundleComponentInput>? Components = null);

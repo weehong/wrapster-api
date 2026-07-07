@@ -1,0 +1,32 @@
+{
+  "$schema": "https://alirezanet.github.io/Husky.Net/schema.json",
+  "tasks": [
+    {
+      "name": "dotnet-format",
+      "group": "pre-commit",
+      "command": "dotnet",
+      "args": ["format", "--no-restore", "--include", "${staged}"],
+      "include": ["**/*.cs"]
+    },
+    {
+      "name": "stage-formatted",
+      "group": "pre-commit",
+      "command": "git",
+      "args": ["add", "${staged}"],
+      "include": ["**/*.cs"]
+    },
+    {
+      "name": "no-consecutive-blank-lines",
+      "group": "pre-commit",
+      "command": "bash",
+      "args": ["-c", "grep -Pzl '\\n{3,}' ${staged} 2>/dev/null && echo 'Error: consecutive blank lines found in above files' && exit 1 || exit 0"],
+      "include": ["**/*.cs", "**/*.json", "**/*.xml", "**/*.yml", "**/*.yaml", "**/*.csproj", "**/*.props", "**/*.targets"]
+    },
+    {
+      "name": "dotnet-build",
+      "group": "pre-commit",
+      "command": "dotnet",
+      "args": ["build", "--no-restore"]
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+meta {
+  name: Export Waybills - Multi Partner
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/waybills/export?format=Csv&partnerTenantIds={{ALPHA_REALM}}&partnerTenantIds={{BETA_REALM}}
+  body: none
+  auth: bearer
+}
+
+params:query {
+  format: Csv
+  partnerTenantIds: {{ALPHA_REALM}}
+  partnerTenantIds: {{BETA_REALM}}
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+docs {
+  Owner-only. Repeat the partnerTenantIds query parameter to target specific active partners.
+  Each partner gets its own report and its own email; no partner receives another's data.
+  Requires an owner token and no tenantId (owner cross-tenant scope). Unknown or inactive
+  partner ids are rejected before the export is queued.
+}

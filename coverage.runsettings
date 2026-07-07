@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <Exclude>
+            [Wrapsfer.Api]*,
+            [*]Program,
+            [*]*DependencyInjection,
+            [Wrapsfer.Infrastructure]Wrapsfer.Infrastructure.Persistence.*,
+            [Wrapsfer.Infrastructure]Wrapsfer.Infrastructure.Migrations.*,
+            [Wrapsfer.Infrastructure]Wrapsfer.Infrastructure.Email.*,
+            [Wrapsfer.Infrastructure]Wrapsfer.Infrastructure.Queue.*,
+            [Wrapsfer.Infrastructure]Wrapsfer.Infrastructure.Configuration.*,
+            [Wrapsfer.Infrastructure]Wrapsfer.Infrastructure.Authentication.KeycloakClaimsTransformation,
+            [Wrapsfer.Infrastructure]Wrapsfer.Infrastructure.Authentication.MultiTenantJwtBearerEvents,
+            [Wrapsfer.Infrastructure]Wrapsfer.Infrastructure.Authentication.RealmConfigurationCache,
+            [*]System.Runtime.CompilerServices.*,
+            [*]Microsoft.AspNetCore.OpenApi.Generated.*
+          </Exclude>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

@@ -1,0 +1,19 @@
+meta {
+  name: Get Product By Barcode
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/products/by-barcode/:barcode?tenantId={{PARTNER_TENANT_ID}}
+  body: none
+  auth: bearer
+}
+
+params:path {
+  barcode: 4901234567890
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}

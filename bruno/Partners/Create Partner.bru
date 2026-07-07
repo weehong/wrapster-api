@@ -1,0 +1,27 @@
+meta {
+  name: Create Partner
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/partners
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:json {
+  {
+    "tenantId": "{{PARTNER_TENANT_ID}}",
+    "displayName": "{{PARTNER_DISPLAY_NAME}}",
+    "adminEmail": "{{PARTNER_ADMIN_EMAIL}}",
+    "adminUsername": "{{PARTNER_ADMIN_USERNAME}}",
+    "temporaryPassword": "{{PARTNER_ADMIN_PASSWORD}}",
+    "isTemporaryPassword": true,
+    "contactEmail": "{{PARTNER_CONTACT_EMAIL}}"
+  }
+}

@@ -1,0 +1,171 @@
+services:
+  api:
+    image: ${DOCKER_IMAGE}:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: ${DB_CONNECTION_STRING}
+      RabbitMq__HostName: ${RABBITMQ_HOST}
+      RabbitMq__Port: ${RABBITMQ_PORT:-5672}
+      RabbitMq__UserName: ${RABBITMQ_USER}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD}
+      RabbitMq__VirtualHost: ${RABBITMQ_VHOST:-/}
+      Mailing__Resend__ApiKey: ${RESEND_API_KEY}
+      Mailing__Resend__FromAddress: ${RESEND_FROM_ADDRESS}
+      Mailing__Resend__FromName: ${RESEND_FROM_NAME}
+      Cors__AllowedOrigins: ${CORS_ALLOWED_ORIGINS:-}
+      PartnerIntegrations__ApiBaseUrl: ${PARTNER_INTEGRATIONS_API_BASE_URL:?Set PARTNER_INTEGRATIONS_API_BASE_URL to the public API base URL}
+      Keycloak__BaseUrl: ${KEYCLOAK_BASE_URL:?Set KEYCLOAK_BASE_URL to the public HTTPS Keycloak URL}
+      Keycloak__OwnerRealm: ${KEYCLOAK_OWNER_REALM:-wrapsfer}
+      Keycloak__Audience: ${KEYCLOAK_AUDIENCE:-wrapsfer}
+      Keycloak__RequireHttpsMetadata: ${KEYCLOAK_REQUIRE_HTTPS:-true}
+      Keycloak__PartnerOnboardingEnabled: ${KEYCLOAK_PARTNER_ONBOARDING_ENABLED:-true}
+      Keycloak__AdminClientId: ${KEYCLOAK_ADMIN_CLIENT_ID}
+      Keycloak__AdminClientSecret: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+      Keycloak__AdminRealm: ${KEYCLOAK_ADMIN_REALM:-master}
+      Keycloak__PartnerApiClientSecret: ${KEYCLOAK_PARTNER_API_CLIENT_SECRET}
+      Infisical__ClientId: ${Infisical__ClientId}
+      Infisical__ClientSecret: ${Infisical__ClientSecret}
+      Infisical__ProjectId: ${Infisical__ProjectId}
+      ReportStorage__S3__BucketName: ${REPORT_STORAGE_S3_BUCKET}
+      ReportStorage__S3__Region: ${REPORT_STORAGE_S3_REGION}
+      ReportStorage__S3__Prefix: ${REPORT_STORAGE_S3_PREFIX:-reports}
+      ReportStorage__S3__DownloadUrlTtlMinutes: ${REPORT_STORAGE_S3_TTL_MINUTES:-4320}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${REPORT_STORAGE_S3_REGION:-}
+    ports:
+      - "${API_PORT:-8080}:8080"
+    mem_limit: 320m
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      keycloak-bootstrap:
+        condition: service_completed_successfully
+
+  migrate:
+    image: ${DOCKER_IMAGE}:${IMAGE_TAG:-latest}
+    restart: "no"
+    entrypoint: ["/app/efbundle"]
+    command: ["--connection", "${DB_CONNECTION_STRING}"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    mem_limit: 300m
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  keycloak-db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      POSTGRES_DB: keycloak
+    volumes:
+      - keycloak_db_data:/var/lib/postgresql/data
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  keycloak:
+    build:
+      context: keycloak
+      dockerfile: Dockerfile
+    image: wrapsfer-keycloak:26.2.5
+    restart: unless-stopped
+    command: start --optimized --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_HEALTH_ENABLED: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_HTTP_PORT: "8080"
+      KC_HOSTNAME: ${KEYCLOAK_HOSTNAME}
+      KC_PROXY_HEADERS: ${KEYCLOAK_PROXY_HEADERS:-xforwarded}
+      KC_HOSTNAME_STRICT: ${KEYCLOAK_HOSTNAME_STRICT:-true}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      JAVA_OPTS_KC_HEAP: "-Xms256m -Xmx512m"
+      # Consumed only by realm-export.json import-time ${env.*} substitution.
+      KEYCLOAK_PARTNER_API_CLIENT_SECRET: ${KEYCLOAK_PARTNER_API_CLIENT_SECRET}
+      KEYCLOAK_OWNER_ADMIN_PASSWORD: ${KEYCLOAK_OWNER_ADMIN_PASSWORD}
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    ports:
+      - "${KEYCLOAK_PORT:-18080}:8080"
+    mem_limit: 768m
+    healthcheck:
+      test:
+        - CMD
+        - bash
+        - -c
+        - 'exec 3<>/dev/tcp/localhost/9000; printf "GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n" >&3; grep -q "\"status\": \"UP\"" <&3'
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 120s
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+
+  keycloak-bootstrap:
+    image: quay.io/keycloak/keycloak:26.2
+    restart: "no"
+    entrypoint: ["/bin/bash", "/bootstrap/bootstrap-admin-client.sh"]
+    environment:
+      KC_BASE_URL: http://keycloak:8080
+      KEYCLOAK_ADMIN_USER: ${KEYCLOAK_ADMIN_USER:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+    volumes:
+      - ./keycloak/bootstrap-admin-client.sh:/bootstrap/bootstrap-admin-client.sh:ro
+    depends_on:
+      keycloak:
+        condition: service_healthy
+
+volumes:
+  db_data:
+  rabbitmq_data:
+  keycloak_db_data:

@@ -1,0 +1,25 @@
+meta {
+  name: Get Token (Owner Admin)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{KEYCLOAK_URL}}/realms/{{OWNER_REALM}}/protocol/openid-connect/token
+  body: formUrlEncoded
+  auth: none
+}
+
+body:form-urlencoded {
+  grant_type: password
+  client_id: {{CLIENT_ID}}
+  client_secret: {{CLIENT_SECRET}}
+  username: {{OWNER_ADMIN_USERNAME}}
+  password: {{OWNER_ADMIN_PASSWORD}}
+}
+
+script:post-response {
+  const body = res.getBody();
+  bru.setVar("ACCESS_TOKEN", body.access_token);
+  bru.setVar("TENANT_REALM", bru.getVar("OWNER_REALM"));
+}

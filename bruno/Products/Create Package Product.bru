@@ -1,0 +1,29 @@
+meta {
+  name: Create Package Product
+  type: http
+  seq: 14
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/products?tenantId={{PARTNER_TENANT_ID}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:json {
+  {
+    "barcode": "4900000000020",
+    "name": "Carton of 12",
+    "skuCode": "SKU-PACK-1",
+    "type": "Package",
+    "cost": 49.99,
+    "stockQuantity": 20,
+    "lowStockThreshold": 5,
+    "unpackTargetProductId": "<existing-single-product-guid>",
+    "unpackQuantityPerPackage": 12
+  }
+}

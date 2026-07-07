@@ -1,0 +1,25 @@
+meta {
+  name: Export Waybills - Single Partner
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/waybills/export?format=Xlsx&tenantId={{PARTNER_TENANT_ID}}
+  body: none
+  auth: bearer
+}
+
+params:query {
+  format: Xlsx
+  tenantId: {{PARTNER_TENANT_ID}}
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+docs {
+  Owner (or the partner itself) exports a single tenant. The report is uploaded to S3 and a
+  download link is emailed to that tenant's active recipients only.
+}

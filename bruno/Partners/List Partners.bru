@@ -1,0 +1,20 @@
+meta {
+  name: List Partners
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/partners?isActive=true
+  body: none
+  auth: bearer
+}
+
+params:query {
+  isActive: true
+  ~isActive: false
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}

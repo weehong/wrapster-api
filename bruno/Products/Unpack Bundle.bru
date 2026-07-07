@@ -1,0 +1,25 @@
+meta {
+  name: Unpack Bundle
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/products/:id/unpack?tenantId={{PARTNER_TENANT_ID}}
+  body: json
+  auth: bearer
+}
+
+params:path {
+  id: {{PRODUCT_ID}}
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:json {
+  {
+    "quantity": 1
+  }
+}

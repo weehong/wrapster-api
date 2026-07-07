@@ -1,0 +1,28 @@
+meta {
+  name: Update Product
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{BASE_URL}}/api/v1/products/:id?tenantId={{PARTNER_TENANT_ID}}
+  body: json
+  auth: bearer
+}
+
+params:path {
+  id: {{PRODUCT_ID}}
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:json {
+  {
+    "name": "Updated Product Name",
+    "skuCode": "SKU-001-UPDATED",
+    "cost": 12.99,
+    "lowStockThreshold": 20
+  }
+}

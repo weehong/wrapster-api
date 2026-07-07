@@ -1,0 +1,19 @@
+meta {
+  name: Get Partner By Tenant Id
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/partners/:tenantId
+  body: none
+  auth: bearer
+}
+
+params:path {
+  tenantId: {{PARTNER_TENANT_ID}}
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}

@@ -1,0 +1,294 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+  schedule:
+    # Every Monday at 6 AM — dependency update report
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: "10.0.x"
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+  DOCKER_IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/${{ vars.APP_NAME }}
+
+jobs:
+  # ──────────────────────────────────────────────
+  # Job 1: Build, test, and collect coverage
+  # ──────────────────────────────────────────────
+  test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Test with coverage
+        run: >-
+          dotnet test --configuration Release --no-restore --no-build
+          --logger "trx;LogFileName=test-results.trx"
+          --collect:"XPlat Code Coverage"
+          --results-directory ./TestResults
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            ./TestResults/**/*.trx
+            ./TestResults/**/coverage.cobertura.xml
+          retention-days: 7
+
+  # ──────────────────────────────────────────────
+  # Job 2: SonarCloud analysis
+  # ──────────────────────────────────────────────
+  sonar:
+    name: SonarCloud Analysis
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Setup Java (required by SonarScanner)
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+
+      - name: Cache SonarCloud scanner
+        id: cache-sonar-scanner
+        uses: actions/cache@v4
+        with:
+          path: ~/.dotnet/tools
+          key: ${{ runner.os }}-sonar-scanner
+          restore-keys: ${{ runner.os }}-sonar-scanner
+
+      - name: Install SonarCloud scanner
+        if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
+        run: dotnet tool install --global dotnet-sonarscanner
+
+      - name: Install coverage converter
+        run: dotnet tool install --global dotnet-coverage || true
+
+      - name: Begin SonarCloud analysis
+        run: >-
+          dotnet sonarscanner begin
+          /k:"${{ vars.SONAR_PROJECT_KEY }}"
+          /o:"${{ vars.SONAR_ORGANIZATION_KEY }}"
+          /d:sonar.host.url="https://sonarcloud.io"
+          /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+          /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml
+          /d:sonar.cs.vstest.reportsPaths="TestResults/*.trx"
+          /d:sonar.exclusions="**/Migrations/**,**/*.Designer.cs"
+          /d:sonar.coverage.exclusions="**/Migrations/**,**/*.Designer.cs,**/Program.cs"
+
+      - name: Build
+        run: dotnet build --configuration Release --no-incremental
+
+      - name: Test with coverage
+        run: >-
+          dotnet-coverage collect
+          "dotnet test --configuration Release --no-build
+          --logger trx --results-directory TestResults"
+          -f xml -o coverage.xml
+
+      - name: End SonarCloud analysis
+        run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Check SonarCloud Quality Gate
+        uses: sonarsource/sonarqube-quality-gate-action@v1.2.0
+        timeout-minutes: 5
+        continue-on-error: true
+        with:
+          scanMetadataReportFile: .sonarqube/out/.sonar/report-task.txt
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # ──────────────────────────────────────────────
+  # Job 3: Build, push, and deploy
+  # ──────────────────────────────────────────────
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+    needs: [ test, sonar ]
+    if: |
+      needs.test.result == 'success'
+      && needs.sonar.result == 'success'
+      && github.ref == 'refs/heads/dev'
+      && github.event_name == 'push'
+      && vars.DEPLOY_ENABLED == 'true'
+    environment: Development
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.DOCKER_IMAGE }}:latest
+            ${{ env.DOCKER_IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Delete old Docker Hub tags
+        run: |
+          TOKEN=$(printf '{"username":"%s","password":"%s"}' \
+            "${{ vars.DOCKERHUB_USERNAME }}" "${{ secrets.DOCKERHUB_TOKEN }}" \
+            | curl -s -X POST "https://hub.docker.com/v2/users/login/" \
+              -H "Content-Type: application/json" \
+              --data-binary @- \
+            | jq -r .token)
+          echo "::add-mask::${TOKEN}"
+
+          REPO="${{ env.DOCKER_IMAGE }}"
+          CURRENT_SHA="${{ github.sha }}"
+
+          TAGS=$(curl -s -H "Authorization: Bearer ${TOKEN}" \
+            "https://hub.docker.com/v2/repositories/${REPO}/tags?page_size=100" \
+            | jq -r '.results[].name')
+
+          for TAG in $TAGS; do
+            if [ "$TAG" != "latest" ] && [ "$TAG" != "$CURRENT_SHA" ]; then
+              echo "Deleting tag: ${TAG}"
+              curl -s -X DELETE -H "Authorization: Bearer ${TOKEN}" \
+                "https://hub.docker.com/v2/repositories/${REPO}/tags/${TAG}/"
+            fi
+          done
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ vars.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Copy compose file to server
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ vars.SSH_HOST }}
+          username: ${{ vars.SSH_USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT }}
+          source: "compose.prod.yaml,.env.example,keycloak/realm-export.json,keycloak/bootstrap-admin-client.sh"
+          target: ${{ vars.DEPLOY_PATH }}
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ vars.SSH_HOST }}
+          username: ${{ vars.SSH_USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT }}
+          envs: DOCKER_IMAGE,IMAGE_TAG
+          script: |
+            cd ${{ vars.DEPLOY_PATH }}
+            if [ ! -f .env ]; then
+              cp .env.example .env
+              chmod 600 .env
+            fi
+
+            # Always update deploy-specific values
+            sed -i "s|^DOCKER_IMAGE=.*|DOCKER_IMAGE=${DOCKER_IMAGE}|" .env
+            sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG}|" .env
+
+            docker compose -f compose.prod.yaml pull
+            docker compose -f compose.prod.yaml up -d
+            sleep 10
+
+            # Verify all long-running services are up. One-shot jobs
+            # (e.g. migrate, keycloak-bootstrap) exit on success and are
+            # excluded from the count.
+            EXPECTED=$(docker compose -f compose.prod.yaml config --services | grep -vxE 'migrate|keycloak-bootstrap' | wc -l)
+            RUNNING=$(docker compose -f compose.prod.yaml ps --status running --quiet | wc -l)
+            if [ "$RUNNING" -lt "$EXPECTED" ]; then
+              echo "Expected $EXPECTED services, found $RUNNING running"
+              docker compose -f compose.prod.yaml logs --tail=50
+              exit 1
+            fi
+        env:
+          DOCKER_IMAGE: ${{ env.DOCKER_IMAGE }}
+          IMAGE_TAG: ${{ github.sha }}
+
+  # ──────────────────────────────────────────────
+  # Job 4: Dependency freshness report
+  # ──────────────────────────────────────────────
+  dependency-check:
+    name: Dependency Update Report
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.ref == 'refs/heads/main' && github.event_name == 'push')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Check for dependency updates
+        run: |
+          {
+            echo "# Outdated packages"
+            echo
+            dotnet list package --outdated || true
+            echo
+            echo "# Deprecated packages"
+            echo
+            dotnet list package --deprecated || true
+            echo
+            echo "# Vulnerable packages"
+            echo
+            dotnet list package --vulnerable --include-transitive || true
+          } | tee dependency-report.txt
+
+      - name: Upload dependency report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-update-report
+          path: dependency-report.txt
+          retention-days: 30
