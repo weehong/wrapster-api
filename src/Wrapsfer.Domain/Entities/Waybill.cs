@@ -38,7 +38,9 @@ public sealed class Waybill : AuditableEntity
             return Result<Waybill>.Failure(WaybillErrors.InvalidWaybillNumber);
         }
 
-        if (waybillNumber.Length > 100)
+        string normalizedWaybillNumber = waybillNumber.Trim();
+
+        if (normalizedWaybillNumber.Length > 100)
         {
             return Result<Waybill>.Failure(WaybillErrors.WaybillNumberTooLong);
         }
@@ -47,7 +49,7 @@ public sealed class Waybill : AuditableEntity
         {
             TenantId = tenantId,
             PackagingDate = packagingDate,
-            WaybillNumber = waybillNumber,
+            WaybillNumber = normalizedWaybillNumber,
             Status = WaybillStatus.Draft
         };
 
@@ -55,7 +57,7 @@ public sealed class Waybill : AuditableEntity
             waybill.Id,
             tenantId,
             packagingDate,
-            waybillNumber,
+            normalizedWaybillNumber,
             DateTime.UtcNow));
 
         return Result<Waybill>.Success(waybill);
@@ -170,12 +172,14 @@ public sealed class Waybill : AuditableEntity
             return Result.Failure(WaybillErrors.InvalidWaybillNumber);
         }
 
-        if (newWaybillNumber.Length > 100)
+        string normalizedWaybillNumber = newWaybillNumber.Trim();
+
+        if (normalizedWaybillNumber.Length > 100)
         {
             return Result.Failure(WaybillErrors.WaybillNumberTooLong);
         }
 
-        WaybillNumber = newWaybillNumber;
+        WaybillNumber = normalizedWaybillNumber;
         return Result.Success();
     }
 

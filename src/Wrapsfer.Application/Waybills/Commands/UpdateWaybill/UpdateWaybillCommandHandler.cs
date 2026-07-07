@@ -27,8 +27,8 @@ internal sealed class UpdateWaybillCommandHandler(
             return Result.Failure(WaybillErrors.NotFound);
         }
 
-        bool duplicate = await waybillRepository.ExistsByNumberAsync(
-            request.WaybillNumber, request.Id, tenantId, cancellationToken);
+        bool duplicate = await waybillRepository.ExistsByNumberInAnyTenantAsync(
+            request.WaybillNumber.Trim(), request.Id, cancellationToken);
         if (duplicate)
         {
             return Result.Failure(WaybillErrors.DuplicateWaybillNumber);

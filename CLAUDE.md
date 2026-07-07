@@ -33,7 +33,7 @@ docker compose -f compose.dev.yaml up -d
 
 ## Critical Rules
 
-- **Tenant isolation**: Every repository method that reads or mutates data MUST accept and filter by `tenantId`. Never query by ID alone without tenant scoping.
+- **Tenant isolation**: Every repository method that reads or mutates data MUST accept and filter by `tenantId`. Never query by ID alone without tenant scoping. Sole sanctioned exception: `IWaybillRepository.ExistsByNumberInAnyTenantAsync` — waybill numbers are carrier tracking numbers and globally unique across tenants (unique index on `WaybillNumber`), so this check must deliberately span tenants.
 - **Domain validation**: Domain entity factory methods and mutators that can fail MUST return `Result` or `Result<T>`. Never use `void` for operations that have invariants (e.g. stock mutations). Define all error constants in the entity's `Errors` class — no inline `new Error(...)`.
 - **Concurrency control**: Any entity with fields subject to concurrent updates (e.g. stock quantities) MUST have a concurrency token (`xmin` for PostgreSQL) configured in its EF configuration.
 - **No N+1 queries**: Never fetch related entities in a loop. Use batch methods (`GetByIdsAsync`) and project data in a single query.

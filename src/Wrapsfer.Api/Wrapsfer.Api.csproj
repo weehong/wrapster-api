@@ -13,6 +13,7 @@
     <PackageReference Include="AspNetCore.HealthChecks.NpgSql"/>
     <PackageReference Include="AspNetCore.HealthChecks.Rabbitmq"/>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi"/>
+    <PackageReference Include="Microsoft.OpenApi"/>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>

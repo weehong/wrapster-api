@@ -49,6 +49,37 @@ public class WaybillTests
     }
 
     [Fact]
+    public void Create_WithPaddedWaybillNumber_TrimsNumber()
+    {
+        Result<Waybill> result = Waybill.Create(TenantId, TestDate, " WB-001 ");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.WaybillNumber.Should().Be("WB-001");
+    }
+
+    [Fact]
+    public void Create_LengthCheckAppliesAfterTrim()
+    {
+        string paddedValid = " " + new string('A', 100) + " ";
+        string paddedTooLong = " " + new string('A', 101) + " ";
+
+        Waybill.Create(TenantId, TestDate, paddedValid).IsSuccess.Should().BeTrue();
+        Waybill.Create(TenantId, TestDate, paddedTooLong).Error.Code
+            .Should().Be(WaybillErrors.WaybillNumberTooLong.Code);
+    }
+
+    [Fact]
+    public void UpdateWaybillNumber_WithPaddedNumber_TrimsNumber()
+    {
+        Waybill waybill = Waybill.Create(TenantId, TestDate, "WB-001").Value;
+
+        Result result = waybill.UpdateWaybillNumber(" WB-002 ");
+
+        result.IsSuccess.Should().BeTrue();
+        waybill.WaybillNumber.Should().Be("WB-002");
+    }
+
+    [Fact]
     public void AddOrIncrementItem_NewProduct_AppendsNewItem()
     {
         Waybill waybill = Waybill.Create(TenantId, TestDate, "WB-001").Value;

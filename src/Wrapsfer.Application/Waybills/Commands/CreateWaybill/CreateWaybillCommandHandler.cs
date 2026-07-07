@@ -21,7 +21,7 @@ internal sealed class CreateWaybillCommandHandler(
         string tenantId = tenantContext.TenantId;
 
         bool exists =
-            await waybillRepository.ExistsByNumberAsync(request.WaybillNumber, tenantId, cancellationToken);
+            await waybillRepository.ExistsByNumberInAnyTenantAsync(request.WaybillNumber.Trim(), cancellationToken);
         if (exists)
         {
             return Result<Guid>.Failure(WaybillErrors.DuplicateWaybillNumber);

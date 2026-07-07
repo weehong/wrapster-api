@@ -29,16 +29,15 @@ internal sealed class WaybillRepository(ApplicationDbContext context) : IWaybill
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<bool> ExistsByNumberAsync(string waybillNumber, string tenantId,
+    public async Task<bool> ExistsByNumberInAnyTenantAsync(string waybillNumber,
         CancellationToken cancellationToken = default) =>
         await context.Waybills
-            .AnyAsync(w => w.TenantId == tenantId && w.WaybillNumber == waybillNumber, cancellationToken);
+            .AnyAsync(w => w.WaybillNumber == waybillNumber, cancellationToken);
 
-    public async Task<bool> ExistsByNumberAsync(string waybillNumber, Guid excludeId, string tenantId,
+    public async Task<bool> ExistsByNumberInAnyTenantAsync(string waybillNumber, Guid excludeId,
         CancellationToken cancellationToken = default) =>
         await context.Waybills
-            .AnyAsync(w => w.TenantId == tenantId && w.WaybillNumber == waybillNumber && w.Id != excludeId,
-                cancellationToken);
+            .AnyAsync(w => w.WaybillNumber == waybillNumber && w.Id != excludeId, cancellationToken);
 
     public async Task<IReadOnlyList<Waybill>> GetByDateAsync(DateOnly packagingDate, string tenantId,
         CancellationToken cancellationToken = default) =>

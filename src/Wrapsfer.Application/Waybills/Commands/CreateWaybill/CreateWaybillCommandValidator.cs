@@ -6,7 +6,9 @@ public sealed class CreateWaybillCommandValidator : AbstractValidator<CreateWayb
 {
     public CreateWaybillCommandValidator()
     {
-        RuleFor(x => x.WaybillNumber).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.WaybillNumber).NotEmpty().MaximumLength(100)
+            .Must(n => n is null || !n.Any(char.IsWhiteSpace))
+            .WithMessage("Waybill number must not contain whitespace.");
         RuleFor(x => x.PackagingDate).NotEqual(default(DateOnly));
         RuleFor(x => x.Items).NotEmpty();
         RuleForEach(x => x.Items).ChildRules(item =>

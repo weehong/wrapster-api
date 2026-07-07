@@ -38,6 +38,8 @@
     <PackageVersion Include="Asp.Versioning.Mvc.ApiExplorer" Version="$(AspVersioningMvcVersion)"/>
     <PackageVersion Include="AspNetCore.HealthChecks.NpgSql" Version="$(AspNetCoreHealthChecksNpgSqlVersion)"/>
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="$(DotNetCorePackagesVersion)"/>
+    <!-- Pinned above the transitive 2.0.0 from Microsoft.AspNetCore.OpenApi: GHSA-v5pm-xwqc-g5wc fixed in 2.7.5 -->
+    <PackageVersion Include="Microsoft.OpenApi" Version="2.7.5"/>
     <PackageVersion Include="Serilog.AspNetCore" Version="$(SerilogAspNetCoreVersion)"/>
     <PackageVersion Include="Serilog.Enrichers.Environment" Version="$(SerilogEnrichersEnvironmentVersion)"/>
     <PackageVersion Include="Serilog.Enrichers.Thread" Version="$(SerilogEnrichersThreadVersion)"/>

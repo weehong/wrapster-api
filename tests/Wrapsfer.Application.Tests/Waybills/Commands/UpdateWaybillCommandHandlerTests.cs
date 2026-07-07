@@ -58,7 +58,7 @@ public class UpdateWaybillCommandHandlerTests
                 r.GetByIdWithItemsAsync(waybill.Id, TenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(waybill);
         _waybillRepository.Setup(r =>
-                r.ExistsByNumberAsync("WB-2", waybill.Id, TenantId, It.IsAny<CancellationToken>()))
+                r.ExistsByNumberInAnyTenantAsync("WB-2", waybill.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         UpdateWaybillCommand command = new(waybill.Id, PackagingDate, "WB-2",
@@ -82,7 +82,7 @@ public class UpdateWaybillCommandHandlerTests
                 r.GetByIdWithItemsAsync(waybill.Id, TenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(waybill);
         _waybillRepository.Setup(r =>
-                r.ExistsByNumberAsync(It.IsAny<string>(), waybill.Id, TenantId, It.IsAny<CancellationToken>()))
+                r.ExistsByNumberInAnyTenantAsync(It.IsAny<string>(), waybill.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
         _productRepository.Setup(r =>
                 r.GetByIdsAsync(It.IsAny<IEnumerable<Guid>>(), TenantId, It.IsAny<CancellationToken>()))
@@ -224,7 +224,7 @@ public class UpdateWaybillCommandHandlerTests
                 r.GetByIdWithItemsAsync(waybill.Id, TenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(waybill);
         _waybillRepository.Setup(r =>
-                r.ExistsByNumberAsync(It.IsAny<string>(), waybill.Id, TenantId, It.IsAny<CancellationToken>()))
+                r.ExistsByNumberInAnyTenantAsync(It.IsAny<string>(), waybill.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
         _productRepository.Setup(r =>
                 r.GetByIdsAsync(It.IsAny<IEnumerable<Guid>>(), TenantId, It.IsAny<CancellationToken>()))

@@ -53,7 +53,8 @@ public sealed class WaybillConfiguration : IEntityTypeConfiguration<Waybill>
         builder.Navigation(w => w.Items)
             .UsePropertyAccessMode(PropertyAccessMode.Field);
 
-        builder.HasIndex(w => new { w.TenantId, w.WaybillNumber }).IsUnique();
+        // Waybill numbers are carrier tracking numbers — globally unique across all tenants.
+        builder.HasIndex(w => w.WaybillNumber).IsUnique();
         builder.HasIndex(w => new { w.TenantId, w.PackagingDate });
         builder.HasIndex(w => new { w.TenantId, w.Status });
         builder.HasIndex(w => new { w.TenantId, w.Status, w.CreatedAt });

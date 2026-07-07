@@ -12,10 +12,20 @@ public interface IWaybillRepository
     Task<IReadOnlyList<Waybill>> GetByIdsWithItemsAsync(IEnumerable<Guid> ids, string tenantId,
         CancellationToken cancellationToken = default);
 
-    Task<bool> ExistsByNumberAsync(string waybillNumber, string tenantId,
+    /// <summary>
+    /// Deliberately NOT tenant-scoped — the single sanctioned exception to the repository
+    /// tenant-isolation rule. Waybill numbers are carrier tracking numbers and must be unique
+    /// across ALL tenants (enforced by the unique index on WaybillNumber); a per-tenant check
+    /// cannot detect a number already registered under another tenant.
+    /// </summary>
+    Task<bool> ExistsByNumberInAnyTenantAsync(string waybillNumber,
         CancellationToken cancellationToken = default);
 
-    Task<bool> ExistsByNumberAsync(string waybillNumber, Guid excludeId, string tenantId,
+    /// <summary>
+    /// Cross-tenant existence check excluding one waybill (by globally unique primary key),
+    /// for update paths. See <see cref="ExistsByNumberInAnyTenantAsync(string, CancellationToken)"/>.
+    /// </summary>
+    Task<bool> ExistsByNumberInAnyTenantAsync(string waybillNumber, Guid excludeId,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<Waybill>> GetByDateAsync(DateOnly packagingDate, string tenantId,

@@ -26,7 +26,7 @@ public static class WaybillErrors
 
     public static readonly Error DuplicateWaybillNumber = new(
         "Waybill.DuplicateWaybillNumber",
-        "A waybill with this number already exists for this tenant",
+        "A waybill with this number already exists",
         ErrorType.Conflict);
 
     public static readonly Error InvalidProductId = new(

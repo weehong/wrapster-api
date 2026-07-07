@@ -2,11 +2,15 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
+using Wrapsfer.Domain.Entities;
+using Wrapsfer.Domain.Repositories;
 using Wrapsfer.Infrastructure.Authentication;
 
 namespace Wrapsfer.Api.Filters;
 
-public sealed class TenantResolutionFilter(IOptions<KeycloakOptions> options) : IAsyncActionFilter
+public sealed class TenantResolutionFilter(
+    IOptions<KeycloakOptions> options,
+    IPartnerTenantRepository partnerTenantRepository) : IAsyncActionFilter
 {
     private const string TenantRealmKey = "TenantRealm";
 
@@ -49,7 +53,8 @@ public sealed class TenantResolutionFilter(IOptions<KeycloakOptions> options) : 
                 return;
             }
 
-            string tenantId = tenantIdValues.ToString();
+            // Canonical tenant IDs are DNS-safe lowercase (enforced at partner creation).
+            string tenantId = tenantIdValues.ToString().Trim().ToLowerInvariant();
 
             if (string.Equals(tenantId, _ownerRealm, StringComparison.OrdinalIgnoreCase))
             {
@@ -58,6 +63,35 @@ public sealed class TenantResolutionFilter(IOptions<KeycloakOptions> options) : 
                     Status = StatusCodes.Status400BadRequest,
                     Title = "Invalid Tenant",
                     Detail = "Owner accounts cannot operate on the owner tenant. Specify a partner tenant."
+                });
+                return;
+            }
+
+            PartnerTenant? partnerTenant = await partnerTenantRepository.GetByTenantIdAsync(
+                tenantId, context.HttpContext.RequestAborted);
+
+            if (partnerTenant is null)
+            {
+                context.Result = new BadRequestObjectResult(new ProblemDetails
+                {
+                    Status = StatusCodes.Status400BadRequest,
+                    Title = "Unknown Tenant",
+                    Detail = "The specified tenantId does not match any partner tenant."
+                });
+                return;
+            }
+
+            string method = context.HttpContext.Request.Method;
+            bool isRead = HttpMethods.IsGet(method) || HttpMethods.IsHead(method)
+                || HttpMethods.IsOptions(method);
+
+            if (!partnerTenant.IsActive && !isRead)
+            {
+                context.Result = new ConflictObjectResult(new ProblemDetails
+                {
+                    Status = StatusCodes.Status409Conflict,
+                    Title = "Tenant Inactive",
+                    Detail = "The specified tenant is inactive. Data cannot be modified for an inactive tenant."
                 });
                 return;
             }

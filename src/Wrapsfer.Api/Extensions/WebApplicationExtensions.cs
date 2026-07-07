@@ -154,6 +154,15 @@ public static class WebApplicationExtensions
         PostgresException? postgresException = FindException<PostgresException>(exception);
         NpgsqlException? npgsqlException = FindException<NpgsqlException>(exception);
 
+        // Unique-constraint violations are client-resolvable conflicts (e.g. two concurrent
+        // creates racing past the duplicate pre-check), not server faults.
+        if (postgresException?.SqlState == "23505")
+        {
+            return CreateProblem(409, "Conflict",
+                "The change conflicts with existing data (for example, a duplicate value). Refresh and try again.",
+                logger, exception);
+        }
+
         string detail = postgresException?.SqlState switch
         {
             "42P01" =>
