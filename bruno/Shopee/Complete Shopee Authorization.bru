@@ -1,0 +1,22 @@
+meta {
+  name: Complete Shopee Authorization
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/shopee/{{TENANT_REALM}}/connection
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:json {
+  {
+    "code": "{{SHOPEE_AUTH_CODE}}",
+    "shopId": {{SHOPEE_SHOP_ID}}
+  }
+}

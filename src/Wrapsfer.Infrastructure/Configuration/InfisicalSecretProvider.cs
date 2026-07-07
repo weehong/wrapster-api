@@ -17,7 +17,10 @@ public static class InfisicalSecretProvider
         ["REPORT_STORAGE_S3_TTL_MINUTES"] = "ReportStorage:S3:DownloadUrlTtlMinutes",
         ["STRIPE_SECRET_KEY"] = "Stripe:SecretKey",
         ["STRIPE_WEBHOOK_SECRET"] = "Stripe:WebhookSecret",
-        ["STRIPE_FRONTEND_BASE_URL"] = "Stripe:FrontendBaseUrl"
+        ["STRIPE_FRONTEND_BASE_URL"] = "Stripe:FrontendBaseUrl",
+        ["SHOPEE_PARTNER_ID"] = "Shopee:PartnerId",
+        ["SHOPEE_PARTNER_KEY"] = "Shopee:PartnerKey",
+        ["SHOPEE_BASE_URL"] = "Shopee:BaseUrl"
     };
 
     // The AWS SDK reads credentials only from process env vars / shared profiles / IMDS — never from

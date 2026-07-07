@@ -6,6 +6,7 @@ using Wrapsfer.Application.Abstractions.Auditing;
 using Wrapsfer.Application.Behaviors;
 using Wrapsfer.Application.Billing;
 using Wrapsfer.Application.Products.Services;
+using Wrapsfer.Application.Shopee.Services;
 using Wrapsfer.Application.Waybills.Services;
 
 namespace Wrapsfer.Application;
@@ -35,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<LowStockAlertService>();
         services.AddScoped<LowStockReminderProcessor>();
         services.AddScoped<WaybillExportProcessor>();
+        services.AddScoped<ShopeeTokenRefreshProcessor>();
 
         services.AddSingleton<StockReportProrationCalculator>();
         services.AddScoped<StockReportBillingStatusFactory>();

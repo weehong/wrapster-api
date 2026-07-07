@@ -1,0 +1,15 @@
+meta {
+  name: Disconnect Shopee Shop
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{BASE_URL}}/api/v1/shopee/{{TENANT_REALM}}/connection
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}

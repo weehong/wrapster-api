@@ -18,6 +18,7 @@
     <ClosedXmlVersion>0.105.0</ClosedXmlVersion>
     <CsvHelperVersion>33.1.0</CsvHelperVersion>
     <MicrosoftEntityFrameworkCoreVersion>10.0.5</MicrosoftEntityFrameworkCoreVersion>
+    <MicrosoftOpenApiVersion>2.7.5</MicrosoftOpenApiVersion>
     <NpgsqlEntityFrameworkCorePostgreSQLVersion>10.0.1</NpgsqlEntityFrameworkCorePostgreSQLVersion>
     <CoverletCollectorVersion>8.0.1</CoverletCollectorVersion>
     <FluentAssertionsVersion>8.9.0</FluentAssertionsVersion>
@@ -38,6 +39,7 @@
     <PackageVersion Include="Asp.Versioning.Mvc.ApiExplorer" Version="$(AspVersioningMvcVersion)"/>
     <PackageVersion Include="AspNetCore.HealthChecks.NpgSql" Version="$(AspNetCoreHealthChecksNpgSqlVersion)"/>
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="$(DotNetCorePackagesVersion)"/>
+    <PackageVersion Include="Microsoft.OpenApi" Version="$(MicrosoftOpenApiVersion)"/>
     <PackageVersion Include="Serilog.AspNetCore" Version="$(SerilogAspNetCoreVersion)"/>
     <PackageVersion Include="Serilog.Enrichers.Environment" Version="$(SerilogEnrichersEnvironmentVersion)"/>
     <PackageVersion Include="Serilog.Enrichers.Thread" Version="$(SerilogEnrichersThreadVersion)"/>

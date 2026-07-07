@@ -26,6 +26,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<PartnerBillingCustomer> PartnerBillingCustomers => Set<PartnerBillingCustomer>();
     public DbSet<FeatureEntitlement> FeatureEntitlements => Set<FeatureEntitlement>();
     public DbSet<StripeWebhookEvent> StripeWebhookEvents => Set<StripeWebhookEvent>();
+    public DbSet<ShopeeShopConnection> ShopeeShopConnections => Set<ShopeeShopConnection>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

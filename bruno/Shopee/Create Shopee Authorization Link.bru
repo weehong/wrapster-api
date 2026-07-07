@@ -1,0 +1,21 @@
+meta {
+  name: Create Shopee Authorization Link
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/shopee/{{TENANT_REALM}}/connection/authorization-link
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:json {
+  {
+    "redirectUrl": "http://localhost:3000/partner/shopee-callback"
+  }
+}

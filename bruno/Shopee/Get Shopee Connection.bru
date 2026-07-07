@@ -1,0 +1,15 @@
+meta {
+  name: Get Shopee Connection
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/shopee/{{TENANT_REALM}}/connection
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}

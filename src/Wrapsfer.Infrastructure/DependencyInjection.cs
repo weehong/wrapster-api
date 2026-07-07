@@ -23,6 +23,7 @@ using Wrapsfer.Infrastructure.Persistence.Auditing;
 using Wrapsfer.Infrastructure.Persistence.Interceptors;
 using Wrapsfer.Infrastructure.Persistence.Repositories;
 using Wrapsfer.Infrastructure.Queue;
+using Wrapsfer.Infrastructure.Shopee;
 using Wrapsfer.Infrastructure.Storage;
 
 namespace Wrapsfer.Infrastructure;
@@ -78,11 +79,13 @@ public static class DependencyInjection
         services.AddScoped<IPartnerBillingCustomerRepository, PartnerBillingCustomerRepository>();
         services.AddScoped<IFeatureEntitlementRepository, FeatureEntitlementRepository>();
         services.AddScoped<IStripeWebhookEventRepository, StripeWebhookEventRepository>();
+        services.AddScoped<IShopeeShopConnectionRepository, ShopeeShopConnectionRepository>();
 
         services.AddKeycloakAuthentication(configuration);
         services.AddQueueService(configuration);
         services.AddReportStorage(configuration);
         services.AddStripeBilling(configuration);
+        services.AddShopeeIntegration(configuration);
 
         services.AddOptions<WaybillEmailReportOptions>()
             .Bind(configuration.GetSection(WaybillEmailReportOptions.SectionName));
@@ -110,6 +113,7 @@ public static class DependencyInjection
         services.AddHostedService<WaybillsExportConsumer>();
         services.AddHostedService<AutoCancelStaleDraftsJob>();
         services.AddHostedService<LowStockReminderJob>();
+        services.AddHostedService<ShopeeTokenRefreshJob>();
         services.AddHostedService<StockMovementBackfillJob>();
         services.AddHostedService<AuditLogActorBackfillJob>();
 
