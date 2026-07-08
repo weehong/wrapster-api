@@ -13,12 +13,14 @@ public class DisconnectShopeeShopCommandHandlerTests
     private const string TenantId = "partner-acme";
 
     private readonly Mock<IShopeeShopConnectionRepository> _connectionRepository = new();
+    private readonly Mock<IShopeeProductLinkRepository> _linkRepository = new();
     private readonly DisconnectShopeeShopCommandHandler _handler;
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
 
     public DisconnectShopeeShopCommandHandlerTests() =>
         _handler = new DisconnectShopeeShopCommandHandler(
             _connectionRepository.Object,
+            _linkRepository.Object,
             _unitOfWork.Object,
             NullLogger<DisconnectShopeeShopCommandHandler>.Instance);
 
@@ -33,11 +35,15 @@ public class DisconnectShopeeShopCommandHandlerTests
         ShopeeShopConnection connection = CreateConnection();
         _connectionRepository.Setup(r => r.GetByTenantIdAsync(TenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(connection);
+        _linkRepository.Setup(r => r.ListByTenantAsync(TenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
 
         Result result = await _handler.Handle(
             new DisconnectShopeeShopCommand(TenantId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
+        _linkRepository.Verify(r => r.RemoveRange(It.Is<IReadOnlyCollection<ShopeeProductLink>>(l => l.Count == 0)),
+            Times.Once);
         _connectionRepository.Verify(r => r.Remove(connection), Times.Once);
         _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }

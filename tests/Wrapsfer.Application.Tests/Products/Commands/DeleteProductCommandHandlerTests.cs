@@ -16,6 +16,7 @@ public class DeleteProductCommandHandlerTests
     private readonly DeleteProductCommandHandler _handler;
 
     private readonly Mock<IProductRepository> _productRepository = new();
+    private readonly Mock<IShopeeProductLinkRepository> _shopeeProductLinkRepository = new();
     private readonly Mock<ITenantContext> _tenantContext = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
 
@@ -23,7 +24,7 @@ public class DeleteProductCommandHandlerTests
     {
         _tenantContext.Setup(x => x.TenantId).Returns(TenantId);
         _handler = new DeleteProductCommandHandler(_productRepository.Object, _componentRepository.Object,
-            _tenantContext.Object, _unitOfWork.Object);
+            _shopeeProductLinkRepository.Object, _tenantContext.Object, _unitOfWork.Object);
     }
 
     [Fact]
@@ -63,6 +64,9 @@ public class DeleteProductCommandHandlerTests
         _productRepository.Setup(r =>
                 r.IsReferencedAsUnpackTargetAsync(product.Id, TenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
+        _shopeeProductLinkRepository.Setup(r =>
+                r.ExistsForProductAsync(TenantId, product.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
         _componentRepository.Setup(r => r.GetByChildIdAsync(product.Id, TenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<ProductComponent>());
 
@@ -74,5 +78,25 @@ public class DeleteProductCommandHandlerTests
             r => r.RemoveAllByParentIdAsync(product.Id, TenantId, It.IsAny<CancellationToken>()),
             Times.Once);
         _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_WhenLinkedToShopee_ReturnsConflict()
+    {
+        Product product = ProductTestFactory.CreateSingle();
+        _productRepository.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), TenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(product);
+        _productRepository.Setup(r =>
+                r.IsReferencedAsUnpackTargetAsync(product.Id, TenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _shopeeProductLinkRepository.Setup(r =>
+                r.ExistsForProductAsync(TenantId, product.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        Result result = await _handler.Handle(new DeleteProductCommand(product.Id), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Be(ProductErrors.LinkedToShopee);
+        _productRepository.Verify(r => r.Remove(It.IsAny<Product>()), Times.Never);
     }
 }

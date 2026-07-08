@@ -37,6 +37,8 @@ public static class DependencyInjection
         services.AddScoped<LowStockReminderProcessor>();
         services.AddScoped<WaybillExportProcessor>();
         services.AddScoped<ShopeeTokenRefreshProcessor>();
+        services.AddScoped<ShopeeSellableUnitResolver>();
+        services.AddScoped<ShopeeStockSyncProcessor>();
 
         services.AddSingleton<StockReportProrationCalculator>();
         services.AddScoped<StockReportBillingStatusFactory>();

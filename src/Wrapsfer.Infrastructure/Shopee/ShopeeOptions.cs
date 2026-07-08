@@ -23,6 +23,8 @@ public sealed class ShopeeOptions
     /// <summary>Frontend route that completes the authorization with the relayed code and shop_id.</summary>
     public string AuthorizationCallbackPath { get; set; } = "/partner/shopee-callback";
 
+    public ShopeeStockSyncOptions StockSync { get; set; } = new();
+
     public bool IsConfigured =>
         PartnerId > 0
         && !string.IsNullOrWhiteSpace(PartnerKey)

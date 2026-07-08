@@ -10,6 +10,7 @@ namespace Wrapsfer.Application.Shopee.Commands.DisconnectShopeeShop;
 
 internal sealed class DisconnectShopeeShopCommandHandler(
     IShopeeShopConnectionRepository connectionRepository,
+    IShopeeProductLinkRepository linkRepository,
     IUnitOfWork unitOfWork,
     ILogger<DisconnectShopeeShopCommandHandler> logger)
     : ICommandHandler<DisconnectShopeeShopCommand>
@@ -25,6 +26,10 @@ internal sealed class DisconnectShopeeShopCommandHandler(
             return Result.Failure(ShopeeShopConnectionErrors.NotFound);
         }
 
+        IReadOnlyList<ShopeeProductLink> links =
+            await linkRepository.ListByTenantAsync(request.TenantId, cancellationToken);
+
+        linkRepository.RemoveRange(links);
         connectionRepository.Remove(connection);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

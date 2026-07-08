@@ -11,6 +11,7 @@ namespace Wrapsfer.Application.Products.Commands.DeleteProduct;
 internal sealed class DeleteProductCommandHandler(
     IProductRepository productRepository,
     IProductComponentRepository productComponentRepository,
+    IShopeeProductLinkRepository shopeeProductLinkRepository,
     ITenantContext tenantContext,
     IUnitOfWork unitOfWork) : ICommandHandler<DeleteProductCommand>
 {
@@ -29,6 +30,13 @@ internal sealed class DeleteProductCommandHandler(
         if (isUnpackTarget)
         {
             return Result.Failure(ProductErrors.ProductReferencedAsUnpackTarget);
+        }
+
+        bool isLinkedToShopee = await shopeeProductLinkRepository.ExistsForProductAsync(
+            tenantId, product.Id, cancellationToken);
+        if (isLinkedToShopee)
+        {
+            return Result.Failure(ProductErrors.LinkedToShopee);
         }
 
         await productComponentRepository.RemoveAllByParentIdAsync(product.Id, tenantId, cancellationToken);

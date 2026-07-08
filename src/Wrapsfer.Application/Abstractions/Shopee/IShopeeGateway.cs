@@ -28,4 +28,31 @@ public interface IShopeeGateway
         long shopId,
         string accessToken,
         CancellationToken cancellationToken = default);
+
+    Task<Result<ShopeeItemPage>> GetItemListAsync(
+        long shopId,
+        string accessToken,
+        int offset,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
+    Task<Result<IReadOnlyList<ShopeeItemDetail>>> GetItemBaseInfoAsync(
+        long shopId,
+        string accessToken,
+        IReadOnlyCollection<long> itemIds,
+        CancellationToken cancellationToken = default);
+
+    Task<Result<IReadOnlyList<ShopeeItemModel>>> GetModelListAsync(
+        long shopId,
+        string accessToken,
+        long itemId,
+        CancellationToken cancellationToken = default);
+
+    Task<Result> UpdateStockAsync(
+        long shopId,
+        string accessToken,
+        long itemId,
+        long modelId,
+        int quantity,
+        CancellationToken cancellationToken = default);
 }

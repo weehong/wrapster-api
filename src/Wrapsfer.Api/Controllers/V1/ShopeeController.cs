@@ -7,8 +7,13 @@ using Microsoft.Extensions.Options;
 using Wrapsfer.Api.Contracts;
 using Wrapsfer.Application.Shopee.Commands.CompleteShopeeAuthorization;
 using Wrapsfer.Application.Shopee.Commands.DisconnectShopeeShop;
+using Wrapsfer.Application.Shopee.Commands.LinkShopeeProduct;
+using Wrapsfer.Application.Shopee.Commands.SyncShopeeProductStock;
+using Wrapsfer.Application.Shopee.Commands.UnlinkShopeeProduct;
 using Wrapsfer.Application.Shopee.Queries.GetShopeeAuthorizationLink;
 using Wrapsfer.Application.Shopee.Queries.GetShopeeConnection;
+using Wrapsfer.Application.Shopee.Queries.GetShopeeShopItems;
+using Wrapsfer.Application.Shopee.Queries.ListShopeeProductLinks;
 using Wrapsfer.Application.Shopee.Responses;
 using Wrapsfer.Domain.Common;
 using Wrapsfer.Infrastructure.Authentication;
@@ -90,6 +95,77 @@ public sealed class ShopeeController(
     public async Task<IActionResult> Disconnect(string tenantId, CancellationToken cancellationToken)
     {
         Result result = await sender.Send(new DisconnectShopeeShopCommand(tenantId), cancellationToken);
+        return ToActionResult(result);
+    }
+
+    [HttpGet("{tenantId}/items")]
+    public async Task<IActionResult> GetItems(
+        string tenantId,
+        [FromQuery] int offset,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        int clampedPageSize = Math.Clamp(pageSize, 1, 20);
+        Result<ShopeeShopItemsResponse> result = await sender.Send(
+            new GetShopeeShopItemsQuery(tenantId, Math.Max(offset, 0), clampedPageSize), cancellationToken);
+        return ToActionResult(result);
+    }
+
+    [HttpGet("{tenantId}/product-links")]
+    public async Task<IActionResult> ListProductLinks(
+        string tenantId,
+        CancellationToken cancellationToken)
+    {
+        Result<IReadOnlyList<ShopeeProductLinkResponse>> result = await sender.Send(
+            new ListShopeeProductLinksQuery(tenantId), cancellationToken);
+        return ToActionResult(result);
+    }
+
+    [HttpPost("{tenantId}/product-links")]
+    public async Task<IActionResult> LinkProduct(
+        string tenantId,
+        [FromBody] LinkShopeeProductRequest request,
+        CancellationToken cancellationToken)
+    {
+        Result<ShopeeProductLinkResponse> result = await sender.Send(
+            new LinkShopeeProductCommand(
+                tenantId,
+                request.ProductId,
+                request.ShopeeItemId,
+                request.ShopeeModelId),
+            cancellationToken);
+        return ToCreatedResult(result);
+    }
+
+    [HttpDelete("{tenantId}/product-links/{linkId:guid}")]
+    public async Task<IActionResult> UnlinkProduct(
+        string tenantId,
+        Guid linkId,
+        CancellationToken cancellationToken)
+    {
+        Result result = await sender.Send(
+            new UnlinkShopeeProductCommand(tenantId, linkId), cancellationToken);
+        return ToActionResult(result);
+    }
+
+    [HttpPost("{tenantId}/product-links/sync")]
+    public async Task<IActionResult> SyncAllProductLinks(
+        string tenantId,
+        CancellationToken cancellationToken)
+    {
+        Result<ShopeeStockSyncResultResponse> result = await sender.Send(
+            new SyncShopeeProductStockCommand(tenantId, null), cancellationToken);
+        return ToActionResult(result);
+    }
+
+    [HttpPost("{tenantId}/product-links/{linkId:guid}/sync")]
+    public async Task<IActionResult> SyncProductLink(
+        string tenantId,
+        Guid linkId,
+        CancellationToken cancellationToken)
+    {
+        Result<ShopeeStockSyncResultResponse> result = await sender.Send(
+            new SyncShopeeProductStockCommand(tenantId, linkId), cancellationToken);
         return ToActionResult(result);
     }
 }

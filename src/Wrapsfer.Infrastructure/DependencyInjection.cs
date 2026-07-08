@@ -80,6 +80,7 @@ public static class DependencyInjection
         services.AddScoped<IFeatureEntitlementRepository, FeatureEntitlementRepository>();
         services.AddScoped<IStripeWebhookEventRepository, StripeWebhookEventRepository>();
         services.AddScoped<IShopeeShopConnectionRepository, ShopeeShopConnectionRepository>();
+        services.AddScoped<IShopeeProductLinkRepository, ShopeeProductLinkRepository>();
 
         services.AddKeycloakAuthentication(configuration);
         services.AddQueueService(configuration);
@@ -114,6 +115,7 @@ public static class DependencyInjection
         services.AddHostedService<AutoCancelStaleDraftsJob>();
         services.AddHostedService<LowStockReminderJob>();
         services.AddHostedService<ShopeeTokenRefreshJob>();
+        services.AddHostedService<ShopeeStockSyncJob>();
         services.AddHostedService<StockMovementBackfillJob>();
         services.AddHostedService<AuditLogActorBackfillJob>();
 

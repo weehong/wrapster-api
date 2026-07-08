@@ -183,4 +183,9 @@ public static class ProductErrors
         "Product.Inactive",
         "The product is inactive and cannot be used in this operation",
         ErrorType.Validation);
+
+    public static readonly Error LinkedToShopee = new(
+        "Product.LinkedToShopee",
+        "Product is linked to a Shopee listing; unlink it first",
+        ErrorType.Conflict);
 }

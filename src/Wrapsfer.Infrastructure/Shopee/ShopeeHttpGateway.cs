@@ -25,7 +25,12 @@ internal sealed class ShopeeHttpGateway(
     private const string GetTokenPath = "/api/v2/auth/token/get";
     private const string RefreshTokenPath = "/api/v2/auth/access_token/get";
     private const string GetShopInfoPath = "/api/v2/shop/get_shop_info";
+    private const string GetItemListPath = "/api/v2/product/get_item_list";
+    private const string GetItemBaseInfoPath = "/api/v2/product/get_item_base_info";
+    private const string GetModelListPath = "/api/v2/product/get_model_list";
+    private const string UpdateStockPath = "/api/v2/product/update_stock";
     private const int LoggedBodyMaxLength = 1024;
+    private const int BaseInfoChunkSize = 50;
 
     public Result<string> BuildShopAuthorizationUrl(string redirectUrl)
     {
@@ -148,6 +153,264 @@ internal sealed class ShopeeHttpGateway(
         }
     }
 
+    public async Task<Result<ShopeeItemPage>> GetItemListAsync(
+        long shopId,
+        string accessToken,
+        int offset,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        ShopeeOptions shopeeOptions = options.Value;
+        if (!shopeeOptions.IsConfigured)
+        {
+            logger.LogError("Shopee item list requested but the Shopee integration is not configured");
+            return Result<ShopeeItemPage>.Failure(ShopeeShopConnectionErrors.NotConfigured);
+        }
+
+        string url = BuildShopRequestUrl(shopeeOptions, GetItemListPath, shopId, accessToken) +
+                     $"&offset={offset}" +
+                     $"&page_size={pageSize}" +
+                     "&item_status=NORMAL";
+
+        try
+        {
+            HttpClient client = httpClientFactory.CreateClient(HttpClientName);
+            HttpResponseMessage response = await client.GetAsync(url, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                await LogFailureAsync(response, "item list", shopId, cancellationToken);
+                return Result<ShopeeItemPage>.Failure(ShopeeProductLinkErrors.ItemFetchFailed);
+            }
+
+            ShopeeItemListResponse? payload =
+                await response.Content.ReadFromJsonAsync<ShopeeItemListResponse>(cancellationToken);
+            if (payload is null || !string.IsNullOrEmpty(payload.Error) || payload.Response is null)
+            {
+                LogEnvelopeError("item list", shopId, payload?.Error, payload?.Message, payload?.RequestId);
+                return Result<ShopeeItemPage>.Failure(MapShopeeEnvelopeError(payload?.Error,
+                    ShopeeProductLinkErrors.ItemFetchFailed));
+            }
+
+            List<long> itemIds = (payload.Response.Item ?? [])
+                .Where(i => i.ItemId > 0)
+                .Select(i => i.ItemId)
+                .ToList();
+
+            return Result<ShopeeItemPage>.Success(new ShopeeItemPage(
+                itemIds,
+                payload.Response.HasNextPage,
+                payload.Response.NextOffset,
+                payload.Response.TotalCount));
+        }
+        catch (Exception ex) when (
+            ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            logger.LogError(ex, "Shopee item list call failed for shop {ShopId}", shopId);
+            return Result<ShopeeItemPage>.Failure(ShopeeProductLinkErrors.ItemFetchFailed);
+        }
+    }
+
+    public async Task<Result<IReadOnlyList<ShopeeItemDetail>>> GetItemBaseInfoAsync(
+        long shopId,
+        string accessToken,
+        IReadOnlyCollection<long> itemIds,
+        CancellationToken cancellationToken = default)
+    {
+        ShopeeOptions shopeeOptions = options.Value;
+        if (!shopeeOptions.IsConfigured)
+        {
+            logger.LogError("Shopee item base info requested but the Shopee integration is not configured");
+            return Result<IReadOnlyList<ShopeeItemDetail>>.Failure(ShopeeShopConnectionErrors.NotConfigured);
+        }
+
+        List<ShopeeItemDetail> result = [];
+        List<long> remainingIds = itemIds.Where(i => i > 0).Distinct().ToList();
+        for (int offset = 0; offset < remainingIds.Count; offset += BaseInfoChunkSize)
+        {
+            List<long> chunk = remainingIds.Skip(offset).Take(BaseInfoChunkSize).ToList();
+            string itemIdList = Uri.EscapeDataString(string.Join(",", chunk));
+            string url = BuildShopRequestUrl(shopeeOptions, GetItemBaseInfoPath, shopId, accessToken) +
+                         $"&item_id_list={itemIdList}";
+
+            Result<IReadOnlyList<ShopeeItemDetail>> chunkResult = await GetItemBaseInfoChunkAsync(
+                url, shopId, cancellationToken);
+            if (chunkResult.IsFailure)
+            {
+                return Result<IReadOnlyList<ShopeeItemDetail>>.Failure(chunkResult.Error);
+            }
+
+            result.AddRange(chunkResult.Value);
+        }
+
+        return Result<IReadOnlyList<ShopeeItemDetail>>.Success(result);
+    }
+
+    public async Task<Result<IReadOnlyList<ShopeeItemModel>>> GetModelListAsync(
+        long shopId,
+        string accessToken,
+        long itemId,
+        CancellationToken cancellationToken = default)
+    {
+        ShopeeOptions shopeeOptions = options.Value;
+        if (!shopeeOptions.IsConfigured)
+        {
+            logger.LogError("Shopee model list requested but the Shopee integration is not configured");
+            return Result<IReadOnlyList<ShopeeItemModel>>.Failure(ShopeeShopConnectionErrors.NotConfigured);
+        }
+
+        string url = BuildShopRequestUrl(shopeeOptions, GetModelListPath, shopId, accessToken) +
+                     $"&item_id={itemId}";
+
+        try
+        {
+            HttpClient client = httpClientFactory.CreateClient(HttpClientName);
+            HttpResponseMessage response = await client.GetAsync(url, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                await LogFailureAsync(response, "model list", shopId, cancellationToken);
+                return Result<IReadOnlyList<ShopeeItemModel>>.Failure(ShopeeProductLinkErrors.ItemFetchFailed);
+            }
+
+            ShopeeModelListResponse? payload =
+                await response.Content.ReadFromJsonAsync<ShopeeModelListResponse>(cancellationToken);
+            if (payload is null || !string.IsNullOrEmpty(payload.Error) || payload.Response is null)
+            {
+                LogEnvelopeError("model list", shopId, payload?.Error, payload?.Message, payload?.RequestId);
+                return Result<IReadOnlyList<ShopeeItemModel>>.Failure(MapShopeeEnvelopeError(payload?.Error,
+                    ShopeeProductLinkErrors.ItemFetchFailed));
+            }
+
+            List<ShopeeItemModel> models = (payload.Response.Model ?? [])
+                .Where(m => m.ModelId > 0)
+                .Select(m => new ShopeeItemModel(
+                    m.ModelId,
+                    m.ModelName ?? string.Empty,
+                    NullIfWhiteSpace(m.ModelSku),
+                    AggregateStock(m.StockInfoV2)))
+                .ToList();
+
+            return Result<IReadOnlyList<ShopeeItemModel>>.Success(models);
+        }
+        catch (Exception ex) when (
+            ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            logger.LogError(ex, "Shopee model list call failed for shop {ShopId}", shopId);
+            return Result<IReadOnlyList<ShopeeItemModel>>.Failure(ShopeeProductLinkErrors.ItemFetchFailed);
+        }
+    }
+
+    public async Task<Result> UpdateStockAsync(
+        long shopId,
+        string accessToken,
+        long itemId,
+        long modelId,
+        int quantity,
+        CancellationToken cancellationToken = default)
+    {
+        ShopeeOptions shopeeOptions = options.Value;
+        if (!shopeeOptions.IsConfigured)
+        {
+            logger.LogError("Shopee stock update requested but the Shopee integration is not configured");
+            return Result.Failure(ShopeeShopConnectionErrors.NotConfigured);
+        }
+
+        ShopeeUpdateStockRequest body = new(
+            itemId,
+            [new ShopeeUpdateStockStockList(
+                modelId,
+                [new ShopeeUpdateStockSellerStock(quantity)])]);
+
+        string url = BuildShopRequestUrl(shopeeOptions, UpdateStockPath, shopId, accessToken);
+
+        try
+        {
+            HttpClient client = httpClientFactory.CreateClient(HttpClientName);
+            HttpResponseMessage response = await client.PostAsJsonAsync(url, body, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                await LogFailureAsync(response, "stock update", shopId, cancellationToken);
+                return Result.Failure(ShopeeProductLinkErrors.StockPushFailed);
+            }
+
+            ShopeeUpdateStockResponse? payload =
+                await response.Content.ReadFromJsonAsync<ShopeeUpdateStockResponse>(cancellationToken);
+            if (payload is null || !string.IsNullOrEmpty(payload.Error))
+            {
+                LogEnvelopeError("stock update", shopId, payload?.Error, payload?.Message, payload?.RequestId);
+                return Result.Failure(MapShopeeEnvelopeError(payload?.Error,
+                    ShopeeProductLinkErrors.StockPushFailed));
+            }
+
+            // Shopee can return HTTP 200 with an empty top-level error while individual
+            // models are rejected via response.failure_list.
+            List<ShopeeUpdateStockFailure>? failures = payload.Response?.FailureList;
+            if (failures is { Count: > 0 })
+            {
+                logger.LogError(
+                    "Shopee stock update reported model failures for shop {ShopId}, item {ItemId}: {Reasons} (request {RequestId})",
+                    shopId,
+                    itemId,
+                    string.Join("; ", failures.Select(f => $"model {f.ModelId}: {f.FailedReason}")),
+                    payload.RequestId);
+                return Result.Failure(ShopeeProductLinkErrors.StockPushFailed);
+            }
+
+            return Result.Success();
+        }
+        catch (Exception ex) when (
+            ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            logger.LogError(ex, "Shopee stock update call failed for shop {ShopId}", shopId);
+            return Result.Failure(ShopeeProductLinkErrors.StockPushFailed);
+        }
+    }
+
+    private async Task<Result<IReadOnlyList<ShopeeItemDetail>>> GetItemBaseInfoChunkAsync(
+        string url,
+        long shopId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            HttpClient client = httpClientFactory.CreateClient(HttpClientName);
+            HttpResponseMessage response = await client.GetAsync(url, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                await LogFailureAsync(response, "item base info", shopId, cancellationToken);
+                return Result<IReadOnlyList<ShopeeItemDetail>>.Failure(ShopeeProductLinkErrors.ItemFetchFailed);
+            }
+
+            ShopeeItemBaseInfoResponse? payload =
+                await response.Content.ReadFromJsonAsync<ShopeeItemBaseInfoResponse>(cancellationToken);
+            if (payload is null || !string.IsNullOrEmpty(payload.Error) || payload.Response is null)
+            {
+                LogEnvelopeError("item base info", shopId, payload?.Error, payload?.Message, payload?.RequestId);
+                return Result<IReadOnlyList<ShopeeItemDetail>>.Failure(MapShopeeEnvelopeError(payload?.Error,
+                    ShopeeProductLinkErrors.ItemFetchFailed));
+            }
+
+            List<ShopeeItemDetail> items = (payload.Response.ItemList ?? [])
+                .Where(i => i.ItemId > 0)
+                .Select(i => new ShopeeItemDetail(
+                    i.ItemId,
+                    i.ItemName ?? string.Empty,
+                    NullIfWhiteSpace(i.ItemSku),
+                    i.ItemStatus ?? string.Empty,
+                    i.HasModel,
+                    i.HasModel ? null : AggregateStock(i.StockInfoV2),
+                    FirstImageUrl(i)))
+                .ToList();
+
+            return Result<IReadOnlyList<ShopeeItemDetail>>.Success(items);
+        }
+        catch (Exception ex) when (
+            ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            logger.LogError(ex, "Shopee item base info call failed for shop {ShopId}", shopId);
+            return Result<IReadOnlyList<ShopeeItemDetail>>.Failure(ShopeeProductLinkErrors.ItemFetchFailed);
+        }
+    }
+
     private async Task<Result<ShopeeTokenGrant>> PostForTokenGrantAsync<TRequest>(
         string apiPath,
         TRequest body,
@@ -216,6 +479,84 @@ internal sealed class ShopeeHttpGateway(
             "Shopee {Operation} for shop {ShopId} failed: {Status} {Body}",
             operation, shopId, response.StatusCode, Truncate(responseBody));
     }
+
+    private static string BuildShopRequestUrl(
+        ShopeeOptions shopeeOptions,
+        string apiPath,
+        long shopId,
+        string accessToken)
+    {
+        long timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        string sign = ShopeeRequestSigner.SignShopRequest(
+            shopeeOptions.PartnerKey, shopeeOptions.PartnerId, apiPath, timestamp, accessToken, shopId);
+
+        return $"{shopeeOptions.BaseUrl.TrimEnd('/')}{apiPath}" +
+               $"?partner_id={shopeeOptions.PartnerId}" +
+               $"&timestamp={timestamp}" +
+               $"&access_token={Uri.EscapeDataString(accessToken)}" +
+               $"&shop_id={shopId}" +
+               $"&sign={sign}";
+    }
+
+    private void LogEnvelopeError(
+        string operation,
+        long shopId,
+        string? error,
+        string? message,
+        string? requestId) =>
+        logger.LogError(
+            "Shopee {Operation} for shop {ShopId} returned error {Error}: {Message} (request {RequestId})",
+            operation, shopId, error, message, requestId);
+
+    private static Error MapShopeeEnvelopeError(string? error, Error fallback)
+    {
+        if (IsShopeeAuthError(error))
+        {
+            return ShopeeProductLinkErrors.AuthFailed;
+        }
+
+        return fallback;
+    }
+
+    private static bool IsShopeeAuthError(string? error)
+    {
+        if (string.IsNullOrWhiteSpace(error))
+        {
+            return false;
+        }
+
+        string normalized = error.Trim().ToLowerInvariant();
+        return normalized is "error_auth" or "error_token" or "invalid_access_token";
+    }
+
+    private static int? AggregateStock(ShopeeStockInfoV2? stockInfo)
+    {
+        if (stockInfo?.SummaryInfo?.TotalAvailableStock is int totalAvailableStock)
+        {
+            return totalAvailableStock;
+        }
+
+        if (stockInfo?.SellerStock is null || stockInfo.SellerStock.Count == 0)
+        {
+            return null;
+        }
+
+        return stockInfo.SellerStock.Sum(s => s.Stock ?? 0);
+    }
+
+    private static string? FirstImageUrl(ShopeeItemBaseInfoItem item)
+    {
+        string? imageUrl = item.ImageInfo?.ImageUrlList?.FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(imageUrl))
+        {
+            return imageUrl;
+        }
+
+        return item.Image?.ImageUrlList?.FirstOrDefault();
+    }
+
+    private static string? NullIfWhiteSpace(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value;
 
     private static string Truncate(string value) =>
         string.IsNullOrEmpty(value) || value.Length <= LoggedBodyMaxLength
