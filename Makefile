@@ -1,6 +1,6 @@
 .PHONY: format format-style format-all build clean restore test migrate run migrations-bundle
 
-WRAPSFER_DESIGN_CONNECTION ?= Host=localhost;Port=15432;Database=wrapsfer;Username=wrapsfer;Password=wrapsfer
+WRAPSFER_DESIGN_CONNECTION ?= Host=localhost;Port=5432;Database=wrapsfer;Username=vernon;Password=password
 
 # Run whitespace/formatting fixes
 format:
