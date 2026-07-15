@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
 using Wrapsfer.Api.Contracts;
 using Wrapsfer.Application.Shopee.Commands.CompleteShopeeAuthorization;
+using Wrapsfer.Application.Shopee.Commands.CreateShopeeLinkedProduct;
 using Wrapsfer.Application.Shopee.Commands.DisconnectShopeeShop;
 using Wrapsfer.Application.Shopee.Commands.LinkShopeeProduct;
 using Wrapsfer.Application.Shopee.Commands.SyncShopeeProductStock;
@@ -133,6 +134,27 @@ public sealed class ShopeeController(
                 request.ProductId,
                 request.ShopeeItemId,
                 request.ShopeeModelId),
+            cancellationToken);
+        return ToCreatedResult(result);
+    }
+
+    [HttpPost("{tenantId}/product-links/with-new-product")]
+    public async Task<IActionResult> CreateLinkedProduct(
+        string tenantId,
+        [FromBody] CreateShopeeLinkedProductRequest request,
+        CancellationToken cancellationToken)
+    {
+        Result<ShopeeProductLinkResponse> result = await sender.Send(
+            new CreateShopeeLinkedProductCommand(
+                tenantId,
+                request.ShopeeItemId,
+                request.ShopeeModelId,
+                request.Barcode,
+                request.Name,
+                request.SkuCode,
+                request.Cost,
+                request.StockQuantity,
+                request.LowStockThreshold),
             cancellationToken);
         return ToCreatedResult(result);
     }
