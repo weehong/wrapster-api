@@ -1192,7 +1192,21 @@ import { Link, PackagePlus, RefreshCw, Unlink } from "lucide-react";
 
 3. Add `onCreateProduct` to the destructured props of `ShopeeUnitRow` (after `onLink`).
 
-4. In the unlinked branch (currently `canLink && (<Tooltip ...link action... />)`), build the unit once and render two actions. Replace the whole `canLink && (...)` expression with:
+4. Build the sellable unit once, so both actions share it. Immediately after the `const intl = useIntl();` line inside `ShopeeUnitRow`, add:
+
+```tsx
+	const unit: ShopeeSellableUnit = {
+		itemId: item.itemId,
+		modelId,
+		itemName: item.itemName,
+		modelName: isModel ? name : null,
+		sku,
+		stockQuantity,
+		link: null,
+	};
+```
+
+5. In the unlinked branch (currently `canLink && (<Tooltip ...link action... />)`), replace the whole `canLink && (...)` expression with:
 
 ```tsx
 						canLink && (
@@ -1206,17 +1220,7 @@ import { Link, PackagePlus, RefreshCw, Unlink } from "lucide-react";
 									<ActionIcon
 										variant="subtle"
 										color="teal"
-										onClick={() =>
-											onLink({
-												itemId: item.itemId,
-												modelId,
-												itemName: item.itemName,
-												modelName: isModel ? name : null,
-												sku,
-												stockQuantity,
-												link: null,
-											})
-										}
+										onClick={() => onLink(unit)}
 										aria-label={intl.formatMessage({
 											id: "partner.shopeeProducts.actions.link",
 											defaultMessage: "Link",
@@ -1234,17 +1238,7 @@ import { Link, PackagePlus, RefreshCw, Unlink } from "lucide-react";
 									<ActionIcon
 										variant="subtle"
 										color="teal"
-										onClick={() =>
-											onCreateProduct({
-												itemId: item.itemId,
-												modelId,
-												itemName: item.itemName,
-												modelName: isModel ? name : null,
-												sku,
-												stockQuantity,
-												link: null,
-											})
-										}
+										onClick={() => onCreateProduct(unit)}
 										aria-label={intl.formatMessage({
 											id: "partner.shopeeProducts.actions.createProduct",
 											defaultMessage: "Create product",
