@@ -35,11 +35,12 @@ Let a partner create a **new** Wrapsfer product pre-filled from a Shopee item an
   1. `IShopeeProductLinkRepository.ExistsAsync(tenantId, itemId, modelId)` → fail `ShopeeProductLinkErrors.AlreadyLinked`.
   2. `IShopeeShopConnectionRepository.GetByTenantIdAsync` → fail `ShopeeProductLinkErrors.ConnectionNotFound`.
   3. `ShopeeSellableUnitResolver.ResolveAsync(connection, itemId, modelId)` — validates the unit exists in the shop and returns the fresh name/SKU snapshot; propagate its errors (`ItemNotFoundInShop`, `ModelMismatch`, `ItemFetchFailed`, `AuthFailed`).
-  4. Barcode uniqueness check, same mechanism as `CreateProductCommandHandler` → fail with the existing duplicate-barcode error.
+  4. Uniqueness checks, same mechanism as `CreateProductCommandHandler`: `GetByBarcodeAsync` → fail `ProductErrors.BarcodeAlreadyExists`; when SkuCode is provided, `GetBySkuCodeAsync` → fail `ProductErrors.SkuAlreadyExists` (likely collision source, since SKU is pre-filled from Shopee).
   5. `Product.Create(tenantId, barcode, name, ProductType.Single, cost, stockQuantity, skuCode, lowStockThreshold)` — partner-entered values win over Shopee values for the product record.
-  6. `ShopeeProductLink.Create(...)` using the **resolver's** snapshot values (item/model name, SKU) and `tenantContext.Username` as `LinkedBy`.
-  7. Add product + link, `SaveChangesAsync` once — all-or-nothing.
-  8. Return `ShopeeProductLinkResponseMapper.Map(link, product)`.
+  6. Apply `product.CheckLowStock(fallbackThreshold)` with the tenant-settings / global-settings fallback, exactly as `CreateProductCommandHandler` does.
+  7. `ShopeeProductLink.Create(...)` using the **resolver's** snapshot values (item/model name, SKU) and `tenantContext.Username` as `LinkedBy`.
+  8. Add product + link, `SaveChangesAsync` once — all-or-nothing.
+  9. Return `ShopeeProductLinkResponseMapper.Map(link, product)`.
 
 No new entities, no schema changes, no migration.
 
@@ -52,7 +53,7 @@ No new entities, no schema changes, no migration.
 
 ### Error handling
 
-All failures flow through the existing `Result`/`Error` → HTTP mapping: validation 400; `ConnectionNotFound` / `ItemNotFoundInShop` / `ModelMismatch` 404; `AlreadyLinked` / duplicate barcode 409; Shopee fetch/auth failures use the existing `ItemFetchFailed` / `AuthFailed` errors. A fresh resolve against Shopee is required — if Shopee is unreachable, the whole operation fails; nothing is created from stale data.
+All failures flow through the existing `Result`/`Error` → HTTP mapping: validation 400; `ConnectionNotFound` / `ItemNotFoundInShop` / `ModelMismatch` 404; `AlreadyLinked` / `BarcodeAlreadyExists` / `SkuAlreadyExists` 409; Shopee fetch/auth failures use the existing `ItemFetchFailed` / `AuthFailed` errors. A fresh resolve against Shopee is required — if Shopee is unreachable, the whole operation fails; nothing is created from stale data.
 
 ## Frontend Design (partner repo)
 
@@ -72,7 +73,7 @@ All failures flow through the existing `Result`/`Error` → HTTP mapping: valida
 ## Testing
 
 - **Wrapsfer.Application.Tests** (xUnit + Moq + FluentAssertions):
-  - Handler: happy path (product and link both added, one save); each failure branch (already linked, no connection, resolver failure, duplicate barcode) creates nothing; partner-entered values used for the product while the link snapshot uses resolver values.
+  - Handler: happy path (product and link both added, one save, low-stock check applied); each failure branch (already linked, no connection, resolver failure, duplicate barcode, duplicate SKU) creates nothing; partner-entered values used for the product while the link snapshot uses resolver values.
   - Validator: required/boundary rules for the new command.
 - **Wrapsfer.Domain.Tests:** no new entity logic — nothing new needed.
 - **Frontend:** Vitest test for `createShopeeLinkedProduct` in `service.test.ts`, mirroring existing service tests.
