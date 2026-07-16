@@ -64,15 +64,33 @@ public sealed class ShopeeWebhookEventProcessor(
             {
                 webhookEvent.MarkProcessed(DateTime.UtcNow);
                 processed++;
+                await unitOfWork.SaveChangesAsync(cancellationToken);
+                continue;
             }
-            else if (result.Error.Code == ShopeeOrderErrors.ConnectionNotFound.Code)
+
+            // A failed/ignored result may follow a partial entity mutation (e.g. a cancellation
+            // that marked the order Cancelled before stock release failed). Discard any such
+            // half-applied work on the shared scoped context before recording the event outcome,
+            // then reload the event fresh so its status update is the only pending change.
+            unitOfWork.ClearChangeTracker();
+            ShopeeWebhookEvent? freshEvent =
+                await eventRepository.GetByIdAsync(webhookEvent.Id, cancellationToken);
+            if (freshEvent is null)
             {
-                webhookEvent.MarkIgnored();
+                logger.LogWarning(
+                    "Shopee webhook event {EventId} could not be reloaded after a failed processing "
+                    + "attempt; skipping status update", webhookEvent.Id);
+                continue;
+            }
+
+            if (result.Error.Code == ShopeeOrderErrors.ConnectionNotFound.Code)
+            {
+                freshEvent.MarkIgnored();
                 ignored++;
             }
             else
             {
-                webhookEvent.MarkFailed(result.Error.Code, DateTime.UtcNow, maxAttempts);
+                freshEvent.MarkFailed(result.Error.Code, DateTime.UtcNow, maxAttempts);
                 failed++;
             }
 

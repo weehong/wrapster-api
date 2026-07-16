@@ -26,6 +26,12 @@ internal sealed class ShopeeWebhookEventRepository(ApplicationDbContext context)
             .Take(batchSize)
             .ToListAsync(cancellationToken);
 
+    public async Task<ShopeeWebhookEvent?> GetByIdAsync(
+        Guid id,
+        CancellationToken cancellationToken = default) =>
+        await context.ShopeeWebhookEvents
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+
     public void Add(ShopeeWebhookEvent webhookEvent) =>
         context.ShopeeWebhookEvents.Add(webhookEvent);
 }

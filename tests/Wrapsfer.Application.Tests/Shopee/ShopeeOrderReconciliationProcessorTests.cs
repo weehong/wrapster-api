@@ -71,6 +71,7 @@ public sealed class ShopeeOrderReconciliationProcessorTests
             ingestionService,
             completionService,
             tokenRefresher,
+            _unitOfWork.Object,
             NullLogger<ShopeeOrderReconciliationProcessor>.Instance);
     }
 

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Wrapsfer.Application.Abstractions.Shopee;
+using Wrapsfer.Domain.Abstractions;
 using Wrapsfer.Domain.Common;
 using Wrapsfer.Domain.Entities;
 using Wrapsfer.Domain.Repositories;
@@ -18,6 +19,7 @@ public sealed class ShopeeOrderReconciliationProcessor(
     ShopeeOrderIngestionService ingestionService,
     ShopeeOrderShipmentCompletionService completionService,
     ShopeeConnectionTokenRefresher tokenRefresher,
+    IUnitOfWork unitOfWork,
     ILogger<ShopeeOrderReconciliationProcessor> logger)
 {
     private const int OrderListPageSize = 50;
@@ -99,29 +101,48 @@ public sealed class ShopeeOrderReconciliationProcessor(
         foreach (ShopeeOrder order in stuckOrders)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            ShopeeShopConnection? connection =
-                await connectionRepository.GetByTenantIdAsync(order.TenantId, cancellationToken);
-            if (connection is null)
+            try
             {
-                continue;
+                await RetryOrderTrackingAsync(order, cancellationToken);
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex,
+                    "Shopee order {OrderSn} tracking retry threw for tenant {TenantId}",
+                    order.OrderSn, order.TenantId);
+                unitOfWork.ClearChangeTracker();
+            }
+        }
+    }
 
-            await tokenRefresher.RefreshIfNeededAsync(connection, cancellationToken);
-            Result<string?> trackingResult = await shopeeGateway.GetTrackingNumberAsync(
-                connection.ShopId, connection.AccessToken, order.OrderSn, cancellationToken);
-            if (trackingResult.IsFailure || string.IsNullOrWhiteSpace(trackingResult.Value))
-            {
-                continue;
-            }
+    private async Task RetryOrderTrackingAsync(ShopeeOrder order, CancellationToken cancellationToken)
+    {
+        ShopeeShopConnection? connection =
+            await connectionRepository.GetByTenantIdAsync(order.TenantId, cancellationToken);
+        if (connection is null)
+        {
+            return;
+        }
 
-            Result completeResult = await completionService.CompleteAsync(
-                order, trackingResult.Value, cancellationToken);
-            if (completeResult.IsFailure)
-            {
-                logger.LogWarning(
-                    "Shopee order {OrderSn} tracking completion failed: {ErrorCode}",
-                    order.OrderSn, completeResult.Error.Code);
-            }
+        await tokenRefresher.RefreshIfNeededAsync(connection, cancellationToken);
+        Result<string?> trackingResult = await shopeeGateway.GetTrackingNumberAsync(
+            connection.ShopId, connection.AccessToken, order.OrderSn, cancellationToken);
+        if (trackingResult.IsFailure || string.IsNullOrWhiteSpace(trackingResult.Value))
+        {
+            return;
+        }
+
+        Result completeResult = await completionService.CompleteAsync(
+            order, trackingResult.Value, cancellationToken);
+        if (completeResult.IsFailure)
+        {
+            logger.LogWarning(
+                "Shopee order {OrderSn} tracking completion failed: {ErrorCode}",
+                order.OrderSn, completeResult.Error.Code);
         }
     }
 }

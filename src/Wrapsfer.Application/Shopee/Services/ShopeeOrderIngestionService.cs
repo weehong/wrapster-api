@@ -68,6 +68,7 @@ public sealed class ShopeeOrderIngestionService(
         Result applyResult = order.ApplyShopeeSnapshot(snapshot, items, DateTime.UtcNow);
         if (applyResult.IsFailure)
         {
+            unitOfWork.ClearChangeTracker();
             return applyResult;
         }
 
@@ -77,6 +78,7 @@ public sealed class ShopeeOrderIngestionService(
                 await cancellationService.HandleCancellationAsync(order, cancellationToken);
             if (cancellationResult.IsFailure)
             {
+                unitOfWork.ClearChangeTracker();
                 return cancellationResult;
             }
         }

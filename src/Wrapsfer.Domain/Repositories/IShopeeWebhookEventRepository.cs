@@ -13,5 +13,7 @@ public interface IShopeeWebhookEventRepository
     Task<IReadOnlyList<ShopeeWebhookEvent>> ListPendingAsync(
         DateTime now, int batchSize, CancellationToken cancellationToken = default);
 
+    Task<ShopeeWebhookEvent?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+
     void Add(ShopeeWebhookEvent webhookEvent);
 }

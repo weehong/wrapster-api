@@ -33,6 +33,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<ShopeeWebhookEvent> ShopeeWebhookEvents => Set<ShopeeWebhookEvent>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
+    public void ClearChangeTracker() => ChangeTracker.Clear();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);

@@ -80,10 +80,22 @@ public sealed class ShopeeWebhookEventProcessorTests
         "SN1", status, "MY", "buyer", "Jane", null, null, 10m, "MYR", null, "SPX", null,
         [new ShopeeOrderDetailItem(111, 0, "Item", null, null, 2)]);
 
-    private void SetPendingEvents(params ShopeeWebhookEvent[] events) =>
+    private void SetPendingEvents(params ShopeeWebhookEvent[] events)
+    {
         _eventRepository
             .Setup(r => r.ListPendingAsync(It.IsAny<DateTime>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(events);
+
+        // Mirrors the fresh reload the processor performs after a failure/ignored result:
+        // in these mock-based tests there is no real DbContext to re-fetch from, so the
+        // same in-memory instance stands in for "the row as it exists in the database".
+        foreach (ShopeeWebhookEvent webhookEvent in events)
+        {
+            _eventRepository
+                .Setup(r => r.GetByIdAsync(webhookEvent.Id, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(webhookEvent);
+        }
+    }
 
     [Fact]
     public async Task RunAsync_OrderStatusEvent_RoutesToIngestionAndMarksProcessed()
@@ -193,5 +205,57 @@ public sealed class ShopeeWebhookEventProcessorTests
             g => g.GetTrackingNumberAsync(
                 It.IsAny<long>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);
+    }
+
+    [Fact]
+    public async Task RunAsync_CancelledPushWithFailedStockRelease_ClearsTrackerAndEndsEventFailed()
+    {
+        // A CANCELLED push for a shipped order: HandleCancellationAsync marks the order
+        // Cancelled and cancels its waybill, then stock release fails because reserved
+        // quantity (1) is short of the waybill item quantity (2). The half-applied
+        // cancellation must never reach the event's own failure save.
+        Product product = ProductTestFactory.CreateSingle(TenantId, stockQuantity: 10);
+        product.Reserve(1);
+        Waybill waybill = Waybill.Create(TenantId, new DateOnly(2026, 7, 16), "TRACK1").Value;
+        waybill.AddOrIncrementItem(product.Id, product.Barcode, 2);
+
+        ShopeeOrderSnapshot initialSnapshot = new(
+            "READY_TO_SHIP", "buyer", "Jane", null, null, 10m, "MYR", null, "SPX", null);
+        ShopeeOrder order = ShopeeOrder.Create(
+            TenantId, "SN1", "MY", initialSnapshot,
+            [new ShopeeOrderItemSnapshot(111, 0, "Item", null, null, 2, product.Id)], Now).Value;
+        order.MarkShipmentArranged("u", Now);
+        order.AssignTracking("TRACK1");
+        order.LinkWaybill(waybill.Id);
+
+        const string payload = """{"code":3,"shop_id":1001,"data":{"ordersn":"SN1"}}""";
+        ShopeeWebhookEvent webhookEvent = CreateEvent(ShopeeWebhookEventProcessor.OrderStatusPushCode, payload);
+        SetPendingEvents(webhookEvent);
+        _connectionRepository
+            .Setup(r => r.GetByShopIdAsync(ShopId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateConnection());
+        _orderRepository
+            .Setup(r => r.GetByOrderSnAsync("SN1", TenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(order);
+        _gateway
+            .Setup(g => g.GetOrderDetailAsync(ShopId, "access-token", "SN1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<ShopeeOrderDetail>.Success(CreateDetail("CANCELLED")));
+        _waybillRepository
+            .Setup(r => r.GetByIdWithItemsAsync(waybill.Id, TenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(waybill);
+        _productRepository
+            .Setup(r => r.GetByIdsAsync(It.IsAny<IEnumerable<Guid>>(), TenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Product> { product });
+
+        ShopeeWebhookEventProcessor processor = CreateProcessor();
+        ShopeeWebhookRunSummary summary = await processor.RunAsync(10, 5, CancellationToken.None);
+
+        summary.FailedCount.Should().Be(1);
+        summary.ProcessedCount.Should().Be(0);
+        webhookEvent.Status.Should().Be(ShopeeWebhookEventStatus.Failed);
+        order.Status.Should().Be(ShopeeOrderStatus.Cancelled);
+        _unitOfWork.Verify(u => u.ClearChangeTracker(), Times.AtLeastOnce);
+        _eventRepository.Verify(
+            r => r.GetByIdAsync(webhookEvent.Id, It.IsAny<CancellationToken>()), Times.Once);
     }
 }
