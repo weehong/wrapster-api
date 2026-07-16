@@ -10,14 +10,21 @@ using Wrapsfer.Application.Shopee.Commands.CreateShopeeLinkedProduct;
 using Wrapsfer.Application.Shopee.Commands.DisconnectShopeeShop;
 using Wrapsfer.Application.Shopee.Commands.IngestShopeeWebhook;
 using Wrapsfer.Application.Shopee.Commands.LinkShopeeProduct;
+using Wrapsfer.Application.Shopee.Commands.RelinkShopeeOrderItems;
+using Wrapsfer.Application.Shopee.Commands.ShipShopeeOrder;
 using Wrapsfer.Application.Shopee.Commands.SyncShopeeProductStock;
 using Wrapsfer.Application.Shopee.Commands.UnlinkShopeeProduct;
 using Wrapsfer.Application.Shopee.Queries.GetShopeeAuthorizationLink;
 using Wrapsfer.Application.Shopee.Queries.GetShopeeConnection;
+using Wrapsfer.Application.Shopee.Queries.GetShopeeOrderDetail;
+using Wrapsfer.Application.Shopee.Queries.GetShopeeOrderLabel;
+using Wrapsfer.Application.Shopee.Queries.GetShopeeOrders;
+using Wrapsfer.Application.Shopee.Queries.GetShopeeShippingParameter;
 using Wrapsfer.Application.Shopee.Queries.GetShopeeShopItems;
 using Wrapsfer.Application.Shopee.Queries.ListShopeeProductLinks;
 using Wrapsfer.Application.Shopee.Responses;
 using Wrapsfer.Domain.Common;
+using Wrapsfer.Domain.Enums;
 using Wrapsfer.Domain.Errors;
 using Wrapsfer.Infrastructure.Authentication;
 using Wrapsfer.Infrastructure.Shopee;
@@ -214,5 +221,77 @@ public sealed class ShopeeController(
         Result<ShopeeStockSyncResultResponse> result = await sender.Send(
             new SyncShopeeProductStockCommand(tenantId, linkId), cancellationToken);
         return ToActionResult(result);
+    }
+
+    [HttpGet("{tenantId}/orders")]
+    public async Task<IActionResult> ListOrders(
+        string tenantId,
+        [FromQuery] ShopeeOrderStatus? status,
+        [FromQuery] string? search,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        Result<ShopeeOrdersResponse> result = await sender.Send(
+            new GetShopeeOrdersQuery(tenantId, status, search, Math.Max(page, 1),
+                Math.Clamp(pageSize, 1, 100)),
+            cancellationToken);
+        return ToActionResult(result);
+    }
+
+    [HttpGet("{tenantId}/orders/{orderId:guid}")]
+    public async Task<IActionResult> GetOrder(
+        string tenantId, Guid orderId, CancellationToken cancellationToken)
+    {
+        Result<ShopeeOrderResponse> result = await sender.Send(
+            new GetShopeeOrderDetailQuery(tenantId, orderId), cancellationToken);
+        return ToActionResult(result);
+    }
+
+    [HttpGet("{tenantId}/orders/{orderId:guid}/shipping-parameter")]
+    public async Task<IActionResult> GetShippingParameter(
+        string tenantId, Guid orderId, CancellationToken cancellationToken)
+    {
+        Result<ShopeeShippingParameterResponse> result = await sender.Send(
+            new GetShopeeShippingParameterQuery(tenantId, orderId), cancellationToken);
+        return ToActionResult(result);
+    }
+
+    [HttpPost("{tenantId}/orders/{orderId:guid}/ship")]
+    public async Task<IActionResult> ShipOrder(
+        string tenantId,
+        Guid orderId,
+        [FromBody] ShipShopeeOrderRequest request,
+        CancellationToken cancellationToken)
+    {
+        Result<ShopeeOrderResponse> result = await sender.Send(
+            new ShipShopeeOrderCommand(
+                tenantId, orderId, request.Method, request.AddressId,
+                request.PickupTimeId, request.BranchId),
+            cancellationToken);
+        return ToActionResult(result);
+    }
+
+    [HttpPost("{tenantId}/orders/{orderId:guid}/relink")]
+    public async Task<IActionResult> RelinkOrder(
+        string tenantId, Guid orderId, CancellationToken cancellationToken)
+    {
+        Result<ShopeeOrderResponse> result = await sender.Send(
+            new RelinkShopeeOrderItemsCommand(tenantId, orderId), cancellationToken);
+        return ToActionResult(result);
+    }
+
+    [HttpGet("{tenantId}/orders/{orderId:guid}/label")]
+    public async Task<IActionResult> DownloadOrderLabel(
+        string tenantId, Guid orderId, CancellationToken cancellationToken)
+    {
+        Result<ShopeeOrderLabelResult> result = await sender.Send(
+            new GetShopeeOrderLabelQuery(tenantId, orderId), cancellationToken);
+        if (result.IsFailure)
+        {
+            return ToActionResult(result);
+        }
+
+        return File(result.Value.Content, result.Value.ContentType, result.Value.FileName);
     }
 }
