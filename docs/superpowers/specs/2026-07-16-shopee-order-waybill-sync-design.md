@@ -107,7 +107,7 @@ Orders are only *created* at `READY_TO_SHIP` or later. `UNPAID` pushes ignored. 
 Hourly per connected shop (pattern: `ShopeeStockSyncJob`; config `ShopeeOrderSyncOptions` — interval, window, backoff caps):
 
 - `get_order_list` filtered by `update_time` over a sliding 24h window, diff vs stored orders, feed the same `get_order_detail` → `ApplyShopeeSnapshot` path.
-- Re-poll `get_tracking_number` for orders stuck in `AwaitingTracking` beyond a threshold.
+- Re-poll `get_tracking_number` for orders stuck in `AwaitingTracking` longer than a configurable threshold (`ShopeeOrderSyncOptions`, default 30 minutes).
 
 ### Operational setup (documented, manual)
 
@@ -120,7 +120,7 @@ Hourly per connected shop (pattern: `ShopeeStockSyncJob`; config `ShopeeOrderSyn
 
 1. `GET .../orders/{orderId}/shipping-parameter` → Shopee `get_shipping_parameter` → modal data (pickup: address list + time slots; drop-off: optional branch list).
 2. `POST .../orders/{orderId}/ship` with chosen method + slot/address. Handler validates status `ReadyToShip` (all items linked), calls `ship_order`, transitions to `AwaitingTracking`. Shopee rejection → `ShipmentFailed` + `LastShipError`, retryable from UI.
-3. **Completion (async):** tracking-number push or reconciliation re-poll triggers the completion handler, which atomically: assigns tracking number; creates the `Waybill` via existing `Waybill.Create` (packaging date = today, `WaybillNumber` = tracking number, items from resolved `ProductId`/`ProductBarcode`/`Quantity`); links via `LinkWaybill`; marks order `Shipped`. Tracking number colliding with an existing waybill number → order surfaces an error state (no silent failure).
+3. **Completion (async):** tracking-number push or reconciliation re-poll triggers the completion handler, which atomically: assigns tracking number; creates the `Waybill` via existing `Waybill.Create` (packaging date = server date (UTC) at completion time, `WaybillNumber` = tracking number, items from resolved `ProductId`/`ProductBarcode`/`Quantity`); links via `LinkWaybill`; marks order `Shipped`. Tracking number colliding with an existing waybill number → order surfaces an error state (no silent failure).
 
 ### Labels
 
