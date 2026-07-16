@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Wrapsfer.Application.Abstractions.Shopee;
@@ -29,6 +30,16 @@ internal sealed class ShopeeHttpGateway(
     private const string GetItemBaseInfoPath = "/api/v2/product/get_item_base_info";
     private const string GetModelListPath = "/api/v2/product/get_model_list";
     private const string UpdateStockPath = "/api/v2/product/update_stock";
+    private const string GetOrderListPath = "/api/v2/order/get_order_list";
+    private const string GetOrderDetailPath = "/api/v2/order/get_order_detail";
+    private const string GetShippingParameterPath = "/api/v2/logistics/get_shipping_parameter";
+    private const string ShipOrderPath = "/api/v2/logistics/ship_order";
+    private const string GetTrackingNumberPath = "/api/v2/logistics/get_tracking_number";
+    private const string CreateShippingDocumentPath = "/api/v2/logistics/create_shipping_document";
+    private const string DownloadShippingDocumentPath = "/api/v2/logistics/download_shipping_document";
+    private const string OrderDetailOptionalFields =
+        "buyer_username,recipient_address,total_amount,item_list,shipping_carrier,ship_by_date,cod,currency";
+    private const string ShippingDocumentExistError = "logistics.shipping_document_exist";
     private const int LoggedBodyMaxLength = 1024;
     private const int BaseInfoChunkSize = 50;
 
@@ -362,6 +373,378 @@ internal sealed class ShopeeHttpGateway(
         {
             logger.LogError(ex, "Shopee stock update call failed for shop {ShopId}", shopId);
             return Result.Failure(ShopeeProductLinkErrors.StockPushFailed);
+        }
+    }
+
+    public async Task<Result<ShopeeOrderList>> GetOrderListAsync(
+        long shopId,
+        string accessToken,
+        DateTime updatedFrom,
+        DateTime updatedTo,
+        string? cursor,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        ShopeeOptions shopeeOptions = options.Value;
+        if (!shopeeOptions.IsConfigured)
+        {
+            logger.LogError("Shopee order list requested but the Shopee integration is not configured");
+            return Result<ShopeeOrderList>.Failure(ShopeeShopConnectionErrors.NotConfigured);
+        }
+
+        long timeFrom = new DateTimeOffset(DateTime.SpecifyKind(updatedFrom, DateTimeKind.Utc)).ToUnixTimeSeconds();
+        long timeTo = new DateTimeOffset(DateTime.SpecifyKind(updatedTo, DateTimeKind.Utc)).ToUnixTimeSeconds();
+
+        string url = BuildShopRequestUrl(shopeeOptions, GetOrderListPath, shopId, accessToken) +
+                     "&time_range_field=update_time" +
+                     $"&time_from={timeFrom}" +
+                     $"&time_to={timeTo}" +
+                     $"&page_size={pageSize}";
+
+        if (!string.IsNullOrEmpty(cursor))
+        {
+            url += $"&cursor={Uri.EscapeDataString(cursor)}";
+        }
+
+        try
+        {
+            HttpClient client = httpClientFactory.CreateClient(HttpClientName);
+            HttpResponseMessage response = await client.GetAsync(url, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                await LogFailureAsync(response, "order list", shopId, cancellationToken);
+                return Result<ShopeeOrderList>.Failure(ShopeeOrderErrors.OrderListFetchFailed);
+            }
+
+            ShopeeGetOrderListResponse? payload =
+                await response.Content.ReadFromJsonAsync<ShopeeGetOrderListResponse>(cancellationToken);
+            if (payload is null || !string.IsNullOrEmpty(payload.Error) || payload.Response is null)
+            {
+                LogEnvelopeError("order list", shopId, payload?.Error, payload?.Message, payload?.RequestId);
+                return Result<ShopeeOrderList>.Failure(ShopeeOrderErrors.OrderListFetchFailed);
+            }
+
+            List<string> orderSns = (payload.Response.OrderList ?? [])
+                .Where(o => !string.IsNullOrWhiteSpace(o.OrderSn))
+                .Select(o => o.OrderSn!)
+                .ToList();
+
+            return Result<ShopeeOrderList>.Success(new ShopeeOrderList(
+                orderSns, payload.Response.More, NullIfWhiteSpace(payload.Response.NextCursor)));
+        }
+        catch (Exception ex) when (
+            ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            logger.LogError(ex, "Shopee order list call failed for shop {ShopId}", shopId);
+            return Result<ShopeeOrderList>.Failure(ShopeeOrderErrors.OrderListFetchFailed);
+        }
+    }
+
+    public async Task<Result<ShopeeOrderDetail>> GetOrderDetailAsync(
+        long shopId,
+        string accessToken,
+        string orderSn,
+        CancellationToken cancellationToken = default)
+    {
+        ShopeeOptions shopeeOptions = options.Value;
+        if (!shopeeOptions.IsConfigured)
+        {
+            logger.LogError("Shopee order detail requested but the Shopee integration is not configured");
+            return Result<ShopeeOrderDetail>.Failure(ShopeeShopConnectionErrors.NotConfigured);
+        }
+
+        string url = BuildShopRequestUrl(shopeeOptions, GetOrderDetailPath, shopId, accessToken) +
+                     $"&order_sn_list={Uri.EscapeDataString(orderSn)}" +
+                     $"&response_optional_fields={OrderDetailOptionalFields}";
+
+        try
+        {
+            HttpClient client = httpClientFactory.CreateClient(HttpClientName);
+            HttpResponseMessage response = await client.GetAsync(url, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                await LogFailureAsync(response, "order detail", shopId, cancellationToken);
+                return Result<ShopeeOrderDetail>.Failure(ShopeeOrderErrors.OrderDetailFetchFailed);
+            }
+
+            ShopeeGetOrderDetailResponse? payload =
+                await response.Content.ReadFromJsonAsync<ShopeeGetOrderDetailResponse>(cancellationToken);
+            ShopeeOrderDetailEntry? entry = payload?.Response?.OrderList?.FirstOrDefault();
+            if (payload is null || !string.IsNullOrEmpty(payload.Error) || entry is null)
+            {
+                LogEnvelopeError("order detail", shopId, payload?.Error, payload?.Message, payload?.RequestId);
+                return Result<ShopeeOrderDetail>.Failure(ShopeeOrderErrors.OrderDetailFetchFailed);
+            }
+
+            List<ShopeeOrderDetailItem> items = (entry.ItemList ?? [])
+                .Select(i => new ShopeeOrderDetailItem(
+                    i.ItemId,
+                    i.ModelId,
+                    i.ItemName,
+                    i.ModelName,
+                    NullIfWhiteSpace(i.ItemSku) ?? NullIfWhiteSpace(i.ModelSku),
+                    i.ModelQuantityPurchased))
+                .ToList();
+
+            DateTime? shipByDate = entry.ShipByDate is long shipBy && shipBy > 0
+                ? DateTimeOffset.FromUnixTimeSeconds(shipBy).UtcDateTime
+                : null;
+
+            decimal? codAmount = entry.Cod ? entry.TotalAmount : null;
+
+            return Result<ShopeeOrderDetail>.Success(new ShopeeOrderDetail(
+                entry.OrderSn,
+                entry.OrderStatus ?? string.Empty,
+                entry.Region,
+                entry.BuyerUsername,
+                entry.RecipientAddress?.Name,
+                entry.RecipientAddress?.Phone,
+                entry.RecipientAddress?.FullAddress,
+                entry.TotalAmount,
+                entry.Currency,
+                codAmount,
+                entry.ShippingCarrier,
+                shipByDate,
+                items));
+        }
+        catch (Exception ex) when (
+            ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            logger.LogError(ex, "Shopee order detail call failed for shop {ShopId}", shopId);
+            return Result<ShopeeOrderDetail>.Failure(ShopeeOrderErrors.OrderDetailFetchFailed);
+        }
+    }
+
+    public async Task<Result<ShopeeShippingParameter>> GetShippingParameterAsync(
+        long shopId,
+        string accessToken,
+        string orderSn,
+        CancellationToken cancellationToken = default)
+    {
+        ShopeeOptions shopeeOptions = options.Value;
+        if (!shopeeOptions.IsConfigured)
+        {
+            logger.LogError("Shopee shipping parameter requested but the Shopee integration is not configured");
+            return Result<ShopeeShippingParameter>.Failure(ShopeeShopConnectionErrors.NotConfigured);
+        }
+
+        string url = BuildShopRequestUrl(shopeeOptions, GetShippingParameterPath, shopId, accessToken) +
+                     $"&order_sn={Uri.EscapeDataString(orderSn)}";
+
+        try
+        {
+            HttpClient client = httpClientFactory.CreateClient(HttpClientName);
+            HttpResponseMessage response = await client.GetAsync(url, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                await LogFailureAsync(response, "shipping parameter", shopId, cancellationToken);
+                return Result<ShopeeShippingParameter>.Failure(ShopeeOrderErrors.ShippingParameterFetchFailed);
+            }
+
+            ShopeeGetShippingParameterResponse? payload =
+                await response.Content.ReadFromJsonAsync<ShopeeGetShippingParameterResponse>(cancellationToken);
+            if (payload is null || !string.IsNullOrEmpty(payload.Error) || payload.Response is null)
+            {
+                LogEnvelopeError("shipping parameter", shopId, payload?.Error, payload?.Message, payload?.RequestId);
+                return Result<ShopeeShippingParameter>.Failure(ShopeeOrderErrors.ShippingParameterFetchFailed);
+            }
+
+            bool supportsPickup = payload.Response.InfoNeeded?.Pickup is not null;
+            bool supportsDropoff = payload.Response.InfoNeeded?.Dropoff is not null;
+
+            List<ShopeePickupAddress> pickupAddresses = (payload.Response.Pickup?.AddressList ?? [])
+                .Select(a => new ShopeePickupAddress(
+                    a.AddressId,
+                    a.Address ?? string.Empty,
+                    (a.TimeSlotList ?? [])
+                        .Select(t => new ShopeePickupTimeSlot(
+                            t.PickupTimeId ?? string.Empty,
+                            DateTimeOffset.FromUnixTimeSeconds(t.Date).UtcDateTime,
+                            t.TimeText))
+                        .ToList()))
+                .ToList();
+
+            List<ShopeeDropoffBranch> dropoffBranches = (payload.Response.Dropoff?.BranchList ?? [])
+                .Select(b => new ShopeeDropoffBranch(b.BranchId, b.Address ?? string.Empty))
+                .ToList();
+
+            return Result<ShopeeShippingParameter>.Success(new ShopeeShippingParameter(
+                supportsPickup, supportsDropoff, pickupAddresses, dropoffBranches));
+        }
+        catch (Exception ex) when (
+            ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            logger.LogError(ex, "Shopee shipping parameter call failed for shop {ShopId}", shopId);
+            return Result<ShopeeShippingParameter>.Failure(ShopeeOrderErrors.ShippingParameterFetchFailed);
+        }
+    }
+
+    public async Task<Result> ShipOrderAsync(
+        long shopId,
+        string accessToken,
+        ShopeeShipOrderRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ShopeeOptions shopeeOptions = options.Value;
+        if (!shopeeOptions.IsConfigured)
+        {
+            logger.LogError("Shopee ship order requested but the Shopee integration is not configured");
+            return Result.Failure(ShopeeShopConnectionErrors.NotConfigured);
+        }
+
+        ShopeeShipOrderApiRequest body = new(
+            request.OrderSn,
+            request.Pickup is null
+                ? null
+                : new ShopeeShipOrderPickupBody(request.Pickup.AddressId, request.Pickup.PickupTimeId),
+            request.Dropoff is null ? null : new ShopeeShipOrderDropoffBody(request.Dropoff.BranchId));
+
+        string url = BuildShopRequestUrl(shopeeOptions, ShipOrderPath, shopId, accessToken);
+
+        try
+        {
+            HttpClient client = httpClientFactory.CreateClient(HttpClientName);
+            HttpResponseMessage response = await client.PostAsJsonAsync(url, body, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                await LogFailureAsync(response, "ship order", shopId, cancellationToken);
+                return Result.Failure(ShopeeOrderErrors.ShipmentRequestFailed);
+            }
+
+            ShopeeEnvelopeResponse? payload =
+                await response.Content.ReadFromJsonAsync<ShopeeEnvelopeResponse>(cancellationToken);
+            if (payload is null || !string.IsNullOrEmpty(payload.Error))
+            {
+                LogEnvelopeError("ship order", shopId, payload?.Error, payload?.Message, payload?.RequestId);
+                return Result.Failure(ShopeeOrderErrors.ShipmentRequestFailed);
+            }
+
+            return Result.Success();
+        }
+        catch (Exception ex) when (
+            ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            logger.LogError(ex, "Shopee ship order call failed for shop {ShopId}", shopId);
+            return Result.Failure(ShopeeOrderErrors.ShipmentRequestFailed);
+        }
+    }
+
+    public async Task<Result<string?>> GetTrackingNumberAsync(
+        long shopId,
+        string accessToken,
+        string orderSn,
+        CancellationToken cancellationToken = default)
+    {
+        ShopeeOptions shopeeOptions = options.Value;
+        if (!shopeeOptions.IsConfigured)
+        {
+            logger.LogError("Shopee tracking number requested but the Shopee integration is not configured");
+            return Result<string?>.Failure(ShopeeShopConnectionErrors.NotConfigured);
+        }
+
+        string url = BuildShopRequestUrl(shopeeOptions, GetTrackingNumberPath, shopId, accessToken) +
+                     $"&order_sn={Uri.EscapeDataString(orderSn)}";
+
+        try
+        {
+            HttpClient client = httpClientFactory.CreateClient(HttpClientName);
+            HttpResponseMessage response = await client.GetAsync(url, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                await LogFailureAsync(response, "tracking number", shopId, cancellationToken);
+                return Result<string?>.Failure(ShopeeOrderErrors.TrackingNumberFetchFailed);
+            }
+
+            ShopeeGetTrackingNumberResponse? payload =
+                await response.Content.ReadFromJsonAsync<ShopeeGetTrackingNumberResponse>(cancellationToken);
+            if (payload is null || !string.IsNullOrEmpty(payload.Error))
+            {
+                LogEnvelopeError("tracking number", shopId, payload?.Error, payload?.Message, payload?.RequestId);
+                return Result<string?>.Failure(ShopeeOrderErrors.TrackingNumberFetchFailed);
+            }
+
+            // An empty or missing tracking number is a valid state (not yet assigned by
+            // Shopee), not a failure.
+            return Result<string?>.Success(NullIfWhiteSpace(payload.Response?.TrackingNumber));
+        }
+        catch (Exception ex) when (
+            ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            logger.LogError(ex, "Shopee tracking number call failed for shop {ShopId}", shopId);
+            return Result<string?>.Failure(ShopeeOrderErrors.TrackingNumberFetchFailed);
+        }
+    }
+
+    public async Task<Result<byte[]>> DownloadShippingDocumentAsync(
+        long shopId,
+        string accessToken,
+        string orderSn,
+        CancellationToken cancellationToken = default)
+    {
+        ShopeeOptions shopeeOptions = options.Value;
+        if (!shopeeOptions.IsConfigured)
+        {
+            logger.LogError("Shopee shipping document requested but the Shopee integration is not configured");
+            return Result<byte[]>.Failure(ShopeeShopConnectionErrors.NotConfigured);
+        }
+
+        ShopeeShippingDocumentOrderRequest body = new([new ShopeeShippingDocumentOrderEntry(orderSn)]);
+
+        try
+        {
+            HttpClient client = httpClientFactory.CreateClient(HttpClientName);
+
+            string createUrl = BuildShopRequestUrl(shopeeOptions, CreateShippingDocumentPath, shopId, accessToken);
+            HttpResponseMessage createResponse = await client.PostAsJsonAsync(createUrl, body, cancellationToken);
+            if (!createResponse.IsSuccessStatusCode)
+            {
+                await LogFailureAsync(createResponse, "create shipping document", shopId, cancellationToken);
+                return Result<byte[]>.Failure(ShopeeOrderErrors.LabelFetchFailed);
+            }
+
+            ShopeeEnvelopeResponse? createPayload =
+                await createResponse.Content.ReadFromJsonAsync<ShopeeEnvelopeResponse>(cancellationToken);
+            bool documentAlreadyExists = string.Equals(
+                createPayload?.Error, ShippingDocumentExistError, StringComparison.OrdinalIgnoreCase);
+            if (createPayload is null || (!string.IsNullOrEmpty(createPayload.Error) && !documentAlreadyExists))
+            {
+                LogEnvelopeError(
+                    "create shipping document", shopId, createPayload?.Error, createPayload?.Message,
+                    createPayload?.RequestId);
+                return Result<byte[]>.Failure(ShopeeOrderErrors.LabelFetchFailed);
+            }
+
+            string downloadUrl = BuildShopRequestUrl(
+                shopeeOptions, DownloadShippingDocumentPath, shopId, accessToken);
+            HttpResponseMessage downloadResponse = await client.PostAsJsonAsync(downloadUrl, body, cancellationToken);
+            if (!downloadResponse.IsSuccessStatusCode)
+            {
+                await LogFailureAsync(downloadResponse, "download shipping document", shopId, cancellationToken);
+                return Result<byte[]>.Failure(ShopeeOrderErrors.LabelFetchFailed);
+            }
+
+            string? contentType = downloadResponse.Content.Headers.ContentType?.MediaType;
+            byte[] documentBytes = await downloadResponse.Content.ReadAsByteArrayAsync(cancellationToken);
+
+            // Shopee reports download failures as a JSON error envelope over HTTP 200;
+            // a successful download returns the PDF bytes with a binary content type.
+            if (contentType is not null && contentType.Contains("json", StringComparison.OrdinalIgnoreCase))
+            {
+                ShopeeEnvelopeResponse? downloadPayload =
+                    JsonSerializer.Deserialize<ShopeeEnvelopeResponse>(documentBytes);
+                LogEnvelopeError(
+                    "download shipping document", shopId, downloadPayload?.Error, downloadPayload?.Message,
+                    downloadPayload?.RequestId);
+                return Result<byte[]>.Failure(ShopeeOrderErrors.LabelFetchFailed);
+            }
+
+            return Result<byte[]>.Success(documentBytes);
+        }
+        catch (Exception ex) when (
+            ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            logger.LogError(ex, "Shopee shipping document call failed for shop {ShopId}", shopId);
+            return Result<byte[]>.Failure(ShopeeOrderErrors.LabelFetchFailed);
         }
     }
 

@@ -21,6 +21,7 @@ public static class ShopeeServiceExtensions
         services.AddHttpClient(ShopeeHttpGateway.HttpClientName, client => client.Timeout = s_httpTimeout);
 
         services.AddSingleton<IShopeeGateway, ShopeeHttpGateway>();
+        services.AddScoped<IShopeeWebhookSignatureVerifier, ShopeeWebhookSignatureVerifier>();
 
         return services;
     }

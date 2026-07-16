@@ -25,6 +25,15 @@ public sealed class ShopeeOptions
 
     public ShopeeStockSyncOptions StockSync { get; set; } = new();
 
+    /// <summary>
+    /// The exact public push URL registered in the Shopee Open Platform console
+    /// (e.g. https://api.wrapsfer.com/api/v1/shopee/webhook). Shopee signs each push
+    /// over this URL plus the raw body, so it must match the console value byte-for-byte.
+    /// </summary>
+    public string PushCallbackUrl { get; set; } = string.Empty;
+
+    public ShopeeOrderSyncOptions OrderSync { get; set; } = new();
+
     public bool IsConfigured =>
         PartnerId > 0
         && !string.IsNullOrWhiteSpace(PartnerKey)

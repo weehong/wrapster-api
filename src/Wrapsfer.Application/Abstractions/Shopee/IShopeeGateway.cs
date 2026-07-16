@@ -55,4 +55,44 @@ public interface IShopeeGateway
         long modelId,
         int quantity,
         CancellationToken cancellationToken = default);
+
+    Task<Result<ShopeeOrderList>> GetOrderListAsync(
+        long shopId,
+        string accessToken,
+        DateTime updatedFrom,
+        DateTime updatedTo,
+        string? cursor,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
+    Task<Result<ShopeeOrderDetail>> GetOrderDetailAsync(
+        long shopId,
+        string accessToken,
+        string orderSn,
+        CancellationToken cancellationToken = default);
+
+    Task<Result<ShopeeShippingParameter>> GetShippingParameterAsync(
+        long shopId,
+        string accessToken,
+        string orderSn,
+        CancellationToken cancellationToken = default);
+
+    Task<Result> ShipOrderAsync(
+        long shopId,
+        string accessToken,
+        ShopeeShipOrderRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<Result<string?>> GetTrackingNumberAsync(
+        long shopId,
+        string accessToken,
+        string orderSn,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Calls create_shipping_document then download_shipping_document; returns the PDF bytes.</summary>
+    Task<Result<byte[]>> DownloadShippingDocumentAsync(
+        long shopId,
+        string accessToken,
+        string orderSn,
+        CancellationToken cancellationToken = default);
 }

@@ -23,6 +23,10 @@ internal static class ShopeeRequestSigner
         long shopId) =>
         Sign(partnerKey, $"{partnerId}{apiPath}{timestamp}{accessToken}{shopId}");
 
+    /// <summary>Push callbacks: base string is {push_url}|{raw_body}, keyed by the partner key.</summary>
+    public static string SignPushCallback(string partnerKey, string pushUrl, string body) =>
+        Sign(partnerKey, $"{pushUrl}|{body}");
+
     private static string Sign(string partnerKey, string baseString)
     {
         byte[] hash = HMACSHA256.HashData(
