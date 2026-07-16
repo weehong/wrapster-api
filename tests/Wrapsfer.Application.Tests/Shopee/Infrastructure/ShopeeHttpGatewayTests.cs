@@ -185,4 +185,51 @@ public class ShopeeHttpGatewayTests
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(ShopeeProductLinkErrors.ItemFetchFailed);
     }
+
+    [Fact]
+    public async Task DownloadShippingDocumentAsync_WhenCreateAndDownloadSucceed_ReturnsPdfBytes()
+    {
+        byte[] pdfBytes = "%PDF-1.4 fake label"u8.ToArray();
+        QueueHttpMessageHandler handler = new();
+        handler.EnqueueJson("""{"error":"","message":"","request_id":"abc"}""");
+        handler.EnqueueBytes(pdfBytes);
+        ShopeeHttpGateway gateway = CreateGateway(ConfiguredOptions(), handler);
+
+        Result<byte[]> result = await gateway.DownloadShippingDocumentAsync(
+            123456, "access-token", "order-sn-1", CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeEquivalentTo(pdfBytes);
+    }
+
+    [Fact]
+    public async Task DownloadShippingDocumentAsync_WhenDocumentAlreadyExists_StillDownloadsPdfBytes()
+    {
+        byte[] pdfBytes = "%PDF-1.4 fake label"u8.ToArray();
+        QueueHttpMessageHandler handler = new();
+        handler.EnqueueJson("""{"error":"logistics.shipping_document_exist","message":"already created"}""");
+        handler.EnqueueBytes(pdfBytes);
+        ShopeeHttpGateway gateway = CreateGateway(ConfiguredOptions(), handler);
+
+        Result<byte[]> result = await gateway.DownloadShippingDocumentAsync(
+            123456, "access-token", "order-sn-1", CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeEquivalentTo(pdfBytes);
+    }
+
+    [Fact]
+    public async Task DownloadShippingDocumentAsync_WhenDownloadReturnsJsonErrorBody_ReturnsLabelFetchFailed()
+    {
+        QueueHttpMessageHandler handler = new();
+        handler.EnqueueJson("""{"error":"","message":"","request_id":"abc"}""");
+        handler.EnqueueJson("""{"error":"logistics.document_not_ready","message":"not ready yet"}""");
+        ShopeeHttpGateway gateway = CreateGateway(ConfiguredOptions(), handler);
+
+        Result<byte[]> result = await gateway.DownloadShippingDocumentAsync(
+            123456, "access-token", "order-sn-1", CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Be(ShopeeOrderErrors.LabelFetchFailed);
+    }
 }

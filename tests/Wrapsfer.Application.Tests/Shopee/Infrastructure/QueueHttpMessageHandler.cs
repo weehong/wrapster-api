@@ -14,6 +14,16 @@ internal sealed class QueueHttpMessageHandler : HttpMessageHandler
             Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json")
         });
 
+    public void EnqueueBytes(
+        byte[] bytes, string contentType = "application/pdf", HttpStatusCode statusCode = HttpStatusCode.OK) =>
+        _responses.Enqueue(_ => new HttpResponseMessage(statusCode)
+        {
+            Content = new ByteArrayContent(bytes)
+            {
+                Headers = { ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType) }
+            }
+        });
+
     protected override Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken)
