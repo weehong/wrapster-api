@@ -76,6 +76,33 @@ internal sealed class S3ReportStorage(
         await s3Client.DeleteObjectAsync(request, cancellationToken);
     }
 
+    public async Task<byte[]?> DownloadAsync(string objectKey, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(_options.BucketName))
+        {
+            throw new InvalidOperationException(
+                $"{ReportStorageOptions.SectionName}:BucketName is not configured; cannot download reports.");
+        }
+
+        try
+        {
+            GetObjectRequest request = new()
+            {
+                BucketName = _options.BucketName,
+                Key = objectKey
+            };
+
+            using GetObjectResponse response = await s3Client.GetObjectAsync(request, cancellationToken);
+            using MemoryStream buffer = new();
+            await response.ResponseStream.CopyToAsync(buffer, cancellationToken);
+            return buffer.ToArray();
+        }
+        catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
     private string BuildKey(string objectKey)
     {
         string relativeKey = objectKey.TrimStart('/');

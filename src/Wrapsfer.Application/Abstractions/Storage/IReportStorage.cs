@@ -29,4 +29,10 @@ public interface IReportStorage
     /// <param name="objectKey">The same report-relative key passed to <see cref="UploadAsync"/>.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     Task DeleteAsync(string objectKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Downloads a previously uploaded object's bytes. Returns null when the object
+    /// does not exist (caller re-fetches from the source and re-uploads).
+    /// </summary>
+    Task<byte[]?> DownloadAsync(string objectKey, CancellationToken cancellationToken = default);
 }
