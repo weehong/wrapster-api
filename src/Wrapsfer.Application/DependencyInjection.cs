@@ -42,6 +42,7 @@ public static class DependencyInjection
         services.AddScoped<ShopeeConnectionTokenRefresher>();
         services.AddScoped<ShopeeOrderCancellationService>();
         services.AddScoped<ShopeeOrderIngestionService>();
+        services.AddScoped<ShopeeOrderShipmentCompletionService>();
 
         services.AddSingleton<StockReportProrationCalculator>();
         services.AddScoped<StockReportBillingStatusFactory>();
