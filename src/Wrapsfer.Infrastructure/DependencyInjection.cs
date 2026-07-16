@@ -119,6 +119,7 @@ public static class DependencyInjection
         services.AddHostedService<ShopeeTokenRefreshJob>();
         services.AddHostedService<ShopeeStockSyncJob>();
         services.AddHostedService<ShopeeWebhookDispatchJob>();
+        services.AddHostedService<ShopeeOrderReconciliationJob>();
         services.AddHostedService<StockMovementBackfillJob>();
         services.AddHostedService<AuditLogActorBackfillJob>();
 
