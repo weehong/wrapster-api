@@ -8,6 +8,7 @@ using Wrapsfer.Api.Contracts;
 using Wrapsfer.Application.Shopee.Commands.CompleteShopeeAuthorization;
 using Wrapsfer.Application.Shopee.Commands.CreateShopeeLinkedProduct;
 using Wrapsfer.Application.Shopee.Commands.DisconnectShopeeShop;
+using Wrapsfer.Application.Shopee.Commands.IngestShopeeWebhook;
 using Wrapsfer.Application.Shopee.Commands.LinkShopeeProduct;
 using Wrapsfer.Application.Shopee.Commands.SyncShopeeProductStock;
 using Wrapsfer.Application.Shopee.Commands.UnlinkShopeeProduct;
@@ -17,6 +18,7 @@ using Wrapsfer.Application.Shopee.Queries.GetShopeeShopItems;
 using Wrapsfer.Application.Shopee.Queries.ListShopeeProductLinks;
 using Wrapsfer.Application.Shopee.Responses;
 using Wrapsfer.Domain.Common;
+using Wrapsfer.Domain.Errors;
 using Wrapsfer.Infrastructure.Authentication;
 using Wrapsfer.Infrastructure.Shopee;
 
@@ -60,6 +62,29 @@ public sealed class ShopeeController(
             $"{options.FrontendBaseUrl.TrimEnd('/')}{options.AuthorizationCallbackPath}",
             query);
         return Redirect(frontendCallbackUrl);
+    }
+
+    // Shopee push mechanism. Anonymous by necessity; authenticity is the HMAC signature over
+    // the registered push URL + raw body. Must ack fast — Shopee disables slow endpoints —
+    // so this only verifies, stores, and returns; processing happens in ShopeeWebhookDispatchJob.
+    [AllowAnonymous]
+    [HttpPost("webhook")]
+    public async Task<IActionResult> Webhook(CancellationToken cancellationToken)
+    {
+        using StreamReader reader = new(Request.Body);
+        string body = await reader.ReadToEndAsync(cancellationToken);
+        string authorizationHeader = Request.Headers.Authorization.ToString();
+
+        Result result = await sender.Send(
+            new IngestShopeeWebhookCommand(body, authorizationHeader), cancellationToken);
+        if (result.IsSuccess)
+        {
+            return Ok();
+        }
+
+        return result.Error.Code == ShopeeWebhookEventErrors.InvalidSignature.Code
+            ? Unauthorized()
+            : BadRequest();
     }
 
     [HttpGet("{tenantId}/connection")]
