@@ -180,6 +180,56 @@ public sealed class ShipShopeeOrderCommandHandlerTests
             It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Fact]
+    public async Task Handle_ShipmentFailedWithArrangedTimestamp_SkipsShipOrderAndResumesFromCompletion()
+    {
+        Product product = ProductTestFactory.CreateSingle(TenantId, stockQuantity: 10);
+        ShopeeOrder order = CreateOrder(product.Id);
+        order.MarkShipmentArranged("u", Now);
+        order.MarkShipmentFailed("Shopee.Rejected: bad", Now);
+        ShopeeShopConnection connection = CreateConnection();
+        SetupOrderAndConnection(order, connection);
+        _gateway
+            .Setup(g => g.GetTrackingNumberAsync(
+                connection.ShopId, connection.AccessToken, OrderSn, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<string?>.Success("TRACK1"));
+        _waybillRepository
+            .Setup(r => r.ExistsByNumberAsync("TRACK1", TenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _productRepository
+            .Setup(r => r.GetByIdsAsync(It.IsAny<IEnumerable<Guid>>(), TenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Product> { product });
+
+        Result<ShopeeOrderResponse> result = await _handler.Handle(
+            new ShipShopeeOrderCommand(TenantId, OrderId, "dropoff", null, null, null),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        order.Status.Should().Be(ShopeeOrderStatus.Shipped);
+        order.TrackingNumber.Should().Be("TRACK1");
+        _gateway.Verify(g => g.ShipOrderAsync(
+            It.IsAny<long>(), It.IsAny<string>(), It.IsAny<ShopeeShipOrderRequest>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_ShopeeStatusAlreadyShipped_ReturnsAlreadyArrangedWithoutCallingGateway()
+    {
+        ShopeeOrder order = CreateOrder(Guid.NewGuid(), shopeeStatus: "SHIPPED");
+        ShopeeShopConnection connection = CreateConnection();
+        SetupOrderAndConnection(order, connection);
+
+        Result<ShopeeOrderResponse> result = await _handler.Handle(
+            new ShipShopeeOrderCommand(TenantId, OrderId, "dropoff", null, null, null),
+            CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Be(ShopeeOrderErrors.AlreadyArrangedOnShopee);
+        _gateway.Verify(g => g.ShipOrderAsync(
+            It.IsAny<long>(), It.IsAny<string>(), It.IsAny<ShopeeShipOrderRequest>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     private void SetupOrderAndConnection(ShopeeOrder order, ShopeeShopConnection connection)
     {
         _orderRepository

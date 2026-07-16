@@ -123,4 +123,9 @@ public static class ShopeeOrderErrors
         "ShopeeOrder.CancellationRequested",
         "The buyer has requested cancellation on Shopee; resolve it there before arranging shipment",
         ErrorType.Conflict);
+
+    public static readonly Error AlreadyArrangedOnShopee = new(
+        "ShopeeOrder.AlreadyArrangedOnShopee",
+        "This order's shipment was already arranged on Shopee",
+        ErrorType.Conflict);
 }

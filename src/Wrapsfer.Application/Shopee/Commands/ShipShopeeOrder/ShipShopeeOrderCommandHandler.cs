@@ -49,6 +49,15 @@ internal sealed class ShipShopeeOrderCommandHandler(
             return Result<ShopeeOrderResponse>.Failure(ShopeeOrderErrors.CancellationRequested);
         }
 
+        // ShipmentFailed with an arrangement timestamp means ship_order already succeeded
+        // on Shopee's side and only local completion failed (tracking conflict, stock,
+        // missing product). Re-running ship_order can never succeed here — Shopee would
+        // reject the order as already arranged. Skip straight to the completion retry.
+        if (order.Status == ShopeeOrderStatus.ShipmentFailed && order.ShipmentArrangedAt is not null)
+        {
+            return await ResumeAfterArrangedShipmentAsync(order, request, cancellationToken);
+        }
+
         ShopeeShopConnection? connection = await connectionRepository.GetByTenantIdAsync(
             request.TenantId, cancellationToken);
         if (connection is null)
@@ -57,6 +66,15 @@ internal sealed class ShipShopeeOrderCommandHandler(
         }
 
         await tokenRefresher.RefreshIfNeededAsync(connection, cancellationToken);
+
+        // The order's local ReadyToShip/ShipmentFailed status can be stale relative to
+        // Shopee if the shipment was already arranged there (Seller Centre, another
+        // integration, or a prior attempt whose local status update was lost). Re-running
+        // ship_order against Shopee in that state only errors out on Shopee's side.
+        if (order.ShopeeStatus is "PROCESSED" or "SHIPPED" or "COMPLETED" or "TO_CONFIRM_RECEIVE")
+        {
+            return Result<ShopeeOrderResponse>.Failure(ShopeeOrderErrors.AlreadyArrangedOnShopee);
+        }
 
         ShopeeShipOrderRequest shipRequest = request.Method == "pickup"
             ? new ShopeeShipOrderRequest(
@@ -85,15 +103,49 @@ internal sealed class ShipShopeeOrderCommandHandler(
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // Opportunistic: Shopee often assigns the tracking number within seconds. A failure
-        // here is not an error — the tracking push or reconciliation completes it later.
+        await TryCompleteWithTrackingAsync(order, connection, cancellationToken);
+
+        return Result<ShopeeOrderResponse>.Success(ShopeeOrderResponseMapper.Map(order));
+    }
+
+    /// <summary>
+    /// ShipmentFailed with an arrangement timestamp means ship_order already succeeded on
+    /// Shopee's side and only local completion failed (tracking conflict, stock, missing
+    /// product). Re-running ship_order can never succeed here — Shopee would reject the
+    /// order as already arranged — so skip straight to the completion retry.
+    /// </summary>
+    private async Task<Result<ShopeeOrderResponse>> ResumeAfterArrangedShipmentAsync(
+        ShopeeOrder order, ShipShopeeOrderCommand request, CancellationToken cancellationToken)
+    {
+        Result arrangeResult = order.MarkShipmentArranged(tenantContext.Username, DateTime.UtcNow);
+        if (arrangeResult.IsFailure)
+        {
+            return Result<ShopeeOrderResponse>.Failure(arrangeResult.Error);
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        ShopeeShopConnection? connection = await connectionRepository.GetByTenantIdAsync(
+            request.TenantId, cancellationToken);
+        if (connection is not null)
+        {
+            await tokenRefresher.RefreshIfNeededAsync(connection, cancellationToken);
+            await TryCompleteWithTrackingAsync(order, connection, cancellationToken);
+        }
+
+        return Result<ShopeeOrderResponse>.Success(ShopeeOrderResponseMapper.Map(order));
+    }
+
+    // Opportunistic: Shopee often assigns the tracking number within seconds. A failure
+    // here is not an error — the tracking push or reconciliation completes it later.
+    private async Task TryCompleteWithTrackingAsync(
+        ShopeeOrder order, ShopeeShopConnection connection, CancellationToken cancellationToken)
+    {
         Result<string?> trackingResult = await shopeeGateway.GetTrackingNumberAsync(
             connection.ShopId, connection.AccessToken, order.OrderSn, cancellationToken);
         if (trackingResult.IsSuccess && !string.IsNullOrWhiteSpace(trackingResult.Value))
         {
             await completionService.CompleteAsync(order, trackingResult.Value, cancellationToken);
         }
-
-        return Result<ShopeeOrderResponse>.Success(ShopeeOrderResponseMapper.Map(order));
     }
 }
