@@ -50,9 +50,13 @@ public sealed class ShopeeOrderShipmentCompletionServiceTests
     {
         Product product = ProductTestFactory.CreateSingle(TenantId, stockQuantity: 10);
         ShopeeOrder order = CreateOrder(product.Id, arranged: true);
+        Waybill? addedWaybill = null;
         _waybillRepository
             .Setup(r => r.ExistsByNumberAsync(TrackingNumber, TenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
+        _waybillRepository
+            .Setup(r => r.Add(It.IsAny<Waybill>()))
+            .Callback<Waybill>(w => addedWaybill = w);
         _productRepository
             .Setup(r => r.GetByIdsAsync(It.IsAny<IEnumerable<Guid>>(), TenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Product> { product });
@@ -64,7 +68,13 @@ public sealed class ShopeeOrderShipmentCompletionServiceTests
         _waybillRepository.Verify(r => r.Add(It.IsAny<Waybill>()), Times.Once);
         order.Status.Should().Be(ShopeeOrderStatus.Shipped);
         order.TrackingNumber.Should().Be(TrackingNumber);
-        order.WaybillId.Should().NotBeNull();
+        addedWaybill.Should().NotBeNull();
+        addedWaybill!.WaybillNumber.Should().Be(TrackingNumber);
+        WaybillItem waybillItem = addedWaybill.Items.Should().ContainSingle().Subject;
+        waybillItem.ProductId.Should().Be(product.Id);
+        waybillItem.ProductBarcode.Should().Be(product.Barcode);
+        waybillItem.Quantity.Should().Be(2);
+        order.WaybillId.Should().Be(addedWaybill.Id);
         product.ReservedQuantity.Should().Be(2);
     }
 
@@ -84,6 +94,7 @@ public sealed class ShopeeOrderShipmentCompletionServiceTests
         result.Error.Should().Be(ShopeeOrderErrors.TrackingNumberConflict);
         order.Status.Should().Be(ShopeeOrderStatus.ShipmentFailed);
         order.LastShipError.Should().Be(ShopeeOrderErrors.TrackingNumberConflict.Description);
+        order.TrackingNumber.Should().BeNull();
         _waybillRepository.Verify(r => r.Add(It.IsAny<Waybill>()), Times.Never);
     }
 
