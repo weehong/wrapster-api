@@ -189,7 +189,7 @@ public sealed class ShopeeOrder : AuditableEntity
     {
         if (Status is not (ShopeeOrderStatus.ReadyToShip or ShopeeOrderStatus.AwaitingTracking))
         {
-            return Result.Failure(ShopeeOrderErrors.NotAwaitingTracking);
+            return Result.Failure(ShopeeOrderErrors.CannotFailShipment);
         }
 
         if (string.IsNullOrWhiteSpace(error))

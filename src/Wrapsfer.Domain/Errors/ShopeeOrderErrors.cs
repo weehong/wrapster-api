@@ -47,6 +47,11 @@ public static class ShopeeOrderErrors
         "A tracking number must be assigned before linking a waybill",
         ErrorType.Conflict);
 
+    public static readonly Error CannotFailShipment = new(
+        "ShopeeOrder.CannotFailShipment",
+        "Shipment failure can only be recorded while shipment is being arranged",
+        ErrorType.Conflict);
+
     public static readonly Error InvalidWaybillId = new(
         "ShopeeOrder.InvalidWaybillId", "Waybill ID is required", ErrorType.Validation);
 

@@ -168,6 +168,16 @@ public sealed class ShopeeOrderTests
     }
 
     [Fact]
+    public void MarkShipmentFailed_WhenCancelled_FailsWithCannotFailShipment()
+    {
+        ShopeeOrder order = CreateOrder(Item(Guid.NewGuid()));
+        order.MarkCancelled(Now);
+        Result result = order.MarkShipmentFailed("x", Now);
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Be(ShopeeOrderErrors.CannotFailShipment);
+    }
+
+    [Fact]
     public void MarkLabelStored_WhenNotShipped_Fails()
     {
         ShopeeOrder order = CreateOrder(Item(Guid.NewGuid()));
