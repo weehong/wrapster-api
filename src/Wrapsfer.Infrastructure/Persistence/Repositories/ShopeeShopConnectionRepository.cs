@@ -27,6 +27,16 @@ internal sealed class ShopeeShopConnectionRepository(ApplicationDbContext contex
             .OrderBy(c => c.AccessTokenExpiresAt)
             .ToListAsync(cancellationToken);
 
+    public async Task<ShopeeShopConnection?> GetByShopIdAsync(
+        long shopId,
+        CancellationToken cancellationToken = default) =>
+        await context.ShopeeShopConnections
+            .FirstOrDefaultAsync(c => c.ShopId == shopId, cancellationToken);
+
+    public async Task<IReadOnlyList<ShopeeShopConnection>> ListAllAsync(
+        CancellationToken cancellationToken = default) =>
+        await context.ShopeeShopConnections.ToListAsync(cancellationToken);
+
     public void Add(ShopeeShopConnection connection) =>
         context.ShopeeShopConnections.Add(connection);
 

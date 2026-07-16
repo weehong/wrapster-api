@@ -81,6 +81,8 @@ public static class DependencyInjection
         services.AddScoped<IStripeWebhookEventRepository, StripeWebhookEventRepository>();
         services.AddScoped<IShopeeShopConnectionRepository, ShopeeShopConnectionRepository>();
         services.AddScoped<IShopeeProductLinkRepository, ShopeeProductLinkRepository>();
+        services.AddScoped<IShopeeOrderRepository, ShopeeOrderRepository>();
+        services.AddScoped<IShopeeWebhookEventRepository, ShopeeWebhookEventRepository>();
 
         services.AddKeycloakAuthentication(configuration);
         services.AddQueueService(configuration);

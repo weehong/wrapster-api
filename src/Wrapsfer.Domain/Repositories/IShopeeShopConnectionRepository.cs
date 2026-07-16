@@ -21,6 +21,18 @@ public interface IShopeeShopConnectionRepository
         DateTime refreshTokenExpiresAfter,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Resolves the connection owning a Shopee shop ID. Spans all tenants by design —
+    /// used only to route incoming Shopee push messages to a tenant.
+    /// </summary>
+    Task<ShopeeShopConnection?> GetByShopIdAsync(long shopId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lists every connection. Spans all tenants by design — used only by the
+    /// order reconciliation background job.
+    /// </summary>
+    Task<IReadOnlyList<ShopeeShopConnection>> ListAllAsync(CancellationToken cancellationToken = default);
+
     void Add(ShopeeShopConnection connection);
 
     void Remove(ShopeeShopConnection connection);

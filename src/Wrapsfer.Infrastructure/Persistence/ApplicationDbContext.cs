@@ -28,6 +28,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<StripeWebhookEvent> StripeWebhookEvents => Set<StripeWebhookEvent>();
     public DbSet<ShopeeShopConnection> ShopeeShopConnections => Set<ShopeeShopConnection>();
     public DbSet<ShopeeProductLink> ShopeeProductLinks => Set<ShopeeProductLink>();
+    public DbSet<ShopeeOrder> ShopeeOrders => Set<ShopeeOrder>();
+    public DbSet<ShopeeOrderItem> ShopeeOrderItems => Set<ShopeeOrderItem>();
+    public DbSet<ShopeeWebhookEvent> ShopeeWebhookEvents => Set<ShopeeWebhookEvent>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
