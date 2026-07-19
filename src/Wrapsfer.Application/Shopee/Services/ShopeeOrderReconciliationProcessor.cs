@@ -31,11 +31,22 @@ public sealed class ShopeeOrderReconciliationProcessor(
         IReadOnlyList<ShopeeShopConnection> connections =
             await connectionRepository.ListAllAsync(cancellationToken);
 
-        foreach (ShopeeShopConnection connection in connections)
+        foreach (ShopeeShopConnection listedConnection in connections)
         {
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
+                // A ClearChangeTracker during a prior sweep detaches the connections loaded
+                // up front; a token rotation on a detached connection would silently not
+                // persist, killing the stored refresh token (Shopee refresh tokens are
+                // single-use). Fetch each connection fresh for its own sweep.
+                ShopeeShopConnection? connection = await connectionRepository.GetByTenantIdAsync(
+                    listedConnection.TenantId, cancellationToken);
+                if (connection is null)
+                {
+                    continue;
+                }
+
                 await SweepConnectionAsync(connection, windowHours, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -45,7 +56,7 @@ public sealed class ShopeeOrderReconciliationProcessor(
             catch (Exception ex)
             {
                 logger.LogError(ex,
-                    "Shopee order reconciliation failed for tenant {TenantId}", connection.TenantId);
+                    "Shopee order reconciliation failed for tenant {TenantId}", listedConnection.TenantId);
             }
         }
 
@@ -98,11 +109,22 @@ public sealed class ShopeeOrderReconciliationProcessor(
         IReadOnlyList<ShopeeOrder> stuckOrders = await orderRepository.ListAwaitingTrackingAsync(
             arrangedBefore, TrackingRetryBatchSize, cancellationToken);
 
-        foreach (ShopeeOrder order in stuckOrders)
+        foreach (ShopeeOrder stuckOrder in stuckOrders)
         {
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
+                // A ClearChangeTracker in a prior iteration detaches the orders loaded in the
+                // batch list; completing a detached order would insert the waybill and persist
+                // the reservation while the order's own tracking/status changes silently don't
+                // save. Fetch each order fresh for its own iteration.
+                ShopeeOrder? order = await orderRepository.GetByIdAsync(
+                    stuckOrder.Id, stuckOrder.TenantId, cancellationToken);
+                if (order is null)
+                {
+                    continue;
+                }
+
                 await RetryOrderTrackingAsync(order, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -113,7 +135,7 @@ public sealed class ShopeeOrderReconciliationProcessor(
             {
                 logger.LogError(ex,
                     "Shopee order {OrderSn} tracking retry threw for tenant {TenantId}",
-                    order.OrderSn, order.TenantId);
+                    stuckOrder.OrderSn, stuckOrder.TenantId);
                 unitOfWork.ClearChangeTracker();
             }
         }

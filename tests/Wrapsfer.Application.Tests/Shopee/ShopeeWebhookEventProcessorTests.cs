@@ -86,9 +86,10 @@ public sealed class ShopeeWebhookEventProcessorTests
             .Setup(r => r.ListPendingAsync(It.IsAny<DateTime>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(events);
 
-        // Mirrors the fresh reload the processor performs after a failure/ignored result:
-        // in these mock-based tests there is no real DbContext to re-fetch from, so the
-        // same in-memory instance stands in for "the row as it exists in the database".
+        // Mirrors the fresh reloads the processor performs (at the start of every iteration
+        // and again after a failure/ignored result): in these mock-based tests there is no
+        // real DbContext to re-fetch from, so the same in-memory instance stands in for
+        // "the row as it exists in the database".
         foreach (ShopeeWebhookEvent webhookEvent in events)
         {
             _eventRepository
@@ -255,7 +256,51 @@ public sealed class ShopeeWebhookEventProcessorTests
         webhookEvent.Status.Should().Be(ShopeeWebhookEventStatus.Failed);
         order.Status.Should().Be(ShopeeOrderStatus.Cancelled);
         _unitOfWork.Verify(u => u.ClearChangeTracker(), Times.AtLeastOnce);
+        // Once at the start of the iteration, once after the failure's tracker clear.
         _eventRepository.Verify(
-            r => r.GetByIdAsync(webhookEvent.Id, It.IsAny<CancellationToken>()), Times.Once);
+            r => r.GetByIdAsync(webhookEvent.Id, It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task RunAsync_SecondEventAfterFirstFailureCleared_MarksFreshInstanceProcessed()
+    {
+        // A failure's ClearChangeTracker detaches every entity loaded before it, including
+        // the rest of the batch. The processor must mark later events on freshly-loaded
+        // instances, never on the (now detached) instances from the batch list.
+        const string failingPayload = """{"code":3,"shop_id":1001,"data":{"ordersn":"SN1"}}""";
+        const string succeedingPayload = """{"code":3,"shop_id":1001,"data":{"ordersn":"SN2"}}""";
+        ShopeeWebhookEvent failingEvent =
+            CreateEvent(ShopeeWebhookEventProcessor.OrderStatusPushCode, failingPayload);
+        ShopeeWebhookEvent staleSecondEvent =
+            CreateEvent(ShopeeWebhookEventProcessor.OrderStatusPushCode, succeedingPayload);
+        ShopeeWebhookEvent freshSecondEvent =
+            CreateEvent(ShopeeWebhookEventProcessor.OrderStatusPushCode, succeedingPayload);
+        SetPendingEvents(failingEvent, staleSecondEvent);
+        _eventRepository
+            .Setup(r => r.GetByIdAsync(staleSecondEvent.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(freshSecondEvent);
+        _connectionRepository
+            .Setup(r => r.GetByShopIdAsync(ShopId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateConnection());
+        _orderRepository
+            .Setup(r => r.GetByOrderSnAsync(It.IsAny<string>(), TenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ShopeeOrder?)null);
+        _gateway
+            .Setup(g => g.GetOrderDetailAsync(ShopId, "access-token", "SN1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<ShopeeOrderDetail>.Failure(ShopeeOrderErrors.OrderDetailFetchFailed));
+        _gateway
+            .Setup(g => g.GetOrderDetailAsync(ShopId, "access-token", "SN2", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<ShopeeOrderDetail>.Success(CreateDetail("UNPAID")));
+
+        ShopeeWebhookEventProcessor processor = CreateProcessor();
+        ShopeeWebhookRunSummary summary = await processor.RunAsync(10, 5, CancellationToken.None);
+
+        summary.FailedCount.Should().Be(1);
+        summary.ProcessedCount.Should().Be(1);
+        failingEvent.Status.Should().Be(ShopeeWebhookEventStatus.Failed);
+        freshSecondEvent.Status.Should().Be(ShopeeWebhookEventStatus.Processed);
+        staleSecondEvent.Status.Should().Be(ShopeeWebhookEventStatus.Pending);
+        _eventRepository.Verify(
+            r => r.GetByIdAsync(staleSecondEvent.Id, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

@@ -75,10 +75,20 @@ public sealed class ShopeeOrderReconciliationProcessorTests
             NullLogger<ShopeeOrderReconciliationProcessor>.Instance);
     }
 
-    private static ShopeeShopConnection CreateConnection(string tenantId, long shopId, string accessToken) =>
-        ShopeeShopConnection.Create(
+    private ShopeeShopConnection CreateConnection(string tenantId, long shopId, string accessToken)
+    {
+        ShopeeShopConnection connection = ShopeeShopConnection.Create(
             tenantId, shopId, accessToken, $"{accessToken}-refresh",
             Now.AddDays(1), Now.AddDays(30), Now, "linker").Value;
+
+        // Mirrors the per-iteration fresh fetch the sweep performs: in these mock-based
+        // tests there is no real DbContext, so the same instance stands in for the reload.
+        _connectionRepository
+            .Setup(r => r.GetByTenantIdAsync(tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(connection);
+
+        return connection;
+    }
 
     private static ShopeeOrderDetail CreateDetail(string orderSn, string status) => new(
         orderSn, status, "MY", "buyer", "Jane", null, null, 10m, "MYR", null, "SPX", null,
@@ -174,13 +184,14 @@ public sealed class ShopeeOrderReconciliationProcessorTests
         _connectionRepository
             .Setup(r => r.ListAllAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<ShopeeShopConnection>());
-        _connectionRepository
-            .Setup(r => r.GetByTenantIdAsync(TenantA, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(connection);
         _orderRepository
             .Setup(r => r.ListAwaitingTrackingAsync(
                 It.IsAny<DateTime>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<ShopeeOrder> { order });
+        // Mirrors the per-iteration fresh fetch the tracking retry performs.
+        _orderRepository
+            .Setup(r => r.GetByIdAsync(order.Id, TenantA, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(order);
 
         return (connection, order);
     }

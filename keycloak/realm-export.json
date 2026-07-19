@@ -41,7 +41,10 @@
       "implicitFlowEnabled": false,
       "serviceAccountsEnabled": false,
       "protocol": "openid-connect",
-      "webOrigins": ["https://app.wrapsfer.dev"],
+      "webOrigins": [
+        "https://app.wrapsfer.dev",
+        "https://owner.playground.codes"
+      ],
       "defaultClientScopes": [
         "basic",
         "profile",

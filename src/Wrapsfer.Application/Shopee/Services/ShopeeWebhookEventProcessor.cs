@@ -42,9 +42,23 @@ public sealed class ShopeeWebhookEventProcessor(
         int failed = 0;
         int ignored = 0;
 
-        foreach (ShopeeWebhookEvent webhookEvent in events)
+        foreach (ShopeeWebhookEvent pendingEvent in events)
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            // A ClearChangeTracker in a prior iteration detaches every entity loaded before
+            // it, including the rest of this batch — mutations on a detached event would
+            // silently not persist. Work on a freshly-loaded instance every iteration.
+            ShopeeWebhookEvent? webhookEvent =
+                await eventRepository.GetByIdAsync(pendingEvent.Id, cancellationToken);
+            if (webhookEvent is null)
+            {
+                logger.LogWarning(
+                    "Shopee webhook event {EventId} could not be reloaded at the start of its "
+                    + "iteration; skipping", pendingEvent.Id);
+                continue;
+            }
+
             Result result;
             try
             {
