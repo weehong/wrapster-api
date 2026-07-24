@@ -15,4 +15,5 @@ public sealed record WaybillResponse(
     DateTime CreatedAt,
     DateTime? UpdatedAt,
     string? CreatedBy,
-    IReadOnlyList<WaybillItemResponse> Items);
+    IReadOnlyList<WaybillItemResponse> Items,
+    Guid? ShopeeOrderId);

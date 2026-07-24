@@ -12,6 +12,7 @@ namespace Wrapsfer.Application.Waybills.Queries.GetWaybillById;
 internal sealed class GetWaybillByIdQueryHandler(
     IWaybillRepository waybillRepository,
     IProductRepository productRepository,
+    IShopeeOrderRepository shopeeOrderRepository,
     ITenantContext tenantContext) : IQueryHandler<GetWaybillByIdQuery, WaybillResponse>
 {
     public async Task<Result<WaybillResponse>> Handle(GetWaybillByIdQuery request,
@@ -32,6 +33,9 @@ internal sealed class GetWaybillByIdQueryHandler(
             : (await productRepository.GetByIdsAsync(productIds, tenantId, cancellationToken))
             .ToDictionary(p => p.Id, p => p.Name);
 
-        return WaybillResponseMapper.ToResponse(waybill, namesById);
+        Guid? shopeeOrderId = await shopeeOrderRepository.FindIdByWaybillIdAsync(
+            waybill.Id, tenantId, cancellationToken);
+
+        return WaybillResponseMapper.ToResponse(waybill, namesById, shopeeOrderId);
     }
 }

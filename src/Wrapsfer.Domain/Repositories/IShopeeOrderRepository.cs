@@ -27,5 +27,12 @@ public interface IShopeeOrderRepository
     Task<IReadOnlyList<ShopeeOrder>> ListAwaitingTrackingAsync(
         DateTime arrangedBefore, int batchSize, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Returns the id of the Shopee order linked to <paramref name="waybillId"/>, or null
+    /// when the waybill did not originate from a Shopee shipment.
+    /// </summary>
+    Task<Guid?> FindIdByWaybillIdAsync(Guid waybillId, string tenantId,
+        CancellationToken cancellationToken = default);
+
     void Add(ShopeeOrder order);
 }

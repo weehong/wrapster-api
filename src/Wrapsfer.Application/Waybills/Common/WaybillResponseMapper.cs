@@ -5,7 +5,8 @@ namespace Wrapsfer.Application.Waybills.Common;
 
 internal static class WaybillResponseMapper
 {
-    internal static WaybillResponse ToResponse(Waybill waybill, IReadOnlyDictionary<Guid, string> productNamesById)
+    internal static WaybillResponse ToResponse(Waybill waybill, IReadOnlyDictionary<Guid, string> productNamesById,
+        Guid? shopeeOrderId = null)
     {
         List<WaybillItemResponse> itemResponses = waybill.Items
             .Select(i => new WaybillItemResponse(
@@ -29,6 +30,7 @@ internal static class WaybillResponseMapper
             waybill.CreatedAt,
             waybill.UpdatedAt,
             waybill.CreatedBy,
-            itemResponses);
+            itemResponses,
+            shopeeOrderId);
     }
 }

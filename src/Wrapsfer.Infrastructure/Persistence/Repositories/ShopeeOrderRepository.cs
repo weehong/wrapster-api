@@ -71,6 +71,15 @@ internal sealed class ShopeeOrderRepository(ApplicationDbContext context) : ISho
             .Take(batchSize)
             .ToListAsync(cancellationToken);
 
+    public async Task<Guid?> FindIdByWaybillIdAsync(
+        Guid waybillId,
+        string tenantId,
+        CancellationToken cancellationToken = default) =>
+        await context.ShopeeOrders
+            .Where(o => o.WaybillId == waybillId && o.TenantId == tenantId)
+            .Select(o => (Guid?)o.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
     public void Add(ShopeeOrder order) =>
         context.ShopeeOrders.Add(order);
 }
