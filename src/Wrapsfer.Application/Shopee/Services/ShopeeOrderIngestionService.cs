@@ -17,12 +17,15 @@ public sealed class ShopeeOrderIngestionService(
     IShopeeGateway shopeeGateway,
     IShopeeOrderRepository orderRepository,
     IShopeeProductLinkRepository linkRepository,
+    IFulfillmentDelegationRepository delegationRepository,
+    IProductRepository productRepository,
     ShopeeOrderCancellationService cancellationService,
     IUnitOfWork unitOfWork,
     ILogger<ShopeeOrderIngestionService> logger)
 {
     private const string StatusUnpaid = "UNPAID";
     private const string StatusCancelled = "CANCELLED";
+    private const string AutoMatchActor = "system:auto-match";
 
     public async Task<Result> IngestOrderAsync(
         ShopeeShopConnection connection, string orderSn, CancellationToken cancellationToken)
@@ -97,6 +100,19 @@ public sealed class ShopeeOrderIngestionService(
         Dictionary<(long ItemId, long ModelId), Guid> productByUnit = links.ToDictionary(
             l => (l.ShopeeItemId, l.ShopeeModelId), l => l.ProductId);
 
+        List<ShopeeOrderDetailItem> unresolved = items
+            .Where(i => !productByUnit.ContainsKey((i.ItemId, i.ModelId)))
+            .ToList();
+        if (unresolved.Count > 0)
+        {
+            Dictionary<(long ItemId, long ModelId), Guid> autoMatched =
+                await AutoMatchBySkuAsync(tenantId, unresolved, cancellationToken);
+            foreach (KeyValuePair<(long ItemId, long ModelId), Guid> match in autoMatched)
+            {
+                productByUnit[match.Key] = match.Value;
+            }
+        }
+
         return items
             .Select(i => new ShopeeOrderItemSnapshot(
                 i.ItemId,
@@ -109,6 +125,69 @@ public sealed class ShopeeOrderIngestionService(
                     ? productId
                     : null))
             .ToList();
+    }
+
+    /// <summary>
+    /// For tenants with an Active fulfillment delegation, unlinked order lines whose Shopee
+    /// SKU exactly matches a product barcode (ordinal, trimmed) are linked automatically.
+    /// The created ShopeeProductLink persists with the order in the caller's SaveChanges,
+    /// so future orders for the same item resolve from the link table directly.
+    /// </summary>
+    private async Task<Dictionary<(long ItemId, long ModelId), Guid>> AutoMatchBySkuAsync(
+        string tenantId,
+        IReadOnlyList<ShopeeOrderDetailItem> unresolved,
+        CancellationToken cancellationToken)
+    {
+        Dictionary<(long ItemId, long ModelId), Guid> matches = [];
+        FulfillmentDelegation? delegation =
+            await delegationRepository.GetByTenantIdAsync(tenantId, cancellationToken);
+        if (delegation is null || delegation.Status != FulfillmentDelegationStatus.Active)
+        {
+            return matches;
+        }
+
+        List<string> skus = unresolved
+            .Select(i => i.ItemSku?.Trim())
+            .Where(s => !string.IsNullOrEmpty(s))
+            .Cast<string>()
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (skus.Count == 0)
+        {
+            return matches;
+        }
+
+        IReadOnlyList<Product> products =
+            await productRepository.GetByBarcodesAsync(skus, tenantId, cancellationToken);
+        Dictionary<string, Guid> productByBarcode = products.ToDictionary(
+            p => p.Barcode, p => p.Id, StringComparer.Ordinal);
+
+        foreach (ShopeeOrderDetailItem item in unresolved)
+        {
+            string? sku = item.ItemSku?.Trim();
+            if (string.IsNullOrEmpty(sku)
+                || matches.ContainsKey((item.ItemId, item.ModelId))
+                || !productByBarcode.TryGetValue(sku, out Guid productId))
+            {
+                continue;
+            }
+
+            Result<ShopeeProductLink> linkResult = ShopeeProductLink.Create(
+                tenantId, productId, item.ItemId, item.ModelId,
+                item.ItemName, item.ModelName, item.ItemSku, AutoMatchActor);
+            if (linkResult.IsFailure)
+            {
+                logger.LogWarning(
+                    "Auto-match link creation failed for tenant {TenantId} item {ItemId}/{ModelId}: {ErrorCode}",
+                    tenantId, item.ItemId, item.ModelId, linkResult.Error.Code);
+                continue;
+            }
+
+            linkRepository.Add(linkResult.Value);
+            matches[(item.ItemId, item.ModelId)] = productId;
+        }
+
+        return matches;
     }
 
     private static ShopeeOrderSnapshot ToSnapshot(ShopeeOrderDetail detail) => new(

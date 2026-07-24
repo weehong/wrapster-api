@@ -23,6 +23,7 @@ public sealed class ShopeeWebhookEventProcessorTests
     private readonly Mock<IShopeeOrderRepository> _orderRepository = new();
     private readonly Mock<IShopeeGateway> _gateway = new();
     private readonly Mock<IShopeeProductLinkRepository> _linkRepository = new();
+    private readonly Mock<IFulfillmentDelegationRepository> _delegationRepository = new();
     private readonly Mock<IWaybillRepository> _waybillRepository = new();
     private readonly Mock<IProductRepository> _productRepository = new();
     private readonly Mock<IProductComponentRepository> _productComponentRepository = new();
@@ -45,6 +46,8 @@ public sealed class ShopeeWebhookEventProcessorTests
             _gateway.Object,
             _orderRepository.Object,
             _linkRepository.Object,
+            _delegationRepository.Object,
+            _productRepository.Object,
             cancellationService,
             _unitOfWork.Object,
             NullLogger<ShopeeOrderIngestionService>.Instance);
