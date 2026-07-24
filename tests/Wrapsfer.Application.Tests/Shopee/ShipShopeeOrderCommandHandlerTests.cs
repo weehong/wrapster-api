@@ -48,11 +48,9 @@ public sealed class ShipShopeeOrderCommandHandlerTests
         _handler = new ShipShopeeOrderCommandHandler(
             _orderRepository.Object,
             _connectionRepository.Object,
-            _gateway.Object,
             _tokenRefresher,
-            _completionService,
-            _tenantContext.Object,
-            _unitOfWork.Object);
+            new ShopeeOrderArrangeService(_gateway.Object, _completionService, _unitOfWork.Object),
+            _tenantContext.Object);
     }
 
     [Fact]

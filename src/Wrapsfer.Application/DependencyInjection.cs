@@ -43,6 +43,7 @@ public static class DependencyInjection
         services.AddScoped<ShopeeOrderCancellationService>();
         services.AddScoped<ShopeeOrderIngestionService>();
         services.AddScoped<ShopeeOrderShipmentCompletionService>();
+        services.AddScoped<ShopeeOrderArrangeService>();
         services.AddScoped<ShopeeWebhookEventProcessor>();
         services.AddScoped<ShopeeOrderReconciliationProcessor>();
 
