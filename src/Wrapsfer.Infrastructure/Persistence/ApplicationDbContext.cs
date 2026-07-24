@@ -31,6 +31,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<ShopeeOrder> ShopeeOrders => Set<ShopeeOrder>();
     public DbSet<ShopeeOrderItem> ShopeeOrderItems => Set<ShopeeOrderItem>();
     public DbSet<ShopeeWebhookEvent> ShopeeWebhookEvents => Set<ShopeeWebhookEvent>();
+    public DbSet<FulfillmentDelegation> FulfillmentDelegations => Set<FulfillmentDelegation>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     public void ClearChangeTracker() => ChangeTracker.Clear();
