@@ -142,17 +142,19 @@ and the delegation's `DefaultShippingMethod`:
   carriers).
 - **Pickup** chosen when: preferred=Pickup and `SupportsPickup`, or preferred=Dropoff
   and not `SupportsDropoff` but `SupportsPickup`.
-  Address = first address flagged default, else first; slot = earliest available
-  `PickupTimeId` for that address. No address or no slot → treat as "no usable
-  option" (permanent failure).
-- Neither method supported → permanent failure.
+  Address = first `PickupAddresses` entry exposing at least one time slot
+  (`ShopeePickupAddress` has no default flag); slot = that address's earliest slot by
+  `Date`. Pickup with no address/slot yields no concrete option.
+- Selection is two-stage: try the preferred method for a concrete option first, then
+  the other method. Only when neither yields a concrete option (including "pickup
+  supported but no address/slot anywhere") is the order marked failed — permanent.
 
 ### Transient vs permanent
 
 | Condition | Treatment |
 |---|---|
 | Token refresh failure, network error, param fetch failure | Transient — log, leave `ReadyToShip`, retry next cycle |
-| Neither method supported / pickup without address or slot | Permanent — `MarkShipmentFailed` |
+| No concrete option from either method (unsupported, or pickup without address/slot) | Permanent — `MarkShipmentFailed` |
 | `ship_order` rejected by Shopee | Permanent — `MarkShipmentFailed` (service behavior) |
 | Order past `ShipByDate` | Skipped — untouched, stays visible as Overdue partner-side |
 | Items still unresolved after relink pass | Untouched — stays `NeedsLinking` (`MarkShipmentFailed` is not legal from `NeedsLinking`) |
