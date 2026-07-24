@@ -34,6 +34,8 @@ public sealed class ShopeeOptions
 
     public ShopeeOrderSyncOptions OrderSync { get; set; } = new();
 
+    public ShopeeAutoArrangeOptions AutoArrange { get; set; } = new();
+
     public bool IsConfigured =>
         PartnerId > 0
         && !string.IsNullOrWhiteSpace(PartnerKey)
