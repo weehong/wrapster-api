@@ -128,4 +128,9 @@ public static class ShopeeOrderErrors
         "ShopeeOrder.AlreadyArrangedOnShopee",
         "This order's shipment was already arranged on Shopee",
         ErrorType.Conflict);
+
+    public static readonly Error NoUsableShippingOption = new(
+        "ShopeeOrder.NoUsableShippingOption",
+        "Neither dropoff nor pickup offers a usable shipping option for this order",
+        ErrorType.Failure);
 }
